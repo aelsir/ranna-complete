@@ -8,7 +8,7 @@ sidebar_position: 7
 1. Buy a domain, I recommend [Cloudflare](https://developers.cloudflare.com/registrar/get-started/register-domain/)
 2. Create a loops account and follow these [instructions](https://postmarkapp.com/support/article/1002-getting-started-with-postmark)
 3. On [loops](https://loops.so/docs/smtp/supabase) go to settings under integrations and choose supabase: 
-![alt text](asset/image.png)
+![Loops Supabase SMTP integration](assets/loops-supabase-smtp-integration.png)
 4. Then when you come back to the loops page select Setup SMTP
 5. This should automatically setup your authentication service, you should be able to go to Supabase > Authentication > Email > SMTP Settings.
 6. You need to setup your domain settings before being able to send emails through loops, navigate to [https://app.loops.so/sending-domain](https://app.loops.so/sending-domain) add the required records in your DNS settings of your personal domain. 
@@ -29,7 +29,7 @@ sidebar_position: 7
 ```
 Note: you can get the email template id from the url of the specific transaction on loops, for example: [https://app.loops.so/transactional/cmkh7o6lp09kx0iyv7cee6nhd](https://app.loops.so/transactional/cmkh7o6lp09kx0iyv7cee6nhd) 
 12. Inside the email template on loop click on the button, then press the data variable field next to Link and add confirmationURL there, this is the confirmationURL that will be sent from the supabase url.
-![alt text](asset/image-1.png)
+![Loops email template confirmation URL](assets/loops-email-template-confirmation-url.png)
 13. Next go to [https://app.loops.so/settings](https://app.loops.so/settings) and to the API Keys section, then select the key and paste the key inside the root .env file’s LOOPS_API_KEY file. 
 
 You are all done now.

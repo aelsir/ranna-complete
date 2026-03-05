@@ -1,15 +1,8 @@
----
-sidebar_position: 99
----
-# Coding Agent
-
-I am currently mostly coding with Claude Code.
-
-## Skills
+# Skills
 
 Skills are folders of instructions, scripts, and resources that Claude loads dynamically to improve performance on specialized tasks. Learn more about skills in the [official Anthropic documentation](https://support.claude.com/en/articles/12512176-what-are-skills).
 
-### Skills I actively use in my projects
+## Skills I actively use in my projects
 
 - [Supabase](https://github.com/supabase/agent-skills/tree/main)
 - [javascript-typescript](https://github.com/wshobson/agents/tree/main)
@@ -19,7 +12,7 @@ Skills are folders of instructions, scripts, and resources that Claude loads dyn
 - [frontend-design](https://github.com/anthropics/claude-code-plugins)
 - [landing-page-guide-v2](https://skillsmp.com/skills/bear2u-my-skills-claude-skills-landing-page-guide-v2-skill-md)
 
-### Frontend Design Installation
+## Frontend Design Installation
 
 ```bash
 # Add the Claude Code plugins Marketplace
