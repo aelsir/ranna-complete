@@ -1,9 +1,8 @@
 @import 'tailwindcss';
 @import './utils.css';
+@import './ranna.css';
 
 @import 'tw-animate-css';
-
-@custom-variant dark (&:where(.dark, .dark *));
 
 @utility container {
   margin-inline: auto;
@@ -126,36 +125,47 @@
 }
 
 :root {
-  --brand: oklch(66.5% 0.1804 47.04);
-  --brand-foreground: oklch(75.77% 0.159 55.91);
-
-  --background: oklch(97.65% 0.001 17.18);
-  --foreground: oklch(0.141 0.005 285.823);
+  --background: oklch(0.979 0.005 163);
+  --foreground: oklch(0.24 0.025 195);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
+  --card-foreground: oklch(0.24 0.025 195);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.141 0.005 285.823);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.927 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.24 0.025 195);
+  --primary: oklch(0.30 0.04 195);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0.22 118);
+  --secondary-foreground: oklch(0.22 0.03 195);
+  --muted: oklch(0.945 0.008 180);
+  --muted-foreground: oklch(0.55 0.03 195);
+  --accent: oklch(0.72 0.17 25);
+  --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.91 0.008 180);
+  --input: oklch(0.93 0.008 180);
+  --ring: oklch(0.92 0.22 118);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  --radius: 1rem;
 
-  --shadow: #00000008;
+  /* Extended palette */
+  --primary-glow: oklch(0.38 0.05 195);
+  --secondary-glow: oklch(0.94 0.18 118);
+  --accent-glow: oklch(0.78 0.14 25);
+  --surface-glass: oklch(1 0 0);
+  --surface-elevated: oklch(0.99 0.003 163);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px 0 oklch(0.30 0.04 195 / 0.04), 0 1px 2px -1px oklch(0.30 0.04 195 / 0.04);
+  --shadow-md: 0 4px 16px -2px oklch(0.30 0.04 195 / 0.08), 0 2px 6px -2px oklch(0.30 0.04 195 / 0.04);
+  --shadow-lg: 0 12px 40px -8px oklch(0.30 0.04 195 / 0.12), 0 4px 12px -4px oklch(0.30 0.04 195 / 0.06);
+  --shadow-glow-secondary: 0 4px 24px -4px oklch(0.92 0.22 118 / 0.35);
+  --shadow-glow-accent: 0 4px 20px -4px oklch(0.72 0.17 25 / 0.3);
+
+  --shadow: oklch(0.30 0.04 195 / 0.04);
 }
 
 .dark {
