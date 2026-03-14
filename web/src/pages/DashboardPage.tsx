@@ -1,0 +1,2542 @@
+import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Music,
+  ListMusic,
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  Save,
+  LogOut,
+  Loader2,
+  X,
+  Home,
+  CheckSquare,
+  Square,
+  Upload,
+  ImagePlus,
+  Clipboard,
+  GripVertical,
+  Play,
+  Pause,
+  Clock,
+  Filter,
+  Headphones,
+  CalendarIcon,
+  RotateCcw,
+  BarChart3,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { BulkUploadDialog } from "@/components/BulkUploadDialog";
+import { useToast } from "@/hooks/use-toast";
+import {
+  useMadhaat,
+  useMadiheen,
+  useRuwat,
+  useCollections,
+  useTuruq,
+  useFunun,
+  useCreateMadha,
+  useUpdateMadha,
+  useDeleteMadhaat,
+  useBulkUpdateMadhaat,
+  useCreateCollection,
+  useUpdateCollection,
+  useCreateMadih,
+  useUpdateMadih,
+  useDeleteMadiheen,
+  useCreateRawi,
+  useUpdateRawi,
+  useDeleteRuwat,
+  useAdminMadhaat,
+  useSearch,
+  useAdminCollections,
+} from "@/lib/api/hooks";
+import type { MadhaWithRelations, Collection, MadhaInsert, Madih, MadihInsert, Rawi, RawiInsert } from "@/types/database";
+import { uploadToR2 } from "@/lib/upload";
+import { getImageUrl } from "@/lib/format";
+import ImageCropDialog from "@/components/ImageCropDialog";
+import AnalyticsSection from "@/components/AnalyticsSection";
+
+type Track = {
+  id: string;
+  title: string;
+  artistId: string;
+  artistName: string;
+  narratorId: string;
+  narratorName: string;
+  duration: string;
+};
+
+type Playlist = {
+  id: string;
+  title: string;
+  desc: string;
+  image: string;
+  trackIds: string[];
+};
+import { Link } from "react-router-dom";
+import { usePlayer } from "@/context/PlayerContext";
+import { useAuth } from "@/context/AuthContext";
+
+type SidebarItem = "madhat" | "playlists" | "madiheen" | "ruwat" | "analytics";
+
+interface ExtendedTrack extends Track {
+  lyrics?: string;
+  tariqa?: string;
+  fan?: string;
+  notes?: string;
+  location?: string;
+  updatedAt?: string;
+  thumbnail?: string;
+  playCount?: number;
+  audioUrl?: string;
+  imageUrl?: string;
+}
+
+interface ExtendedPlaylist extends Playlist {
+  isActive: boolean;
+  order: number;
+}
+
+const ITEMS_PER_PAGE = 25;
+
+// Completion status helper
+function getCompletionStatus(track: ExtendedTrack): "complete" | "partial" | "basic" {
+  const hasLyrics = !!track.lyrics;
+  const hasTariqa = !!track.tariqa;
+  const hasFan = !!track.fan;
+  if (hasLyrics && hasTariqa && hasFan) return "complete";
+  if (hasLyrics || hasTariqa || hasFan) return "partial";
+  return "basic";
+}
+
+function CompletionRing({ status }: { status: "complete" | "partial" | "basic" }) {
+  const colors = {
+    complete: "border-green-500 bg-green-500/20",
+    partial: "border-yellow-500 bg-yellow-500/20",
+    basic: "border-muted-foreground/30 bg-muted/30",
+  };
+  const dotColors = {
+    complete: "bg-green-500",
+    partial: "bg-yellow-500",
+    basic: "bg-muted-foreground/40",
+  };
+  return (
+    <div className={`h-3 w-3 rounded-full border-2 flex items-center justify-center ${colors[status]}`}>
+      <div className={`h-1.5 w-1.5 rounded-full ${dotColors[status]}`} />
+    </div>
+  );
+}
+
+function DashboardLogin() {
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+    if (error) setError(error.message);
+  };
+
+  return (
+    <div dir="rtl" className="flex items-center justify-center min-h-screen bg-background">
+      <div className="w-full max-w-sm mx-auto p-8">
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center">
+            <Music className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="font-fustat font-bold text-xl text-foreground">لوحة التحكم</h1>
+            <p className="text-xs text-muted-foreground">سجّل دخولك للمتابعة</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs font-fustat text-muted-foreground mb-1 block">البريد الإلكتروني</label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@ranna.app"
+              required
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="text-xs font-fustat text-muted-foreground mb-1 block">كلمة المرور</label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          {error && (
+            <p className="text-xs text-destructive font-fustat">{error}</p>
+          )}
+          <Button type="submit" className="w-full gap-2" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {loading ? "جاري الدخول..." : "دخول"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const DashboardPage = () => {
+  const { user, loading: authLoading, signOut } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <DashboardLogin />;
+  }
+
+  return <DashboardContent signOut={signOut} />;
+};
+
+const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
+  const [activeSection, setActiveSection] = useState<SidebarItem>("madhat");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
+
+  // Advanced filters
+  const [filterArtist, setFilterArtist] = useState<string>("");
+  const [filterNarrator, setFilterNarrator] = useState<string>("");
+  const [filterTariqa, setFilterTariqa] = useState<string>("");
+  const [filterDateRange, setFilterDateRange] = useState<string>("");
+  const [filterPlayCount, setFilterPlayCount] = useState<string>("");
+
+  const { data: adminData } = useAdminMadhaat({
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+    searchQuery: searchQuery,
+    artistId: filterArtist,
+    narratorId: filterNarrator,
+  });
+  
+  const fetchedTracks = adminData?.data || [];
+  const totalTracksCount = adminData?.count || 0;
+
+  const { data: fetchedArtists } = useMadiheen();
+  const { data: fetchedNarrators } = useRuwat();
+  const { data: fetchedPlaylists } = useAdminCollections();
+  const { data: fetchedTariqas } = useTuruq();
+  const { data: fetchedFunun } = useFunun();
+
+  const createMadhaMutation = useCreateMadha();
+  const updateMadhaMutation = useUpdateMadha();
+  const deleteMadhaatMutation = useDeleteMadhaat();
+  const bulkUpdateMadhaatMutation = useBulkUpdateMadhaat();
+  const createCollectionMutation = useCreateCollection();
+  const updateCollectionMutation = useUpdateCollection();
+  const createMadihMutation = useCreateMadih();
+  const updateMadihMutation = useUpdateMadih();
+  const deleteMadiheenMutation = useDeleteMadiheen();
+  const createRawiMutation = useCreateRawi();
+  const updateRawiMutation = useUpdateRawi();
+  const deleteRuwatMutation = useDeleteRuwat();
+
+  const initialTracks = fetchedTracks.map(t => ({
+    id: t.id,
+    title: t.title,
+    artistId: t.madih_id || "",
+    artistName: t.madiheen?.name || t.madih || "",
+    narratorId: t.rawi_id || "",
+    narratorName: t.ruwat?.name || t.writer || "",
+    duration: "",
+  }));
+
+  const artists = (fetchedArtists || []).map(a => ({
+    id: a.id,
+    name: a.name,
+    role: "مادح",
+    image: a.image_url || "",
+    trackCount: (a as any).track_count || 0,
+  }));
+
+  const narrators = (fetchedNarrators || []).map(n => ({
+    id: n.id,
+    name: n.name,
+    role: "راوي",
+    image: n.image_url || "",
+    trackCount: (n as any).track_count || 0,
+  }));
+
+  const initialPlaylists = (fetchedPlaylists || []).map((p: any) => ({
+    id: p.id,
+    title: p.name,
+    desc: p.description || "",
+    image: p.image_url || "",
+    trackIds: (p.collection_items || []).map((ci: any) => ci.madha_id) as string[],
+  }));
+
+  const tariqas = (fetchedTariqas || []).map(t => ({
+    id: t.id,
+    name: t.name,
+    image: "",
+    description: t.description || "",
+  }));
+
+  const funoon = (fetchedFunun || []).map(f => ({
+    id: f.id,
+    name: f.name,
+    image: "",
+    description: f.description || "",
+  }));
+
+  const { toast } = useToast();
+  const { nowPlayingId, playTrack } = usePlayer();
+  const [selectedTracks, setSelectedTracks] = useState<Set<string>>(new Set());
+  const [editingTrack, setEditingTrack] = useState<ExtendedTrack | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isPlaylistDialogOpen, setIsPlaylistDialogOpen] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<ExtendedPlaylist | null>(null);
+  const [bulkEditField, setBulkEditField] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
+  const madhat: ExtendedTrack[] = initialTracks.map((t) => {
+    const original = fetchedTracks?.find((ft) => ft.id === t.id);
+    const artist = artists.find((a) => a.id === t.artistId);
+    return {
+      ...t,
+      lyrics: original?.lyrics || "",
+      tariqa: original?.turuq?.name || "",
+      fan: original?.funun?.name || "",
+      notes: "",
+      location: original?.recording_place || "",
+      updatedAt: original?.updated_at || "",
+      thumbnail: original?.image_url || artist?.image || "/placeholder.svg",
+      playCount: original?.play_count || 0,
+      audioUrl: original?.audio_url || "",
+      imageUrl: original?.image_url || "",
+      duration: original?.duration_seconds 
+        ? `${Math.floor(original.duration_seconds / 60)}:${(original.duration_seconds % 60).toString().padStart(2, '0')}` 
+        : "٠:٠٠",
+    };
+  });
+
+  const playlistsList: ExtendedPlaylist[] = initialPlaylists.map((p, i) => ({
+    ...p,
+    isActive: fetchedPlaylists?.find(fp => fp.id === p.id)?.is_active ?? true,
+    order: fetchedPlaylists?.find(fp => fp.id === p.id)?.display_order ?? i,
+  }));
+
+  const [newTrack, setNewTrack] = useState<Partial<ExtendedTrack>>({});
+  const [newPlaylist, setNewPlaylist] = useState<Partial<Playlist & { selectedTrackIds: string[] }>>({});
+  const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
+  const { data: rawSearchResults } = useSearch(playlistTrackSearch);
+  const searchResults = (rawSearchResults || []) as MadhaWithRelations[];
+
+  const displayTracks = playlistTrackSearch.trim().length > 0 
+    ? searchResults.map((t) => ({
+        id: t.id,
+        title: t.title,
+        artistName: t.madiheen?.name || t.madih || "",
+        narratorName: t.ruwat?.name || t.writer || "",
+      }))
+    : madhat;
+
+  // Madiheen & Ruwat state
+  const [editingMadih, setEditingMadih] = useState<Madih | null>(null);
+  const [isAddMadihDialogOpen, setIsAddMadihDialogOpen] = useState(false);
+  const [newMadih, setNewMadih] = useState<Partial<MadihInsert>>({});
+  const [selectedMadiheen, setSelectedMadiheen] = useState<Set<string>>(new Set());
+
+  const [editingRawi, setEditingRawi] = useState<Rawi | null>(null);
+  const [isAddRawiDialogOpen, setIsAddRawiDialogOpen] = useState(false);
+  const [newRawi, setNewRawi] = useState<Partial<RawiInsert>>({});
+  const [selectedRuwat, setSelectedRuwat] = useState<Set<string>>(new Set());
+
+  // Image crop & upload state
+  type CropTarget = "editTrack" | "addTrack" | "playlist" | "editPlaylist" | "pasteTrack" | "editMadih" | "addMadih" | "pasteMadih" | "editRawi" | "addRawi" | "pasteRawi";
+  const [cropTarget, setCropTarget] = useState<CropTarget | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Audio upload state
+  type AudioUploadTarget = "addTrack" | "editTrack";
+  const [audioUploadTarget, setAudioUploadTarget] = useState<AudioUploadTarget | null>(null);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Custom double-click detection for right button (since standard dblclick only filters left)
+  const lastRightClickRef = useRef<{ id: string; time: number }>({ id: "", time: 0 });
+  const handleRightClickDetect = (e: React.MouseEvent, id: string, callback: () => void) => {
+    const now = Date.now();
+    const isDouble = lastRightClickRef.current.id === id && now - lastRightClickRef.current.time < 300;
+    lastRightClickRef.current = { id, time: now };
+    if (isDouble) {
+      e.preventDefault();
+      e.stopPropagation();
+      callback();
+    }
+  };
+
+  // Clipboard paste handler for image thumbnails
+  const handlePaste = useCallback((e: ClipboardEvent) => {
+    // Determine which section is active and which items are selected
+    const hasSelection =
+      (activeSection === "madhat" && selectedTracks.size > 0) ||
+      (activeSection === "madiheen" && selectedMadiheen.size > 0) ||
+      (activeSection === "ruwat" && selectedRuwat.size > 0);
+
+    if (!hasSelection) return;
+
+    // Don't intercept paste in input/textarea fields
+    const target = e.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+
+        if (activeSection === "madhat") {
+          setCropTarget("pasteTrack");
+          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedTracks.size} مدحة محددة` });
+        } else if (activeSection === "madiheen") {
+          setCropTarget("pasteMadih");
+          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedMadiheen.size} مادح محدد` });
+        } else if (activeSection === "ruwat") {
+          setCropTarget("pasteRawi");
+          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedRuwat.size} راوي محدد` });
+        }
+        setCropImageSrc(url);
+        return;
+      }
+    }
+  }, [activeSection, selectedTracks, selectedMadiheen, selectedRuwat, toast]);
+
+  useEffect(() => {
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [handlePaste]);
+
+  const activeFilterCount = [filterArtist, filterNarrator, filterTariqa, filterDateRange, filterPlayCount].filter(Boolean).length;
+
+  const filteredMadhatServerSide = madhat;
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(totalTracksCount / ITEMS_PER_PAGE));
+  const paginatedMadhat = filteredMadhatServerSide;
+
+  const toggleSelect = (id: string) => {
+    setSelectedTracks((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedTracks.size === paginatedMadhat.length) {
+      setSelectedTracks(new Set());
+    } else {
+      setSelectedTracks(new Set(paginatedMadhat.map((t) => t.id)));
+    }
+  };
+
+  const parseDuration = (dur: string | undefined): number | null => {
+    if (!dur || dur === "٠:٠٠") return null;
+    const parts = dur.split(':');
+    if (parts.length !== 2) return null;
+    const min = parseInt(parts[0].replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)] || d));
+    const sec = parseInt(parts[1].replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)] || d));
+    return (!isNaN(min) && !isNaN(sec)) ? min * 60 + sec : null;
+  };
+
+  const handleSaveTrack = () => {
+    if (!editingTrack) return;
+    const tariqaId = tariqas.find(t => t.name === (editingTrack.tariqa === "none" ? "" : editingTrack.tariqa))?.id || null;
+    const fanId = funoon.find(f => f.name === (editingTrack.fan === "none" ? "" : editingTrack.fan))?.id || null;
+
+    updateMadhaMutation.mutate(
+      {
+        id: editingTrack.id,
+        updates: {
+          title: editingTrack.title,
+          madih_id: editingTrack.artistId || null,
+          rawi_id: editingTrack.narratorId || null,
+          tariqa_id: tariqaId,
+          fan_id: fanId,
+          lyrics: editingTrack.lyrics || null,
+          recording_place: editingTrack.location || null,
+          duration_seconds: parseDuration(editingTrack.duration),
+          audio_url: editingTrack.audioUrl || null,
+          image_url: editingTrack.imageUrl || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditingTrack(null);
+          toast({ title: "تم الحفظ", description: "تم تحديث المدحة بنجاح" });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ في الحفظ", description: (err as Error).message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleAddTrack = () => {
+    if (!newTrack.title) {
+      toast({ title: "خطأ", description: "يجب إدخال اسم المدحة", variant: "destructive" });
+      return;
+    }
+    const tariqaId = tariqas.find(t => t.name === newTrack.tariqa)?.id || null;
+    const fanId = funoon.find(f => f.name === newTrack.fan)?.id || null;
+
+    const artistName = artists.find(a => a.id === newTrack.artistId)?.name || "";
+    createMadhaMutation.mutate(
+      {
+        title: newTrack.title,
+        madih_name: artistName,
+        madih_id: newTrack.artistId || null,
+        rawi_id: newTrack.narratorId || null,
+        tariqa_id: tariqaId,
+        fan_id: fanId,
+        lyrics: newTrack.lyrics || null,
+        recording_place: newTrack.location || null,
+        duration_seconds: parseDuration(newTrack.duration),
+        audio_url: newTrack.audioUrl || null,
+        image_url: newTrack.imageUrl || null,
+      },
+      {
+        onSuccess: (madhaId) => {
+          const title = newTrack.title;
+          setNewTrack({});
+          setIsAddDialogOpen(false);
+          toast({ title: "تمت الإضافة", description: `تمت إضافة "${title}" بنجاح — ID: ${madhaId.slice(0, 8)}` });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ في الإضافة", description: (err as Error).message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleDeleteSelected = () => {
+    const count = selectedTracks.size;
+    deleteMadhaatMutation.mutate(Array.from(selectedTracks), {
+      onSuccess: () => {
+        setSelectedTracks(new Set());
+        toast({ title: "تم الحذف", description: `تم حذف ${count} مدحة بنجاح` });
+      },
+      onError: (err) => {
+        toast({ title: "خطأ في الحذف", description: (err as Error).message, variant: "destructive" });
+      },
+    });
+  };
+
+  const handleAddPlaylist = () => {
+    if (!newPlaylist.title) {
+      toast({ title: "خطأ", description: "يجب إدخال اسم القائمة", variant: "destructive" });
+      return;
+    }
+    const playlistName = newPlaylist.title;
+    createCollectionMutation.mutate(
+      {
+        collection: {
+          name: playlistName,
+          description: newPlaylist.desc || null,
+          image_url: newPlaylist.image || null,
+          is_active: true,
+          display_order: playlistsList.length,
+        },
+        trackIds: newPlaylist.selectedTrackIds || [],
+      },
+      {
+        onSuccess: () => {
+          setNewPlaylist({});
+          setIsPlaylistDialogOpen(false);
+          toast({ title: "تم الإنشاء", description: `تم إنشاء قائمة "${playlistName}" بنجاح` });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ في الإنشاء", description: (err as Error).message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleSavePlaylist = () => {
+    if (!editingPlaylist) return;
+    updateCollectionMutation.mutate(
+      {
+        id: editingPlaylist.id,
+        trackIds: editingPlaylist.trackIds,
+        updates: {
+          name: editingPlaylist.title,
+          description: editingPlaylist.desc || null,
+          image_url: editingPlaylist.image || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditingPlaylist(null);
+          toast({ title: "تم الحفظ", description: "تم تحديث القائمة بنجاح" });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ في الحفظ", description: (err as Error).message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleBulkUpdate = (field: string, value: string) => {
+    let dbField: keyof MadhaInsert | null = null;
+    let dbValue: any = value;
+
+    if (field === "artistId") dbField = "madih_id";
+    else if (field === "narratorId") dbField = "rawi_id";
+    else if (field === "tariqa") {
+      dbField = "tariqa_id";
+      dbValue = tariqas.find(t => t.name === value)?.id || null;
+    }
+    else if (field === "fan") {
+      dbField = "fan_id";
+      dbValue = funoon.find(f => f.name === value)?.id || null;
+    }
+
+    if (!dbField) return;
+
+    const count = selectedTracks.size;
+    bulkUpdateMadhaatMutation.mutate(
+      {
+        ids: Array.from(selectedTracks),
+        field: dbField,
+        value: dbValue,
+      },
+      {
+        onSuccess: () => {
+          setBulkEditField(null);
+          setSelectedTracks(new Set());
+          toast({ title: "تم التحديث", description: `تم تحديث ${count} مدحة بنجاح` });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ في التحديث", description: (err as Error).message, variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const openImagePicker = (target: CropTarget) => {
+    setCropTarget(target);
+    fileInputRef.current?.click();
+  };
+
+  const openAudioPicker = (target: AudioUploadTarget) => {
+    setAudioUploadTarget(target);
+    audioFileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropImageSrc(url);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleAudioFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setAudioUploading(true);
+    try {
+      const path = await uploadToR2(file, "audio/madha");
+
+      // Try to detect duration from audio file
+      let detectedDuration: string | undefined;
+      try {
+        const audioUrl = URL.createObjectURL(file);
+        const audio = new Audio(audioUrl);
+        await new Promise<void>((resolve) => {
+          audio.addEventListener("loadedmetadata", () => {
+            if (audio.duration && isFinite(audio.duration)) {
+              const mins = Math.floor(audio.duration / 60);
+              const secs = Math.floor(audio.duration % 60);
+              detectedDuration = `${mins}:${secs.toString().padStart(2, "0")}`;
+            }
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          });
+          audio.addEventListener("error", () => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          });
+        });
+      } catch {}
+
+      if (audioUploadTarget === "addTrack") {
+        setNewTrack((prev) => ({
+          ...prev,
+          audioUrl: path,
+          ...(detectedDuration ? { duration: detectedDuration } : {}),
+        }));
+      } else if (audioUploadTarget === "editTrack" && editingTrack) {
+        setEditingTrack({
+          ...editingTrack,
+          audioUrl: path,
+          ...(detectedDuration ? { duration: detectedDuration } : {}),
+        });
+      }
+      toast({ title: "تم الرفع", description: `تم رفع المقطع الصوتي بنجاح` });
+    } catch (err) {
+      toast({
+        title: "خطأ في الرفع",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setAudioUploading(false);
+      setAudioUploadTarget(null);
+    }
+  };
+
+  const handleCroppedUpload = async (croppedFile: File) => {
+    const folder =
+      cropTarget === "playlist" ? "images/collections"
+      : (cropTarget === "editMadih" || cropTarget === "addMadih" || cropTarget === "pasteMadih") ? "images/madiheen"
+      : (cropTarget === "editRawi" || cropTarget === "addRawi" || cropTarget === "pasteRawi") ? "images/ruwat"
+      : "images/madha";
+    setImageUploading(true);
+    try {
+      const path = await uploadToR2(croppedFile, folder);
+      if (cropTarget === "pasteTrack") {
+        const count = selectedTracks.size;
+        bulkUpdateMadhaatMutation.mutate(
+          { ids: Array.from(selectedTracks), field: "image_url", value: path },
+          {
+            onSuccess: () => {
+              toast({ title: "تم التحديث", description: `تم تحديث صورة ${count} مدحة بنجاح` });
+              setSelectedTracks(new Set());
+            },
+            onError: (err) => {
+              toast({ title: "خطأ في التحديث", description: (err as Error).message, variant: "destructive" });
+            },
+          }
+        );
+      } else if (cropTarget === "pasteMadih") {
+        const ids = Array.from(selectedMadiheen);
+        const count = ids.length;
+        // Update each madih individually
+        Promise.all(ids.map(id => updateMadihMutation.mutateAsync({ id, updates: { image_url: path } })))
+          .then(() => {
+            toast({ title: "تم التحديث", description: `تم تحديث صورة ${count} مادح بنجاح` });
+            setSelectedMadiheen(new Set());
+          })
+          .catch((err) => {
+            toast({ title: "خطأ في التحديث", description: (err as Error).message, variant: "destructive" });
+          });
+      } else if (cropTarget === "pasteRawi") {
+        const ids = Array.from(selectedRuwat);
+        const count = ids.length;
+        Promise.all(ids.map(id => updateRawiMutation.mutateAsync({ id, updates: { image_url: path } })))
+          .then(() => {
+            toast({ title: "تم التحديث", description: `تم تحديث صورة ${count} راوي بنجاح` });
+            setSelectedRuwat(new Set());
+          })
+          .catch((err) => {
+            toast({ title: "خطأ في التحديث", description: (err as Error).message, variant: "destructive" });
+          });
+      } else if (cropTarget === "editMadih" && editingMadih) {
+        setEditingMadih({ ...editingMadih, image_url: path });
+      } else if (cropTarget === "addMadih") {
+        setNewMadih((prev) => ({ ...prev, image_url: path }));
+      } else if (cropTarget === "editRawi" && editingRawi) {
+        setEditingRawi({ ...editingRawi, image_url: path });
+      } else if (cropTarget === "addRawi") {
+        setNewRawi((prev) => ({ ...prev, image_url: path }));
+      } else if (cropTarget === "editTrack" && editingTrack) {
+        setEditingTrack({ ...editingTrack, imageUrl: path });
+      } else if (cropTarget === "addTrack") {
+        setNewTrack((prev) => ({ ...prev, imageUrl: path }));
+      } else if (cropTarget === "playlist") {
+        setNewPlaylist((prev) => ({ ...prev, image: path }));
+      } else if (cropTarget === "editPlaylist" && editingPlaylist) {
+        setEditingPlaylist({ ...editingPlaylist, image: path });
+      }
+      if (cropTarget !== "pasteTrack" && cropTarget !== "pasteMadih" && cropTarget !== "pasteRawi") {
+        toast({ title: "تم الرفع", description: "تم رفع الصورة بنجاح" });
+      }
+      setCropImageSrc(null);
+      setCropTarget(null);
+    } catch (err) {
+      toast({
+        title: "خطأ في الرفع",
+        description: (err as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const togglePlaylistActive = (id: string) => {
+    const pl = playlistsList.find(p => p.id === id);
+    if (!pl) return;
+    updateCollectionMutation.mutate({
+      id,
+      updates: { is_active: !pl.isActive },
+    });
+  };
+
+  // Drag & drop for playlists
+  const handleDragStart = (id: string) => setDraggedId(id);
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    setDragOverId(id);
+  };
+  const handleDrop = (targetId: string) => {
+    if (!draggedId || draggedId === targetId) return;
+    const sorted = [...playlistsList].sort((a, b) => a.order - b.order);
+    const dragIndex = sorted.findIndex((p) => p.id === draggedId);
+    const targetIndex = sorted.findIndex((p) => p.id === targetId);
+    const [moved] = sorted.splice(dragIndex, 1);
+    sorted.splice(targetIndex, 0, moved);
+    
+    sorted.forEach((p, i) => {
+      if (p.order !== i) {
+        updateCollectionMutation.mutate({
+          id: p.id,
+          updates: { display_order: i },
+        });
+      }
+    });
+
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const sortedPlaylists = [...playlistsList].sort((a, b) => a.order - b.order);
+
+  const sidebarItems = [
+    { id: "madhat" as SidebarItem, label: "المدائح", icon: Music, count: totalTracksCount },
+    { id: "madiheen" as SidebarItem, label: "المادحين", icon: Music, count: artists.length },
+    { id: "ruwat" as SidebarItem, label: "الرواة", icon: Music, count: narrators.length },
+    { id: "playlists" as SidebarItem, label: "قوائم مميزة", icon: ListMusic, count: playlistsList.length },
+    { id: "analytics" as SidebarItem, label: "الإحصائيات", icon: BarChart3, count: 0 },
+  ];
+
+  return (
+    <div dir="rtl" className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 border-l border-border bg-card flex flex-col shrink-0">
+        <div className="p-5 border-b border-border">
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center">
+              <Music className="h-4.5 w-4.5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-fustat font-bold text-base text-foreground leading-tight">لوحة التحكم</h1>
+              <p className="text-[10px] text-muted-foreground">إدارة محتوى رنّة</p>
+            </div>
+          </Link>
+        </div>
+
+        <nav className="flex-1 p-3 space-y-1">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id)}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-fustat transition-all duration-200 ${
+                activeSection === item.id
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-start">{item.label}</span>
+              <Badge
+                variant={activeSection === item.id ? "secondary" : "outline"}
+                className="text-[10px] h-5 px-1.5 rounded-md"
+              >
+                {item.count}
+              </Badge>
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-border space-y-1">
+          <Link to="/">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground text-xs">
+              <Home className="h-3.5 w-3.5" />
+              العودة للتطبيق
+            </Button>
+          </Link>
+          <Button variant="ghost" size="sm" onClick={signOut} className="w-full justify-start gap-2 text-muted-foreground text-xs">
+            <LogOut className="h-3.5 w-3.5" />
+            تسجيل الخروج
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <h2 className="font-fustat font-bold text-lg text-foreground">
+              {activeSection === "analytics" ? "إحصائيات المنصة" : activeSection === "madhat" ? "إدارة المدائح" : activeSection === "madiheen" ? "إدارة المادحين" : activeSection === "ruwat" ? "إدارة الرواة" : "إدارة القوائم المميزة"}
+            </h2>
+            {selectedTracks.size > 0 && activeSection === "madhat" && (
+              <Badge variant="secondary" className="text-xs">{selectedTracks.size} محدد</Badge>
+            )}
+            {selectedMadiheen.size > 0 && activeSection === "madiheen" && (
+              <Badge variant="secondary" className="text-xs">{selectedMadiheen.size} محدد</Badge>
+            )}
+            {selectedRuwat.size > 0 && activeSection === "ruwat" && (
+              <Badge variant="secondary" className="text-xs">{selectedRuwat.size} محدد</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedTracks.size > 0 && activeSection === "madhat" && (
+              <>
+                <Select onValueChange={(v) => setBulkEditField(v)}>
+                  <SelectTrigger className="w-40 h-9 text-xs">
+                    <SelectValue placeholder="تعديل جماعي..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="artistId">المادح</SelectItem>
+                    <SelectItem value="narratorId">الراوي</SelectItem>
+                    <SelectItem value="tariqa">الطريقة</SelectItem>
+                    <SelectItem value="fan">الفن</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} disabled={deleteMadhaatMutation.isPending} className="gap-1.5 text-xs">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {deleteMadhaatMutation.isPending ? "جاري الحذف..." : "حذف"}
+                </Button>
+              </>
+            )}
+            {selectedMadiheen.size > 0 && activeSection === "madiheen" && (
+              <Button variant="destructive" size="sm" disabled={deleteMadiheenMutation.isPending} className="gap-1.5 text-xs"
+                onClick={() => {
+                  const count = selectedMadiheen.size;
+                  deleteMadiheenMutation.mutate(Array.from(selectedMadiheen), {
+                    onSuccess: () => { setSelectedMadiheen(new Set()); toast({ title: "تم الحذف", description: `تم حذف ${count} مادح بنجاح` }); },
+                    onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
+                  });
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {deleteMadiheenMutation.isPending ? "جاري الحذف..." : "حذف"}
+              </Button>
+            )}
+            {selectedRuwat.size > 0 && activeSection === "ruwat" && (
+              <Button variant="destructive" size="sm" disabled={deleteRuwatMutation.isPending} className="gap-1.5 text-xs"
+                onClick={() => {
+                  const count = selectedRuwat.size;
+                  deleteRuwatMutation.mutate(Array.from(selectedRuwat), {
+                    onSuccess: () => { setSelectedRuwat(new Set()); toast({ title: "تم الحذف", description: `تم حذف ${count} راوي بنجاح` }); },
+                    onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
+                  });
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {deleteRuwatMutation.isPending ? "جاري الحذف..." : "حذف"}
+              </Button>
+            )}
+            {activeSection === "madhat" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs"
+                onClick={() => setIsBulkUploadOpen(true)}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                رفع مجمّع
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="gap-1.5 bg-primary hover:bg-primary/90 text-xs"
+              onClick={() => {
+                if (activeSection === "madhat") setIsAddDialogOpen(true);
+                else if (activeSection === "playlists") setIsPlaylistDialogOpen(true);
+                else if (activeSection === "madiheen") setIsAddMadihDialogOpen(true);
+                else if (activeSection === "ruwat") setIsAddRawiDialogOpen(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {activeSection === "madhat" ? "إضافة مدحة" : activeSection === "madiheen" ? "إضافة مادح" : activeSection === "ruwat" ? "إضافة راوي" : "إنشاء قائمة"}
+            </Button>
+          </div>
+        </header>
+
+        {/* Search + Filters */}
+        {activeSection !== "analytics" && (
+          <div className="px-6 py-3 border-b border-border bg-card/50 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="ابحث عن مدحة، مادح، أو راوي..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="pr-9 h-9 text-sm bg-background"
+              />
+            </div>
+            {activeSection === "madhat" && (
+              <Button
+                variant={showFilters ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5 text-xs shrink-0"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                فلاتر
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1 text-[9px] rounded-full ms-1">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Advanced Filters */}
+          {showFilters && activeSection === "madhat" && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex flex-wrap items-end gap-3"
+            >
+              <div className="w-44">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">المادح</label>
+                <SearchableSelect
+                  value={filterArtist}
+                  onValueChange={(v) => { setFilterArtist(v); setCurrentPage(1); }}
+                  options={[{ value: "", label: "الكل" }, ...artists.map((a) => ({ value: a.id, label: a.name }))]}
+                  placeholder="الكل"
+                  searchPlaceholder="ابحث عن مادح..."
+                  triggerClassName="h-8 text-xs"
+                />
+              </div>
+              <div className="w-44">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">الراوي</label>
+                <SearchableSelect
+                  value={filterNarrator}
+                  onValueChange={(v) => { setFilterNarrator(v); setCurrentPage(1); }}
+                  options={[{ value: "", label: "الكل" }, ...narrators.map((n) => ({ value: n.id, label: n.name }))]}
+                  placeholder="الكل"
+                  searchPlaceholder="ابحث عن راوي..."
+                  triggerClassName="h-8 text-xs"
+                />
+              </div>
+              <div className="w-40">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+                <SearchableSelect
+                  value={filterTariqa}
+                  onValueChange={(v) => { setFilterTariqa(v); setCurrentPage(1); }}
+                  options={[{ value: "", label: "الكل" }, ...tariqas.map((tq) => ({ value: tq.name, label: tq.name }))]}
+                  placeholder="الكل"
+                  searchPlaceholder="ابحث عن طريقة..."
+                  triggerClassName="h-8 text-xs"
+                />
+              </div>
+              <div className="w-36">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">
+                  <CalendarIcon className="h-3 w-3 inline-block me-1 opacity-60" />
+                  زمن التحديث
+                </label>
+                <Select value={filterDateRange} onValueChange={(v) => { setFilterDateRange(v === "all" ? "" : v); setCurrentPage(1); }}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="الكل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="today">اليوم</SelectItem>
+                    <SelectItem value="week">آخر أسبوع</SelectItem>
+                    <SelectItem value="month">آخر شهر</SelectItem>
+                    <SelectItem value="older">أقدم من شهر</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-36">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">
+                  <Headphones className="h-3 w-3 inline-block me-1 opacity-60" />
+                  مرات التشغيل
+                </label>
+                <Select value={filterPlayCount} onValueChange={(v) => { setFilterPlayCount(v === "all" ? "" : v); setCurrentPage(1); }}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="الكل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    <SelectItem value="0">لم تُشغّل</SelectItem>
+                    <SelectItem value="low">أقل من ١٠٠</SelectItem>
+                    <SelectItem value="mid">١٠٠ - ١٠٠٠</SelectItem>
+                    <SelectItem value="high">أكثر من ١٠٠٠</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs text-muted-foreground h-8"
+                  onClick={() => {
+                    setFilterArtist("");
+                    setFilterNarrator("");
+                    setFilterTariqa("");
+                    setFilterDateRange("");
+                    setFilterPlayCount("");
+                    setCurrentPage(1);
+                  }}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  مسح الفلاتر
+                </Button>
+              )}
+            </motion.div>
+          )}
+        </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-6">
+          <AnimatePresence mode="wait">
+            {activeSection === "analytics" && (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                <AnalyticsSection />
+              </motion.div>
+            )}
+
+            {activeSection === "madhat" && (
+              <motion.div
+                key="madhat"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Table Header */}
+                <div className="grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide">
+                  <button onClick={selectAll} className="flex items-center justify-center">
+                    {selectedTracks.size === paginatedMadhat.length && paginatedMadhat.length > 0 ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                  <span></span>
+                  <span>العنوان</span>
+                  <span>المادح</span>
+                  <span>الراوي</span>
+                  <span className="text-center">التشغيل</span>
+                  <span className="text-center">آخر تحديث</span>
+                  <span className="text-center">إجراءات</span>
+                </div>
+                <Separator className="mb-1" />
+
+                {/* Rows */}
+                <div className="space-y-1">
+                  {paginatedMadhat.map((track) => {
+                    const status = getCompletionStatus(track);
+                    const isPlaying = nowPlayingId === track.id;
+                    const relativeDate = track.updatedAt
+                      ? (() => {
+                          const diff = Date.now() - new Date(track.updatedAt).getTime();
+                          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                          if (days === 0) return "اليوم";
+                          if (days === 1) return "أمس";
+                          if (days < 7) return `${days} أيام`;
+                          if (days < 30) return `${Math.floor(days / 7)} أسابيع`;
+                          return `${Math.floor(days / 30)} شهر`;
+                        })()
+                      : "—";
+                    return (
+                      <motion.div
+                        key={track.id}
+                        layout
+                        className={`grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
+                          selectedTracks.has(track.id)
+                            ? "bg-primary/5 border border-primary/20"
+                            : "hover:bg-muted/50 border border-transparent"
+                        }`}
+                        onClick={() => toggleSelect(track.id)}
+                        onDoubleClick={(e) => { e.stopPropagation(); setEditingTrack(track); }}
+                        onContextMenu={(e) => handleRightClickDetect(e, track.id, () => setEditingTrack(track))}
+                      >
+                        <div className="flex items-center justify-center">
+                          {selectedTracks.has(track.id) ? (
+                            <CheckSquare className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Square className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="relative">
+                          <img
+                            src={getImageUrl(track.thumbnail)}
+                            alt={track.title}
+                            className="h-9 w-9 rounded-lg object-cover"
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playTrack(track.id, paginatedMadhat.map(t => t.id));
+                            }}
+                            className={`absolute inset-0 flex items-center justify-center rounded-lg transition-all ${
+                              isPlaying ? "bg-primary/80" : "bg-black/0 hover:bg-black/40"
+                            }`}
+                          >
+                            {isPlaying ? (
+                              <Pause className="h-3.5 w-3.5 text-white fill-white" />
+                            ) : (
+                              <Play className="h-3.5 w-3.5 text-white fill-white opacity-0 group-hover:opacity-100 hover:!opacity-100" style={{ opacity: undefined }} />
+                            )}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CompletionRing status={status} />
+                          <div className="min-w-0">
+                            <p className="font-fustat font-semibold text-foreground truncate">{track.title}</p>
+                            <span className={`text-[10px] ${
+                              status === "complete" ? "text-green-600" : status === "partial" ? "text-yellow-600" : "text-muted-foreground/60"
+                            }`}>
+                              {status === "complete" ? "مكتملة" : status === "partial" ? "ناقصة جزئياً" : "بيانات أساسية"}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-muted-foreground truncate">{track.artistName}</span>
+                        <span className="text-muted-foreground truncate">{track.narratorName}</span>
+                        <span className="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
+                          <Headphones className="h-3 w-3 opacity-50" />
+                          {(track.playCount || 0).toLocaleString("ar-SA")}
+                        </span>
+                        <span className="text-muted-foreground/60 text-center text-[10px]">{relativeDate}</span>
+                        <div className="flex items-center justify-center">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 gap-1.5 font-fustat text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTrack(track);
+                            }}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            تعديل
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                {paginatedMadhat.length === 0 && (
+                  <div className="text-center py-20 text-muted-foreground">
+                    <Music className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-fustat">لا توجد نتائج</p>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 px-4">
+                    <span className="text-xs text-muted-foreground font-fustat">
+                      {totalTracksCount} مدحة — صفحة {currentPage} من {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((p) => p - 1)}
+                        className="text-xs"
+                      >
+                        السابق
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="text-xs"
+                      >
+                        التالي
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeSection === "madiheen" && (
+              <motion.div
+                key="madiheen"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Table Header */}
+                <div className="grid grid-cols-[40px_40px_1.5fr_1fr_80px_80px] gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide">
+                  <button onClick={() => {
+                    if (selectedMadiheen.size === artists.length && artists.length > 0) setSelectedMadiheen(new Set());
+                    else setSelectedMadiheen(new Set(artists.map(a => a.id)));
+                  }} className="flex items-center justify-center">
+                    {selectedMadiheen.size === artists.length && artists.length > 0 ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                  <span></span>
+                  <span>الاسم</span>
+                  <span>الطريقة</span>
+                  <span>المدائح</span>
+                  <span className="text-center">إجراءات</span>
+                </div>
+
+                {/* Rows */}
+                {artists.filter(a => !searchQuery || a.name.includes(searchQuery)).map((artist) => {
+                  const madhCount = artist.trackCount;
+                  const isSelected = selectedMadiheen.has(artist.id);
+                  const madihData = (fetchedArtists || []).find(m => m.id === artist.id);
+                  const tariqaName = madihData?.tariqa_id ? tariqas.find(t => t.id === madihData.tariqa_id)?.name : "";
+                  return (
+                    <div
+                      key={artist.id}
+                      onClick={() => {
+                        setSelectedMadiheen(prev => {
+                          const next = new Set(prev);
+                          next.has(artist.id) ? next.delete(artist.id) : next.add(artist.id);
+                          return next;
+                        });
+                      }}
+                      className={`grid grid-cols-[40px_40px_1.5fr_1fr_80px_80px] gap-3 px-4 py-2.5 items-center rounded-xl text-sm cursor-pointer transition-all duration-150 ${
+                        isSelected
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-muted/50 border border-transparent"
+                      }`}
+                      onDoubleClick={(e) => { e.stopPropagation(); setEditingMadih(madihData || null); }}
+                      onContextMenu={(e) => handleRightClickDetect(e, artist.id, () => setEditingMadih(madihData || null))}
+                    >
+                      <div className="flex items-center justify-center">
+                        {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground/40" />}
+                      </div>
+                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-muted">
+                        {artist.image ? (
+                          <img src={getImageUrl(artist.image)} alt={artist.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Music className="h-4 w-4" /></div>
+                        )}
+                      </div>
+                      <span className="font-fustat font-semibold text-foreground truncate">{artist.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">{tariqaName || "—"}</span>
+                      <Badge variant="outline" className="w-fit text-[10px]">{madhCount} مدحة</Badge>
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 gap-1.5 font-fustat text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingMadih(madihData || null);
+                          }}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          تعديل
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {artists.filter(a => !searchQuery || a.name.includes(searchQuery)).length === 0 && (
+                  <div className="text-center py-20 text-muted-foreground font-fustat">
+                    <Music className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">لا يوجد مادحين</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeSection === "ruwat" && (
+              <motion.div
+                key="ruwat"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Table Header */}
+                <div className="grid grid-cols-[40px_40px_1.5fr_80px_80px] gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide">
+                  <button onClick={() => {
+                    if (selectedRuwat.size === narrators.length && narrators.length > 0) setSelectedRuwat(new Set());
+                    else setSelectedRuwat(new Set(narrators.map(n => n.id)));
+                  }} className="flex items-center justify-center">
+                    {selectedRuwat.size === narrators.length && narrators.length > 0 ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                  <span></span>
+                  <span>الاسم</span>
+                  <span>المدائح</span>
+                  <span className="text-center">إجراءات</span>
+                </div>
+
+                {/* Rows */}
+                {narrators.filter(n => !searchQuery || n.name.includes(searchQuery)).map((narrator) => {
+                  const madhCount = narrator.trackCount;
+                  const isSelected = selectedRuwat.has(narrator.id);
+                  const rawiData = (fetchedNarrators || []).find(r => r.id === narrator.id);
+                  return (
+                    <div
+                      key={narrator.id}
+                      onClick={() => {
+                        setSelectedRuwat(prev => {
+                          const next = new Set(prev);
+                          next.has(narrator.id) ? next.delete(narrator.id) : next.add(narrator.id);
+                          return next;
+                        });
+                      }}
+                      className={`grid grid-cols-[40px_40px_1.5fr_80px_80px] gap-3 px-4 py-2.5 items-center rounded-xl text-sm cursor-pointer transition-all duration-150 ${
+                        isSelected
+                          ? "bg-primary/10 border border-primary/20"
+                          : "hover:bg-muted/50 border border-transparent"
+                      }`}
+                      onDoubleClick={(e) => { e.stopPropagation(); setEditingRawi(rawiData || null); }}
+                      onContextMenu={(e) => handleRightClickDetect(e, narrator.id, () => setEditingRawi(rawiData || null))}
+                    >
+                      <div className="flex items-center justify-center">
+                        {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground/40" />}
+                      </div>
+                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-muted">
+                        {narrator.image ? (
+                          <img src={getImageUrl(narrator.image)} alt={narrator.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Music className="h-4 w-4" /></div>
+                        )}
+                      </div>
+                      <span className="font-fustat font-semibold text-foreground truncate">{narrator.name}</span>
+                      <Badge variant="outline" className="w-fit text-[10px]">{madhCount} مدحة</Badge>
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 gap-1.5 font-fustat text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingRawi(rawiData || null);
+                          }}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          تعديل
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {narrators.filter(n => !searchQuery || n.name.includes(searchQuery)).length === 0 && (
+                  <div className="text-center py-20 text-muted-foreground font-fustat">
+                    <Music className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">لا يوجد رواة</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeSection === "playlists" && (
+              <motion.div
+                key="playlists"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-2"
+              >
+                {sortedPlaylists.map((pl) => (
+                  <div
+                    key={pl.id}
+                    draggable
+                    onDragStart={() => handleDragStart(pl.id)}
+                    onDragOver={(e) => handleDragOver(e, pl.id)}
+                    onDrop={() => handleDrop(pl.id)}
+                    onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                    className={`flex items-center gap-4 bg-card rounded-2xl border p-4 transition-all ${
+                      dragOverId === pl.id ? "border-primary shadow-md" : "border-border"
+                    } ${!pl.isActive ? "opacity-50" : ""} ${
+                      draggedId === pl.id ? "opacity-30" : ""
+                    }`}
+                    onDoubleClick={(e) => { e.stopPropagation(); setEditingPlaylist(pl); }}
+                    onContextMenu={(e) => handleRightClickDetect(e, pl.id, () => setEditingPlaylist(pl))}
+                  >
+                    <GripVertical className="h-5 w-5 text-muted-foreground/40 cursor-grab shrink-0" />
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 font-mono">
+                      {pl.order + 1}
+                    </Badge>
+                    <img
+                      src={getImageUrl(pl.image)}
+                      alt={pl.title}
+                      className="h-14 w-14 rounded-xl object-cover shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-fustat font-bold text-sm text-foreground truncate">{pl.title}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{pl.desc}</p>
+                      <div className="flex gap-1 mt-1.5 flex-wrap">
+                        {pl.trackIds.slice(0, 4).map((tid) => {
+                          const t = madhat.find((m) => m.id === tid);
+                          return t ? (
+                            <Badge key={tid} variant="outline" className="text-[9px] px-1.5 py-0">
+                              {t.title}
+                            </Badge>
+                          ) : null;
+                        })}
+                        {pl.trackIds.length > 4 && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                            +{pl.trackIds.length - 4}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-fustat ${pl.isActive ? "text-green-600" : "text-muted-foreground"}`}>
+                          {pl.isActive ? "نشطة" : "معطّلة"}
+                        </span>
+                        <Switch
+                          checked={pl.isActive}
+                          onCheckedChange={() => togglePlaylistActive(pl.id)}
+                        />
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 gap-1.5 font-fustat text-xs"
+                        onClick={() => setEditingPlaylist(pl)}
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                        تعديل
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </main>
+
+      {/* Edit Track Dialog */}
+      <Dialog open={!!editingTrack} onOpenChange={(open) => !open && setEditingTrack(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">تعديل المدحة</DialogTitle>
+          </DialogHeader>
+          {editingTrack && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">العنوان</label>
+                <Input
+                  value={editingTrack.title}
+                  onChange={(e) => setEditingTrack({ ...editingTrack, title: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">المادح</label>
+                  <SearchableSelect
+                    value={editingTrack.artistId}
+                    onValueChange={(v) => {
+                      const a = artists.find((a) => a.id === v);
+                      setEditingTrack({ ...editingTrack, artistId: v, artistName: a?.name || "" });
+                    }}
+                    options={artists.map((a) => ({ value: a.id, label: a.name }))}
+                    placeholder="اختر المادح"
+                    searchPlaceholder="ابحث عن مادح..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الراوي</label>
+                  <SearchableSelect
+                    value={editingTrack.narratorId}
+                    onValueChange={(v) => {
+                      const n = narrators.find((n) => n.id === v);
+                      setEditingTrack({ ...editingTrack, narratorId: v, narratorName: n?.name || "" });
+                    }}
+                    options={narrators.map((n) => ({ value: n.id, label: n.name }))}
+                    placeholder="اختر الراوي"
+                    searchPlaceholder="ابحث عن راوي..."
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+                  <SearchableSelect
+                    value={editingTrack.tariqa || "none"}
+                    onValueChange={(v) => setEditingTrack({ ...editingTrack, tariqa: v === "none" ? "" : v })}
+                    options={[{ value: "none", label: "بدون" }, ...tariqas.map((tq) => ({ value: tq.name, label: tq.name }))]}
+                    placeholder="اختر الطريقة"
+                    searchPlaceholder="ابحث عن طريقة..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الفن</label>
+                  <SearchableSelect
+                    value={editingTrack.fan || "none"}
+                    onValueChange={(v) => setEditingTrack({ ...editingTrack, fan: v === "none" ? "" : v })}
+                    options={[{ value: "none", label: "بدون" }, ...funoon.map((fn) => ({ value: fn.name, label: fn.name }))]}
+                    placeholder="اختر الفن"
+                    searchPlaceholder="ابحث عن فن..."
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">المدة</label>
+                <Input
+                  value={editingTrack.duration}
+                  onChange={(e) => setEditingTrack({ ...editingTrack, duration: e.target.value })}
+                  className="w-32"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">المقطع الصوتي</label>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      value={editingTrack.audioUrl || ""}
+                      onChange={(e) => setEditingTrack({ ...editingTrack, audioUrl: e.target.value })}
+                      placeholder="مثال: audio/madha/filename.mp3"
+                      dir="ltr"
+                      className="text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => openAudioPicker("editTrack")}
+                      disabled={audioUploading && audioUploadTarget === "editTrack"}
+                    >
+                      {audioUploading && audioUploadTarget === "editTrack" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Upload className="h-3 w-3" />
+                      )}
+                      {audioUploading && audioUploadTarget === "editTrack" ? "جاري الرفع..." : "رفع مقطع صوتي"}
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">ارفع ملف صوتي أو أدخل مسار الملف في R2</p>
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">صورة الغلاف</label>
+                <div className="flex items-center gap-3">
+                  {editingTrack.imageUrl && (
+                    <img
+                      src={getImageUrl(editingTrack.imageUrl)}
+                      alt="غلاف"
+                      className="h-16 w-16 rounded-xl object-cover shrink-0 border border-border"
+                    />
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      value={editingTrack.imageUrl || ""}
+                      onChange={(e) => setEditingTrack({ ...editingTrack, imageUrl: e.target.value })}
+                      placeholder="مثال: images/madha/cover.jpg"
+                      dir="ltr"
+                      className="text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => openImagePicker("editTrack")}
+                    >
+                      <ImagePlus className="h-3 w-3" />
+                      رفع صورة
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الكلمات</label>
+                <Textarea
+                  value={editingTrack.lyrics || ""}
+                  onChange={(e) => setEditingTrack({ ...editingTrack, lyrics: e.target.value })}
+                  placeholder="أدخل كلمات المدحة هنا..."
+                  className="min-h-[120px] text-sm leading-relaxed"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">ملاحظات</label>
+                <Textarea
+                  value={editingTrack.notes || ""}
+                  onChange={(e) => setEditingTrack({ ...editingTrack, notes: e.target.value })}
+                  placeholder="ملاحظات إضافية..."
+                  className="min-h-[60px] text-sm"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingTrack(null)} disabled={updateMadhaMutation.isPending}>إلغاء</Button>
+            <Button onClick={handleSaveTrack} disabled={updateMadhaMutation.isPending} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" />
+              {updateMadhaMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Track Dialog — inspired by uploaded design */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat text-xl text-center">رفع مدحة جديدة</DialogTitle>
+            <p className="text-xs text-muted-foreground text-center">أدخل تفاصيل المدحة وارفع الملفات</p>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-2">
+            {/* Section: الوسائط */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 rounded-full bg-secondary" />
+                <h3 className="font-fustat font-bold text-base text-foreground">الوسائط</h3>
+              </div>
+              <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-2 block">المقطع الصوتي</label>
+                  {!newTrack.audioUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => openAudioPicker("addTrack")}
+                      disabled={audioUploading && audioUploadTarget === "addTrack"}
+                      className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group"
+                    >
+                      {audioUploading && audioUploadTarget === "addTrack" ? (
+                        <>
+                          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                          <span className="text-xs font-fustat text-muted-foreground">جاري رفع المقطع الصوتي...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                            <Upload className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-fustat font-semibold text-foreground">ارفع المقطع الصوتي</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">MP3, WAV, OGG, M4A</p>
+                          </div>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3 bg-background rounded-xl border border-border p-3">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Music className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-fustat text-foreground truncate" dir="ltr">{newTrack.audioUrl}</p>
+                        <p className="text-[10px] text-muted-foreground">تم رفع المقطع بنجاح</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => openAudioPicker("addTrack")}
+                          disabled={audioUploading}
+                        >
+                          <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => setNewTrack({ ...newTrack, audioUrl: "" })}
+                        >
+                          <X className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <Input
+                    value={newTrack.audioUrl || ""}
+                    onChange={(e) => setNewTrack({ ...newTrack, audioUrl: e.target.value })}
+                    placeholder="أو أدخل الرابط يدوياً..."
+                    dir="ltr"
+                    className="text-sm mt-2"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-2 block">صورة الغلاف</label>
+                  <div className="flex items-center gap-3">
+                    {newTrack.imageUrl && (
+                      <img
+                        src={getImageUrl(newTrack.imageUrl)}
+                        alt="غلاف"
+                        className="h-16 w-16 rounded-xl object-cover shrink-0 border border-border"
+                      />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        value={newTrack.imageUrl || ""}
+                        onChange={(e) => setNewTrack({ ...newTrack, imageUrl: e.target.value })}
+                        placeholder="مثال: images/madha/cover.jpg"
+                        dir="ltr"
+                        className="text-sm"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => openImagePicker("addTrack")}
+                      >
+                        <ImagePlus className="h-3 w-3" />
+                        رفع صورة
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: المعلومات الأساسية */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 rounded-full bg-secondary" />
+                <h3 className="font-fustat font-bold text-base text-foreground">المعلومات الأساسية</h3>
+              </div>
+              <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">اسم المدحة *</label>
+                  <Input
+                    value={newTrack.title || ""}
+                    onChange={(e) => setNewTrack({ ...newTrack, title: e.target.value })}
+                    placeholder="أدخل اسم المدحة..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">المادح *</label>
+                  <SearchableSelect
+                    value={newTrack.artistId}
+                    onValueChange={(v) => setNewTrack({ ...newTrack, artistId: v })}
+                    options={artists.map((a) => ({ value: a.id, label: a.name }))}
+                    placeholder="اختر المادح"
+                    searchPlaceholder="ابحث عن مادح..."
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الراوي (اختياري)</label>
+                  <SearchableSelect
+                    value={newTrack.narratorId}
+                    onValueChange={(v) => setNewTrack({ ...newTrack, narratorId: v })}
+                    options={narrators.map((n) => ({ value: n.id, label: n.name }))}
+                    placeholder="اختر الراوي"
+                    searchPlaceholder="ابحث عن راوي..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section: التفاصيل */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-1 h-6 rounded-full bg-accent" />
+                <h3 className="font-fustat font-bold text-base text-foreground">التفاصيل</h3>
+                <span className="text-[10px] text-muted-foreground">(اختياري)</span>
+              </div>
+              <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">كلمات المدحة</label>
+                  <Textarea
+                    value={newTrack.lyrics || ""}
+                    onChange={(e) => setNewTrack({ ...newTrack, lyrics: e.target.value })}
+                    placeholder="أدخل كلمات المدحة هنا..."
+                    className="min-h-[120px] text-sm leading-relaxed"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">سيتم مراجعة الكلمات من قبل المشرفين قبل الموافقة</p>
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">مكان التسجيل</label>
+                  <Input
+                    value={newTrack.location || ""}
+                    onChange={(e) => setNewTrack({ ...newTrack, location: e.target.value })}
+                    placeholder="مثال: أمدرمان، حجر العسل، الخرطوم..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+                    <SearchableSelect
+                      value={newTrack.tariqa}
+                      onValueChange={(v) => setNewTrack({ ...newTrack, tariqa: v })}
+                      options={tariqas.map((tq) => ({ value: tq.name, label: tq.name }))}
+                      placeholder="اختر الطريقة..."
+                      searchPlaceholder="ابحث عن طريقة..."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-fustat text-muted-foreground mb-1 block">الفن</label>
+                    <SearchableSelect
+                      value={newTrack.fan}
+                      onValueChange={(v) => setNewTrack({ ...newTrack, fan: v })}
+                      options={funoon.map((fn) => ({ value: fn.name, label: fn.name }))}
+                      placeholder="اختر الفن..."
+                      searchPlaceholder="ابحث عن فن..."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">المدة</label>
+                  <Input
+                    value={newTrack.duration || ""}
+                    onChange={(e) => setNewTrack({ ...newTrack, duration: e.target.value })}
+                    placeholder="مثال: ٥:٣٠"
+                    className="w-32"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={createMadhaMutation.isPending}>إلغاء</Button>
+            <Button onClick={handleAddTrack} disabled={createMadhaMutation.isPending} className="gap-1.5 w-full sm:w-auto">
+              <Upload className="h-3.5 w-3.5" />
+              {createMadhaMutation.isPending ? "جاري الإضافة..." : "رفع المدحة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Playlist Dialog */}
+      <Dialog open={isPlaylistDialogOpen} onOpenChange={setIsPlaylistDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">إنشاء قائمة مميزة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">اسم القائمة *</label>
+              <Input
+                value={newPlaylist.title || ""}
+                onChange={(e) => setNewPlaylist({ ...newPlaylist, title: e.target.value })}
+                placeholder="مثال: مدائح رمضان"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الوصف</label>
+              <Input
+                value={newPlaylist.desc || ""}
+                onChange={(e) => setNewPlaylist({ ...newPlaylist, desc: e.target.value })}
+                placeholder="وصف مختصر للقائمة"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">صورة القائمة</label>
+              <div className="flex items-center gap-3">
+                {newPlaylist.image && (
+                  <img
+                    src={getImageUrl(newPlaylist.image)}
+                    alt="غلاف القائمة"
+                    className="h-16 w-16 rounded-xl object-cover shrink-0 border border-border"
+                  />
+                )}
+                <div className="flex-1 space-y-2">
+                  <Input
+                    value={newPlaylist.image || ""}
+                    onChange={(e) => setNewPlaylist({ ...newPlaylist, image: e.target.value })}
+                    placeholder="مثال: images/collections/cover.jpg"
+                    dir="ltr"
+                    className="text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => openImagePicker("playlist")}
+                  >
+                    <ImagePlus className="h-3 w-3" />
+                    رفع صورة
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-fustat text-muted-foreground">اختر المدائح</label>
+                <div className="relative w-64">
+                  <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={playlistTrackSearch}
+                    onChange={(e) => setPlaylistTrackSearch(e.target.value)}
+                    placeholder="ابحث عن مدحة أو مادح..."
+                    className="h-8 pr-7 text-xs"
+                  />
+                </div>
+              </div>
+              <div className="border border-border rounded-xl max-h-48 overflow-auto p-2 space-y-1">
+                {displayTracks.map((t) => {
+                  const isSelected = newPlaylist.selectedTrackIds?.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        const current = newPlaylist.selectedTrackIds || [];
+                        const next = isSelected
+                          ? current.filter((id) => id !== t.id)
+                          : [...current, t.id];
+                        setNewPlaylist({ ...newPlaylist, selectedTrackIds: next });
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-start transition-colors ${
+                        isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <Square className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="truncate">{t.title}</span>
+                      <span className="text-[10px] text-muted-foreground mr-auto">{t.artistName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {newPlaylist.selectedTrackIds && newPlaylist.selectedTrackIds.length > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {newPlaylist.selectedTrackIds.length} مدحة محددة
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsPlaylistDialogOpen(false)} disabled={createCollectionMutation.isPending}>إلغاء</Button>
+            <Button onClick={handleAddPlaylist} disabled={createCollectionMutation.isPending} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              {createCollectionMutation.isPending ? "جاري الإنشاء..." : "إنشاء القائمة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Playlist Dialog */}
+      <Dialog open={!!editingPlaylist} onOpenChange={(open) => !open && setEditingPlaylist(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">تعديل القائمة</DialogTitle>
+          </DialogHeader>
+          {editingPlaylist && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">اسم القائمة</label>
+                <Input
+                  value={editingPlaylist.title}
+                  onChange={(e) => setEditingPlaylist({ ...editingPlaylist, title: e.target.value })}
+                  placeholder="مثال: مدائح رمضان"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الوصف</label>
+                <Input
+                  value={editingPlaylist.desc}
+                  onChange={(e) => setEditingPlaylist({ ...editingPlaylist, desc: e.target.value })}
+                  placeholder="وصف مختصر للقائمة"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">صورة القائمة</label>
+                <div className="flex items-center gap-3">
+                  {editingPlaylist.image && (
+                    <img
+                      src={getImageUrl(editingPlaylist.image)}
+                      alt="غلاف القائمة"
+                      className="h-16 w-16 rounded-xl object-cover shrink-0 border border-border"
+                    />
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      value={editingPlaylist.image}
+                      onChange={(e) => setEditingPlaylist({ ...editingPlaylist, image: e.target.value })}
+                      placeholder="مثال: images/collections/cover.jpg"
+                      dir="ltr"
+                      className="text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => openImagePicker("editPlaylist")}
+                    >
+                      <ImagePlus className="h-3 w-3" />
+                      رفع صورة
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-fustat text-muted-foreground">اختر المدائح</label>
+                  <div className="relative w-64">
+                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={playlistTrackSearch}
+                      onChange={(e) => setPlaylistTrackSearch(e.target.value)}
+                      placeholder="ابحث عن مدحة أو مادح..."
+                      className="h-8 pr-7 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="border border-border rounded-xl max-h-48 overflow-auto p-2 space-y-1">
+                  {displayTracks.map((t) => {
+                    const isSelected = editingPlaylist.trackIds?.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          const current = editingPlaylist.trackIds || [];
+                          const next = isSelected
+                            ? current.filter((id) => id !== t.id)
+                            : [...current, t.id];
+                          setEditingPlaylist({ ...editingPlaylist, trackIds: next });
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-start transition-colors ${
+                          isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
+                        }`}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <Square className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="truncate">{t.title}</span>
+                        <span className="text-[10px] text-muted-foreground mr-auto">{t.artistName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {editingPlaylist.trackIds && editingPlaylist.trackIds.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {editingPlaylist.trackIds.length} مدحة محددة
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingPlaylist(null)} disabled={updateCollectionMutation.isPending}>إلغاء</Button>
+            <Button onClick={handleSavePlaylist} disabled={updateCollectionMutation.isPending} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" />
+              {updateCollectionMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Madih Dialog */}
+      <Dialog open={!!editingMadih} onOpenChange={(open) => !open && setEditingMadih(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">تعديل المادح</DialogTitle>
+          </DialogHeader>
+          {editingMadih && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الاسم</label>
+                <Input value={editingMadih.name} onChange={(e) => setEditingMadih({ ...editingMadih, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">النبذة</label>
+                <Textarea value={editingMadih.bio || ""} onChange={(e) => setEditingMadih({ ...editingMadih, bio: e.target.value })} rows={3} />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الصورة</label>
+                <div className="flex items-center gap-3">
+                  {editingMadih.image_url && (
+                    <img src={getImageUrl(editingMadih.image_url)} alt="صورة" className="w-14 h-14 rounded-lg object-cover" />
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => { setCropTarget("editMadih"); fileInputRef.current?.click(); }}>
+                    <Upload className="h-3.5 w-3.5 ml-1" /> رفع صورة
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الميلاد</label>
+                  <Input type="number" value={editingMadih.birth_year || ""} onChange={(e) => setEditingMadih({ ...editingMadih, birth_year: e.target.value ? Number(e.target.value) : null })} />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الوفاة</label>
+                  <Input type="number" value={editingMadih.death_year || ""} onChange={(e) => setEditingMadih({ ...editingMadih, death_year: e.target.value ? Number(e.target.value) : null })} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+                <SearchableSelect
+                  value={editingMadih.tariqa_id || ""}
+                  onValueChange={(v) => setEditingMadih({ ...editingMadih, tariqa_id: v || null })}
+                  options={tariqas.map(t => ({ value: t.id, label: t.name }))}
+                  placeholder="اختر الطريقة"
+                  searchPlaceholder="ابحث عن طريقة..."
+                />
+              </div>
+              {/* Associated madhaat */}
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-2 block">المدائح المرتبطة</label>
+                <div className="space-y-1 max-h-40 overflow-y-auto rounded-lg border border-border p-2">
+                  {(fetchedTracks || []).filter(m => m.madih_id === editingMadih.id).map(m => (
+                    <div key={m.id} className="flex items-center gap-2 py-1 px-2 rounded text-xs text-muted-foreground">
+                      <Music className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{m.title}</span>
+                    </div>
+                  ))}
+                  {(fetchedTracks || []).filter(m => m.madih_id === editingMadih.id).length === 0 && (
+                    <p className="text-xs text-muted-foreground/50 text-center py-2">لا توجد مدائح مرتبطة</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingMadih(null)} disabled={updateMadihMutation.isPending}>إلغاء</Button>
+            <Button disabled={updateMadihMutation.isPending} className="gap-1.5" onClick={() => {
+              if (!editingMadih) return;
+              updateMadihMutation.mutate({ id: editingMadih.id, updates: {
+                name: editingMadih.name,
+                bio: editingMadih.bio,
+                image_url: editingMadih.image_url,
+                birth_year: editingMadih.birth_year,
+                death_year: editingMadih.death_year,
+                tariqa_id: editingMadih.tariqa_id,
+                is_verified: editingMadih.is_verified,
+              }}, {
+                onSuccess: () => { setEditingMadih(null); toast({ title: "تم الحفظ", description: "تم تحديث بيانات المادح" }); },
+                onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
+              });
+            }}>
+              <Save className="h-3.5 w-3.5" />
+              {updateMadihMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Madih Dialog */}
+      <Dialog open={isAddMadihDialogOpen} onOpenChange={setIsAddMadihDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">إضافة مادح جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الاسم *</label>
+              <Input value={newMadih.name || ""} onChange={(e) => setNewMadih(prev => ({ ...prev, name: e.target.value }))} placeholder="اسم المادح" />
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">النبذة</label>
+              <Textarea value={newMadih.bio || ""} onChange={(e) => setNewMadih(prev => ({ ...prev, bio: e.target.value }))} rows={3} placeholder="نبذة مختصرة..." />
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الصورة</label>
+              <div className="flex items-center gap-3">
+                {newMadih.image_url && (
+                  <img src={getImageUrl(newMadih.image_url)} alt="صورة" className="w-14 h-14 rounded-lg object-cover" />
+                )}
+                <Button variant="outline" size="sm" onClick={() => { setCropTarget("addMadih"); fileInputRef.current?.click(); }}>
+                  <Upload className="h-3.5 w-3.5 ml-1" /> رفع صورة
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الميلاد</label>
+                <Input type="number" value={newMadih.birth_year || ""} onChange={(e) => setNewMadih(prev => ({ ...prev, birth_year: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الوفاة</label>
+                <Input type="number" value={newMadih.death_year || ""} onChange={(e) => setNewMadih(prev => ({ ...prev, death_year: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+              <SearchableSelect
+                value={newMadih.tariqa_id || ""}
+                onValueChange={(v) => setNewMadih(prev => ({ ...prev, tariqa_id: v || null }))}
+                options={tariqas.map(t => ({ value: t.id, label: t.name }))}
+                placeholder="اختر الطريقة"
+                searchPlaceholder="ابحث عن طريقة..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setIsAddMadihDialogOpen(false); setNewMadih({}); }}>إلغاء</Button>
+            <Button disabled={!newMadih.name || createMadihMutation.isPending} className="gap-1.5" onClick={() => {
+              createMadihMutation.mutate(newMadih, {
+                onSuccess: () => { setIsAddMadihDialogOpen(false); setNewMadih({}); toast({ title: "تمت الإضافة", description: "تم إضافة المادح بنجاح" }); },
+                onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
+              });
+            }}>
+              <Save className="h-3.5 w-3.5" />
+              {createMadihMutation.isPending ? "جاري الإضافة..." : "إضافة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Rawi Dialog */}
+      <Dialog open={!!editingRawi} onOpenChange={(open) => !open && setEditingRawi(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">تعديل الراوي</DialogTitle>
+          </DialogHeader>
+          {editingRawi && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الاسم</label>
+                <Input value={editingRawi.name} onChange={(e) => setEditingRawi({ ...editingRawi, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">النبذة</label>
+                <Textarea value={editingRawi.bio || ""} onChange={(e) => setEditingRawi({ ...editingRawi, bio: e.target.value })} rows={3} />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">الصورة</label>
+                <div className="flex items-center gap-3">
+                  {editingRawi.image_url && (
+                    <img src={getImageUrl(editingRawi.image_url)} alt="صورة" className="w-14 h-14 rounded-lg object-cover" />
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => { setCropTarget("editRawi"); fileInputRef.current?.click(); }}>
+                    <Upload className="h-3.5 w-3.5 ml-1" /> رفع صورة
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الميلاد</label>
+                  <Input type="number" value={editingRawi.birth_year || ""} onChange={(e) => setEditingRawi({ ...editingRawi, birth_year: e.target.value ? Number(e.target.value) : null })} />
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الوفاة</label>
+                  <Input type="number" value={editingRawi.death_year || ""} onChange={(e) => setEditingRawi({ ...editingRawi, death_year: e.target.value ? Number(e.target.value) : null })} />
+                </div>
+              </div>
+              {/* Associated madhaat */}
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-2 block">المدائح المرتبطة</label>
+                <div className="space-y-1 max-h-40 overflow-y-auto rounded-lg border border-border p-2">
+                  {(fetchedTracks || []).filter(m => m.rawi_id === editingRawi.id).map(m => (
+                    <div key={m.id} className="flex items-center gap-2 py-1 px-2 rounded text-xs text-muted-foreground">
+                      <Music className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{m.title}</span>
+                    </div>
+                  ))}
+                  {(fetchedTracks || []).filter(m => m.rawi_id === editingRawi.id).length === 0 && (
+                    <p className="text-xs text-muted-foreground/50 text-center py-2">لا توجد مدائح مرتبطة</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingRawi(null)} disabled={updateRawiMutation.isPending}>إلغاء</Button>
+            <Button disabled={updateRawiMutation.isPending} className="gap-1.5" onClick={() => {
+              if (!editingRawi) return;
+              updateRawiMutation.mutate({ id: editingRawi.id, updates: {
+                name: editingRawi.name,
+                bio: editingRawi.bio,
+                image_url: editingRawi.image_url,
+                birth_year: editingRawi.birth_year,
+                death_year: editingRawi.death_year,
+              }}, {
+                onSuccess: () => { setEditingRawi(null); toast({ title: "تم الحفظ", description: "تم تحديث بيانات الراوي" }); },
+                onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
+              });
+            }}>
+              <Save className="h-3.5 w-3.5" />
+              {updateRawiMutation.isPending ? "جاري الحفظ..." : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Rawi Dialog */}
+      <Dialog open={isAddRawiDialogOpen} onOpenChange={setIsAddRawiDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">إضافة راوي جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الاسم *</label>
+              <Input value={newRawi.name || ""} onChange={(e) => setNewRawi(prev => ({ ...prev, name: e.target.value }))} placeholder="اسم الراوي" />
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">النبذة</label>
+              <Textarea value={newRawi.bio || ""} onChange={(e) => setNewRawi(prev => ({ ...prev, bio: e.target.value }))} rows={3} placeholder="نبذة مختصرة..." />
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الصورة</label>
+              <div className="flex items-center gap-3">
+                {newRawi.image_url && (
+                  <img src={getImageUrl(newRawi.image_url)} alt="صورة" className="w-14 h-14 rounded-lg object-cover" />
+                )}
+                <Button variant="outline" size="sm" onClick={() => { setCropTarget("addRawi"); fileInputRef.current?.click(); }}>
+                  <Upload className="h-3.5 w-3.5 ml-1" /> رفع صورة
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الميلاد</label>
+                <Input type="number" value={newRawi.birth_year || ""} onChange={(e) => setNewRawi(prev => ({ ...prev, birth_year: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+              <div>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">سنة الوفاة</label>
+                <Input type="number" value={newRawi.death_year || ""} onChange={(e) => setNewRawi(prev => ({ ...prev, death_year: e.target.value ? Number(e.target.value) : null }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setIsAddRawiDialogOpen(false); setNewRawi({}); }}>إلغاء</Button>
+            <Button disabled={!newRawi.name || createRawiMutation.isPending} className="gap-1.5" onClick={() => {
+              createRawiMutation.mutate(newRawi, {
+                onSuccess: () => { setIsAddRawiDialogOpen(false); setNewRawi({}); toast({ title: "تمت الإضافة", description: "تم إضافة الراوي بنجاح" }); },
+                onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
+              });
+            }}>
+              <Save className="h-3.5 w-3.5" />
+              {createRawiMutation.isPending ? "جاري الإضافة..." : "إضافة"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Edit Dialog */}
+      <Dialog open={!!bulkEditField} onOpenChange={(open) => !open && setBulkEditField(null)}>
+        <DialogContent className="max-w-sm" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-fustat">
+              تعديل جماعي — {bulkEditField === "artistId" ? "المادح" : bulkEditField === "tariqa" ? "الطريقة" : bulkEditField === "fan" ? "الفن" : "الراوي"}
+            </DialogTitle>
+          </DialogHeader>
+          <div>
+            {bulkEditField === "artistId" ? (
+              <SearchableSelect
+                onValueChange={(v) => handleBulkUpdate("artistId", v)}
+                options={artists.map((a) => ({ value: a.id, label: a.name }))}
+                placeholder="اختر المادح"
+                searchPlaceholder="ابحث عن مادح..."
+              />
+            ) : bulkEditField === "narratorId" ? (
+              <SearchableSelect
+                onValueChange={(v) => handleBulkUpdate("narratorId", v)}
+                options={narrators.map((n) => ({ value: n.id, label: n.name }))}
+                placeholder="اختر الراوي"
+                searchPlaceholder="ابحث عن راوي..."
+              />
+            ) : (
+              <SearchableSelect
+                onValueChange={(v) => handleBulkUpdate(bulkEditField!, v)}
+                options={(bulkEditField === "tariqa" ? tariqas : funoon).map((item) => ({ value: item.name, label: item.name }))}
+                placeholder="اختر"
+                searchPlaceholder="ابحث..."
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shared file input for image picker */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileSelected}
+      />
+
+      {/* Shared file input for audio picker */}
+      <input
+        ref={audioFileInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={handleAudioFileSelected}
+      />
+
+      {/* Image crop dialog */}
+      {cropImageSrc && (
+        <ImageCropDialog
+          open={!!cropImageSrc}
+          imageSrc={cropImageSrc}
+          uploading={imageUploading}
+          onClose={() => {
+            setCropImageSrc(null);
+            setCropTarget(null);
+          }}
+          onCropComplete={handleCroppedUpload}
+        />
+      )}
+
+      {/* Bulk Upload Dialog */}
+      <BulkUploadDialog
+        open={isBulkUploadOpen}
+        onOpenChange={setIsBulkUploadOpen}
+        artists={artists.map(a => ({ id: a.id, name: a.name }))}
+        narrators={narrators.map(n => ({ id: n.id, name: n.name }))}
+        tariqas={tariqas.map(t => ({ id: t.id, name: t.name }))}
+        funoon={funoon.map(f => ({ id: f.id, name: f.name }))}
+      />
+    </div>
+  );
+};
+
+export default DashboardPage;

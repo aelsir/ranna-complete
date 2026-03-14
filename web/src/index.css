@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 160 10% 97%;
+    --foreground: 184 43% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 184 43% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 184 43% 15%;
+    --primary: 184 43% 19%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 73 100% 50%;
+    --secondary-foreground: 184 43% 12%;
+    --muted: 180 12% 93%;
+    --muted-foreground: 184 20% 46%;
+    --accent: 7 100% 70%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 180 12% 88%;
+    --input: 180 12% 91%;
+    --ring: 73 100% 50%;
+    --radius: 1rem;
+
+    /* Extended palette */
+    --primary-glow: 184 50% 28%;
+    --secondary-glow: 73 100% 60%;
+    --accent-glow: 7 100% 76%;
+    --surface-glass: 0 0% 100%;
+    --surface-elevated: 160 8% 99%;
+
+    /* Shadows */
+    --shadow-sm:
+      0 1px 3px 0 hsl(184 43% 19% / 0.04),
+      0 1px 2px -1px hsl(184 43% 19% / 0.04);
+    --shadow-md:
+      0 4px 16px -2px hsl(184 43% 19% / 0.08),
+      0 2px 6px -2px hsl(184 43% 19% / 0.04);
+    --shadow-lg:
+      0 12px 40px -8px hsl(184 43% 19% / 0.12),
+      0 4px 12px -4px hsl(184 43% 19% / 0.06);
+    --shadow-glow-secondary: 0 4px 24px -4px hsl(73 100% 50% / 0.35);
+    --shadow-glow-accent: 0 4px 20px -4px hsl(7 100% 70% / 0.3);
+
+    --font-fustat: "Fustat", sans-serif;
+    --font-noto-naskh: "Noto Naskh Arabic", serif;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-noto-naskh);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-fustat);
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: hsl(var(--surface-glass) / 0.72);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  }
+  .glass-heavy {
+    background: hsl(var(--surface-glass) / 0.88);
+    backdrop-filter: blur(32px) saturate(2);
+    -webkit-backdrop-filter: blur(32px) saturate(2);
+  }
+  .glass-dark {
+    background: hsl(var(--primary) / 0.85);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  }
+  .shadow-float {
+    box-shadow: var(--shadow-lg);
+  }
+  .shadow-glow-secondary {
+    box-shadow: var(--shadow-glow-secondary);
+  }
+  .shadow-glow-accent {
+    box-shadow: var(--shadow-glow-accent);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.3s ease;
+  }
+  .shadow-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .text-gradient-primary {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary-glow))
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* Hide scrollbar globally for mobile PWA feel */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.direction-ltr {
+  direction: ltr;
+}
+
+/* Native RTL support for specific Lucide icons */
+[dir="rtl"] .lucide-shuffle,
+[dir="rtl"] .lucide-skip-back,
+[dir="rtl"] .lucide-skip-forward,
+[dir="rtl"] .lucide-play,
+[dir="rtl"] .lucide-play-circle,
+[dir="rtl"] .lucide-circle-play {
+  transform: rotate(180deg);
+}
