@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ranna/models/madha.dart';
@@ -11,6 +12,20 @@ final supabaseProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
 });
 
+/// Safely converts any Supabase query result to a typed list.
+/// Handles null (web bug), empty responses, and unexpected types.
+List<Map<String, dynamic>> _asList(dynamic result) {
+  if (result == null) {
+    debugPrint('⚠️  _asList: received null');
+    return [];
+  }
+  if (result is! List) {
+    debugPrint('⚠️  _asList: expected List, got ${result.runtimeType}: $result');
+    return [];
+  }
+  return result.whereType<Map<String, dynamic>>().toList();
+}
+
 // ============================================
 // Home page data
 // ============================================
@@ -18,50 +33,71 @@ final supabaseProvider = Provider<SupabaseClient>((ref) {
 final homeDataProvider = FutureProvider<HomeData>((ref) async {
   final supabase = ref.read(supabaseProvider);
 
-  final results = await Future.wait([
-    // Featured tracks
-    supabase
-        .from('madha')
-        .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-        .eq('status', 'approved')
-        .eq('is_featured', true)
-        .order('created_at', ascending: false)
-        .limit(10),
-    // Popular tracks
-    supabase
-        .from('madha')
-        .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-        .eq('status', 'approved')
-        .order('play_count', ascending: false)
-        .limit(10),
-    // Recent tracks
-    supabase
-        .from('madha')
-        .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-        .eq('status', 'approved')
-        .order('created_at', ascending: false)
-        .limit(10),
-    // Artists
-    supabase
-        .from('madiheen')
-        .select()
-        .eq('status', 'approved')
-        .order('name')
-        .limit(20),
-    // Collections
-    supabase
-        .from('collections')
-        .select()
-        .eq('is_active', true)
-        .order('display_order'),
-  ]);
+  Future<List<Map<String, dynamic>>> safeQuery(
+      String label, Future<dynamic> Function() query) async {
+    try {
+      final dynamic result = await query();
+      final list = _asList(result);
+      debugPrint('✅ homeDataProvider [$label]: ${list.length} rows');
+      return list;
+    } catch (e, st) {
+      debugPrint('⛔ homeDataProvider [$label] error: $e');
+      debugPrint('$st');
+      return [];
+    }
+  }
+
+  // Use select('*') without joins to avoid PostgREST embedding issues on web.
+  // Artist/narrator details are fetched lazily via separate providers when needed.
+  final featuredRaw = await safeQuery('featured', () => supabase
+      .from('madha')
+      .select()
+      .eq('status', 'approved')
+      .eq('is_featured', true)
+      .order('created_at', ascending: false)
+      .limit(10));
+
+  final popularRaw = await safeQuery('popular', () => supabase
+      .from('madha')
+      .select()
+      .eq('status', 'approved')
+      .order('play_count', ascending: false)
+      .limit(10));
+
+  final recentRaw = await safeQuery('recent', () => supabase
+      .from('madha')
+      .select()
+      .eq('status', 'approved')
+      .order('created_at', ascending: false)
+      .limit(10));
+
+  final artistsRaw = await safeQuery('artists', () => supabase
+      .from('madiheen')
+      .select()
+      .eq('status', 'approved')
+      .order('name')
+      .limit(20));
+
+  final collectionsRaw = await safeQuery('collections', () => supabase
+      .from('collections')
+      .select()
+      .eq('is_active', true)
+      .order('display_order'));
+
+  final narratorsRaw = await safeQuery('narrators', () => supabase
+      .from('ruwat')
+      .select()
+      .eq('status', 'approved')
+      .order('name')
+      .limit(20));
 
   return HomeData(
-    featuredTracks: (results[0] as List).map((e) => MadhaWithRelations.fromJson(e)).toList(),
-    popularTracks: (results[1] as List).map((e) => MadhaWithRelations.fromJson(e)).toList(),
-    recentTracks: (results[2] as List).map((e) => MadhaWithRelations.fromJson(e)).toList(),
-    artists: (results[3] as List).map((e) => Madih.fromJson(e)).toList(),
-    collections: (results[4] as List).map((e) => MusicCollection.fromJson(e)).toList(),
+    featuredTracks: featuredRaw.map((e) => MadhaWithRelations.fromJson(e)).toList(),
+    popularTracks: popularRaw.map((e) => MadhaWithRelations.fromJson(e)).toList(),
+    recentTracks: recentRaw.map((e) => MadhaWithRelations.fromJson(e)).toList(),
+    artists: artistsRaw.map((e) => Madih.fromJson(e)).toList(),
+    collections: collectionsRaw.map((e) => MusicCollection.fromJson(e)).toList(),
+    narrators: narratorsRaw.map((e) => Rawi.fromJson(e)).toList(),
   );
 });
 
@@ -71,6 +107,7 @@ class HomeData {
   final List<MadhaWithRelations> recentTracks;
   final List<Madih> artists;
   final List<MusicCollection> collections;
+  final List<Rawi> narrators;
 
   const HomeData({
     required this.featuredTracks,
@@ -78,6 +115,7 @@ class HomeData {
     required this.recentTracks,
     required this.artists,
     required this.collections,
+    required this.narrators,
   });
 }
 
@@ -92,15 +130,26 @@ final searchResultsProvider = FutureProvider<List<MadhaWithRelations>>((ref) asy
   if (query.trim().isEmpty) return [];
 
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('madha')
-      .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-      .eq('status', 'approved')
-      .or('title.ilike.%$query%,madih.ilike.%$query%')
-      .order('play_count', ascending: false)
-      .limit(50);
+  try {
+    // Use ilike on title only — avoids .or() which can fail on web.
+    // Also no joins to avoid PostgREST embedding issues.
+    final dynamic results = await supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .ilike('title', '%$query%')
+        .order('play_count', ascending: false)
+        .limit(50);
 
-  return (results as List).map((e) => MadhaWithRelations.fromJson(e)).toList();
+    debugPrint('🔍 searchResultsProvider raw type: ${results.runtimeType}');
+    final list = _asList(results);
+    debugPrint('🔍 searchResultsProvider: ${list.length} results for "$query"');
+    return list.map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e, st) {
+    debugPrint('⛔ searchResultsProvider error: $e');
+    debugPrint('$st');
+    return [];
+  }
 });
 
 // ============================================
@@ -109,31 +158,46 @@ final searchResultsProvider = FutureProvider<List<MadhaWithRelations>>((ref) asy
 
 final allArtistsProvider = FutureProvider<List<Madih>>((ref) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('madiheen')
-      .select()
-      .eq('status', 'approved')
-      .order('name');
-  return (results as List).map((e) => Madih.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('madiheen')
+        .select()
+        .eq('status', 'approved')
+        .order('name');
+    return _asList(results).map((e) => Madih.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ allArtistsProvider error: $e');
+    return [];
+  }
 });
 
 final artistTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, artistId) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('madha')
-      .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-      .eq('status', 'approved')
-      .eq('madih_id', artistId)
-      .order('created_at', ascending: false);
-  return (results as List).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .eq('madih_id', artistId)
+        .order('created_at', ascending: false);
+    return _asList(results).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ artistTracksProvider error: $e');
+    return [];
+  }
 });
 
 final artistDetailProvider = FutureProvider.family<Madih?, String>((ref, id) async {
   final supabase = ref.read(supabaseProvider);
-  final result = await supabase.from('madiheen').select().eq('id', id).maybeSingle();
-  if (result == null) return null;
-  return Madih.fromJson(result);
+  try {
+    final result = await supabase.from('madiheen').select().eq('id', id).maybeSingle();
+    if (result == null) return null;
+    return Madih.fromJson(result);
+  } catch (e) {
+    debugPrint('⛔ artistDetailProvider error: $e');
+    return null;
+  }
 });
 
 // ============================================
@@ -142,31 +206,46 @@ final artistDetailProvider = FutureProvider.family<Madih?, String>((ref, id) asy
 
 final allNarratorsProvider = FutureProvider<List<Rawi>>((ref) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('ruwat')
-      .select()
-      .eq('status', 'approved')
-      .order('name');
-  return (results as List).map((e) => Rawi.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('ruwat')
+        .select()
+        .eq('status', 'approved')
+        .order('name');
+    return _asList(results).map((e) => Rawi.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ allNarratorsProvider error: $e');
+    return [];
+  }
 });
 
 final narratorTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, rawiId) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('madha')
-      .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-      .eq('status', 'approved')
-      .eq('rawi_id', rawiId)
-      .order('created_at', ascending: false);
-  return (results as List).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .eq('rawi_id', rawiId)
+        .order('created_at', ascending: false);
+    return _asList(results).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ narratorTracksProvider error: $e');
+    return [];
+  }
 });
 
 final narratorDetailProvider = FutureProvider.family<Rawi?, String>((ref, id) async {
   final supabase = ref.read(supabaseProvider);
-  final result = await supabase.from('ruwat').select().eq('id', id).maybeSingle();
-  if (result == null) return null;
-  return Rawi.fromJson(result);
+  try {
+    final result = await supabase.from('ruwat').select().eq('id', id).maybeSingle();
+    if (result == null) return null;
+    return Rawi.fromJson(result);
+  } catch (e) {
+    debugPrint('⛔ narratorDetailProvider error: $e');
+    return null;
+  }
 });
 
 // ============================================
@@ -175,8 +254,13 @@ final narratorDetailProvider = FutureProvider.family<Rawi?, String>((ref, id) as
 
 final allTuruqProvider = FutureProvider<List<Tariqa>>((ref) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase.from('turuq').select().order('name');
-  return (results as List).map((e) => Tariqa.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase.from('turuq').select().order('name');
+    return _asList(results).map((e) => Tariqa.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ allTuruqProvider error: $e');
+    return [];
+  }
 });
 
 // ============================================
@@ -185,8 +269,13 @@ final allTuruqProvider = FutureProvider<List<Tariqa>>((ref) async {
 
 final allFununProvider = FutureProvider<List<Fan>>((ref) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase.from('funun').select().order('name');
-  return (results as List).map((e) => Fan.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase.from('funun').select().order('name');
+    return _asList(results).map((e) => Fan.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ allFununProvider error: $e');
+    return [];
+  }
 });
 
 // ============================================
@@ -195,35 +284,63 @@ final allFununProvider = FutureProvider<List<Fan>>((ref) async {
 
 final allCollectionsProvider = FutureProvider<List<MusicCollection>>((ref) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('collections')
-      .select()
-      .eq('is_active', true)
-      .order('display_order');
-  return (results as List).map((e) => MusicCollection.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('collections')
+        .select()
+        .eq('is_active', true)
+        .order('display_order');
+    return _asList(results).map((e) => MusicCollection.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ allCollectionsProvider error: $e');
+    return [];
+  }
 });
 
 final collectionTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, collectionId) async {
   final supabase = ref.read(supabaseProvider);
-  final items = await supabase
-      .from('collection_items')
-      .select('madha_id, position, madha:madha_id(*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*))')
-      .eq('collection_id', collectionId)
-      .order('position');
+  try {
+    final dynamic items = await supabase
+        .from('collection_items')
+        .select('madha_id, position')
+        .eq('collection_id', collectionId)
+        .order('position');
 
-  return (items as List)
-      .where((e) => e['madha'] != null)
-      .map((e) => MadhaWithRelations.fromJson(e['madha']))
-      .toList();
+    final itemList = _asList(items);
+    if (itemList.isEmpty) return [];
+
+    final madhaIds = itemList
+        .map((e) => e['madha_id'] as String?)
+        .whereType<String>()
+        .toList();
+
+    if (madhaIds.isEmpty) return [];
+
+    final dynamic tracks = await supabase
+        .from('madha')
+        .select()
+        .inFilter('id', madhaIds)
+        .eq('status', 'approved');
+
+    return _asList(tracks).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ collectionTracksProvider error: $e');
+    return [];
+  }
 });
 
 final collectionDetailProvider =
     FutureProvider.family<MusicCollection?, String>((ref, id) async {
   final supabase = ref.read(supabaseProvider);
-  final result = await supabase.from('collections').select().eq('id', id).maybeSingle();
-  if (result == null) return null;
-  return MusicCollection.fromJson(result);
+  try {
+    final result = await supabase.from('collections').select().eq('id', id).maybeSingle();
+    if (result == null) return null;
+    return MusicCollection.fromJson(result);
+  } catch (e) {
+    debugPrint('⛔ collectionDetailProvider error: $e');
+    return null;
+  }
 });
 
 // ============================================
@@ -233,23 +350,33 @@ final collectionDetailProvider =
 final tracksByTariqaProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, tariqaId) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('madha')
-      .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-      .eq('status', 'approved')
-      .eq('tariqa_id', tariqaId)
-      .order('created_at', ascending: false);
-  return (results as List).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .eq('tariqa_id', tariqaId)
+        .order('created_at', ascending: false);
+    return _asList(results).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ tracksByTariqaProvider error: $e');
+    return [];
+  }
 });
 
 final tracksByFanProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, fanId) async {
   final supabase = ref.read(supabaseProvider);
-  final results = await supabase
-      .from('madha')
-      .select('*, madiheen:madih_id(*), ruwat:rawi_id(*), turuq:tariqa_id(*), funun:fan_id(*)')
-      .eq('status', 'approved')
-      .eq('fan_id', fanId)
-      .order('created_at', ascending: false);
-  return (results as List).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  try {
+    final dynamic results = await supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .eq('fan_id', fanId)
+        .order('created_at', ascending: false);
+    return _asList(results).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ tracksByFanProvider error: $e');
+    return [];
+  }
 });

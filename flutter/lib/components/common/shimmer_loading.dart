@@ -154,29 +154,31 @@ class ShimmerCollectionCard extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: RannaTheme.muted,
       highlightColor: RannaTheme.card,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: Container(
+      child: SizedBox(
+        width: 140,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: 80,
-            height: 14,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
+            const SizedBox(height: 8),
+            Container(
+              width: 80,
+              height: 14,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
