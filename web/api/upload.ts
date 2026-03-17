@@ -59,6 +59,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err: any) {
     console.error("Upload error:", err);
-    return res.status(500).json({ error: err.message || "Upload failed" });
+    const message = err?.message || "Unknown error";
+    const code = err?.$metadata?.httpStatusCode || err?.Code || "";
+    const detail = code ? `${message} (${code})` : message;
+    return res.status(500).json({ error: detail });
   }
 }

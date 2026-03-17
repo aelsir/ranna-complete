@@ -327,8 +327,15 @@ export function useBulkUpload() {
       dispatch({ type: "FILE_UPLOADING", id: file.id });
 
       try {
-        // Upload audio to R2
-        const audioPath = await uploadToR2(file.file, "audio/madhaat");
+        // 1. Upload audio to R2
+        let audioPath: string;
+        try {
+          audioPath = await uploadToR2(file.file, "audio/madhaat");
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+          console.error(`[رفع R2] فشل "${file.title}":`, uploadErr);
+          throw new Error(`خطأ رفع الملف: ${msg}`);
+        }
 
         if (cancelledRef.current) break;
 
@@ -337,26 +344,36 @@ export function useBulkUpload() {
         // Merge shared defaults with per-file overrides
         const effective = getEffectiveMetadata(state.metadata, file.overrides);
 
-        // Create DB record — returns the new madha's ID
-        const madhaId = await createMadha({
-          title: file.title,
-          madih_name: effective.madihName,
-          madih_id: effective.madihId || null,
-          rawi_id: effective.rawiId || null,
-          tariqa_id: effective.tariqaId || null,
-          fan_id: effective.fanId || null,
-          recording_place: effective.recordingPlace || null,
-          lyrics: effective.lyrics || null,
-          duration_seconds: file.durationSeconds,
-          audio_url: audioPath,
-        });
+        // 2. Create DB record
+        let madhaId: string;
+        try {
+          madhaId = await createMadha({
+            title: file.title,
+            madih_name: effective.madihName,
+            madih_id: effective.madihId || null,
+            rawi_id: effective.rawiId || null,
+            tariqa_id: effective.tariqaId || null,
+            fan_id: effective.fanId || null,
+            recording_place: effective.recordingPlace || null,
+            lyrics: effective.lyrics || null,
+            duration_seconds: file.durationSeconds,
+            audio_url: audioPath,
+          });
+        } catch (dbErr: any) {
+          const parts = [dbErr?.message, dbErr?.details, dbErr?.hint].filter(Boolean);
+          const msg = parts.length > 0 ? parts.join(" — ") : String(dbErr);
+          console.error(`[حفظ DB] فشل "${file.title}":`, dbErr);
+          throw new Error(`خطأ حفظ البيانات: ${msg}`);
+        }
 
         dispatch({ type: "FILE_COMPLETED", id: file.id, madhaId });
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "فشل الرفع — خطأ غير معروف";
+        console.error(`[رفع] فشل "${file.title}":`, err);
         dispatch({
           type: "FILE_FAILED",
           id: file.id,
-          error: err instanceof Error ? err.message : "فشل الرفع",
+          error: errorMsg,
         });
       }
     }

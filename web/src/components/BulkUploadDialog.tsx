@@ -733,14 +733,9 @@ export function BulkUploadDialog({
                         <span className="flex-1 text-sm font-fustat truncate">
                           {f.title}
                         </span>
-                        {f.status === "failed" && f.error && (
-                          <span className="text-[10px] text-destructive truncate max-w-[150px]">
-                            {f.error}
-                          </span>
-                        )}
                         <Badge
                           variant="outline"
-                          className={`text-[10px] ${
+                          className={`text-[10px] shrink-0 ${
                             f.status === "completed"
                               ? "text-emerald-600 border-emerald-500/30"
                               : f.status === "failed"
@@ -757,6 +752,14 @@ export function BulkUploadDialog({
                           {f.status === "failed" && "فشل"}
                         </Badge>
                       </div>
+                      {/* Error details — full message, not truncated */}
+                      {f.status === "failed" && f.error && (
+                        <div className="mt-1.5 mr-6 p-2 rounded-lg bg-destructive/5 border border-destructive/20">
+                          <p className="text-[11px] text-destructive font-noto-naskh leading-relaxed break-words whitespace-pre-wrap">
+                            {f.error}
+                          </p>
+                        </div>
+                      )}
                       {/* Metadata row — shown for completed & failed files */}
                       {(f.status === "completed" || f.status === "failed") && (
                         <div className="flex items-center gap-2 mt-1.5 mr-6 flex-wrap">

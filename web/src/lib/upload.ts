@@ -52,8 +52,15 @@ export async function uploadToR2(
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Upload failed" }));
-    throw new Error(error.error || "Upload failed");
+    const body = await res.text().catch(() => "");
+    let message = `رفع الملف فشل (${res.status})`;
+    try {
+      const json = JSON.parse(body);
+      if (json.error) message = `رفع R2: ${json.error}`;
+    } catch {
+      if (body) message = `رفع R2: ${body.slice(0, 200)}`;
+    }
+    throw new Error(message);
   }
 
   const { path } = await res.json();
