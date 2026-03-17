@@ -23,10 +23,13 @@ dependencies:
   audio_service: ^0.18.13
   audio_session: ^0.1.19
 
+  # Storage
+  shared_preferences: ^2.5.4
+
   # UI
   cached_network_image: ^3.3.1
-  google_fonts: ^6.1.0
   shimmer: ^3.0.0
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:
@@ -36,3 +39,31 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Fustat
+      fonts:
+        - asset: assets/fonts/Fustat-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/Fustat-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Fustat-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Fustat-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Fustat-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Fustat-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Fustat-ExtraBold.ttf
+          weight: 800
+    - family: NotoNaskhArabic
+      fonts:
+        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoNaskhArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoNaskhArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
+          weight: 700

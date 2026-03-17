@@ -1,84 +1,187 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/player/player_controls.dart';
+import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 
-/// Full-screen player overlay shown when [isFullPlayerOpenProvider] is `true`.
+/// Full player overlay with glass-dark styling, rounded-3xl, z-55.
 ///
-/// Designed as a standalone widget that the shell scaffold renders as a
-/// [Stack] layer. When visible it covers the entire screen with a slide-up
-/// animation; when hidden it collapses to [SizedBox.shrink].
+/// Fills the content area (parent positions it). Entry animation is a spring
+/// slide up from y:60, scale 0.95, opacity 0.
 ///
 /// Layout (top to bottom):
-///   1. Top bar with close button and "Now Playing" title
-///   2. Spacer
-///   3. Cover art (280 px, rounded, accent glow shadow)
-///   4. Track info (title, artist, rawi)
-///   5. Seek bar with position / duration labels
-///   6. [PlayerControls] row
-///   7. Spacer
-class FullPlayer extends ConsumerWidget {
+///   1. Header: collapse button + "الآن يُستمع"
+///   2. Cover art with coral glow and spring scale animation
+///   3. Track info (title, artist + narrator)
+///   4. Progress slider with time labels
+///   5. [PlayerControls] row
+///   6. Favourite heart button
+class FullPlayer extends ConsumerStatefulWidget {
   const FullPlayer({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FullPlayer> createState() => _FullPlayerState();
+}
+
+class _FullPlayerState extends ConsumerState<FullPlayer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entryController;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _opacityAnimation;
+  late final Animation<double> _coverScaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 60 / 800), // normalised y offset
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOutBack,
+    ));
+
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutBack),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+      ),
+    );
+
+    _coverScaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutBack),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    super.dispose();
+  }
+
+  void _animateEntry(bool isOpen) {
+    if (isOpen) {
+      _entryController.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isOpen = ref.watch(isFullPlayerOpenProvider);
     final track = ref.watch(currentTrackProvider);
     final playerState = ref.watch(audioPlayerProvider);
-    final textTheme = Theme.of(context).textTheme;
+    final notifier = ref.read(audioPlayerProvider.notifier);
 
-    // Animated entrance/exit
-    return AnimatedSlide(
-      offset: isOpen ? Offset.zero : const Offset(0, 1),
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-      child: AnimatedOpacity(
-        opacity: isOpen ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 300),
-        child: Visibility(
-          visible: isOpen,
-          child: Material(
-            color: RannaTheme.card,
+    // Trigger animation when opened
+    ref.listen<bool>(isFullPlayerOpenProvider, (prev, next) {
+      _animateEntry(next);
+    });
+
+    if (!isOpen) return const SizedBox.shrink();
+
+    // Start animation if first build while open
+    if (!_entryController.isAnimating && _entryController.value == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _animateEntry(true);
+      });
+    }
+
+    return AnimatedBuilder(
+      animation: _entryController,
+      builder: (context, child) {
+        return SlideTransition(
+          position: _slideAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: FadeTransition(
+              opacity: _opacityAnimation,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: RannaTheme.primary.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+              border: Border.all(
+                color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
+              ),
+              boxShadow: RannaTheme.shadowFloat,
+            ),
             child: SafeArea(
               child: Column(
                 children: [
                   // =========================================================
-                  // 1. Top bar
+                  // 1. Header
                   // =========================================================
                   Padding(
                     padding: const EdgeInsetsDirectional.only(
-                      start: 4,
+                      start: 8,
                       end: 16,
-                      top: 8,
+                      top: 12,
                     ),
                     child: Row(
                       children: [
-                        IconButton(
-                          onPressed: () => ref
-                              .read(audioPlayerProvider.notifier)
-                              .closeFullPlayer(),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 32,
-                            color: RannaTheme.foreground,
+                        // Collapse button
+                        GestureDetector(
+                          onTap: () => notifier.closeFullPlayer(),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.transparent,
+                              border: Border.all(
+                                color: RannaTheme.primaryForeground
+                                    .withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 24,
+                              color: RannaTheme.primaryForeground
+                                  .withValues(alpha: 0.60),
+                            ),
                           ),
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             '\u0627\u0644\u0622\u0646 \u064A\u064F\u0633\u062A\u0645\u0639', // الآن يُستمع
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: RannaTheme.mutedForeground,
+                            style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: RannaTheme.primaryForeground
+                                  .withValues(alpha: 0.50),
                             ),
                           ),
                         ),
                         // Invisible placeholder to keep title centred
-                        const SizedBox(width: 48),
+                        const SizedBox(width: 40),
                       ],
                     ),
                   ),
@@ -89,28 +192,66 @@ class FullPlayer extends ConsumerWidget {
                   const Spacer(),
 
                   // =========================================================
-                  // 3. Cover art
+                  // 3. Cover art with coral glow and spring scale
                   // =========================================================
-                  Center(
-                    child: Container(
-                      width: 280,
-                      height: 280,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: RannaTheme.shadowGlowAccent,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: track != null
-                            ? RannaImage(
-                                url: track.imageUrl ??
-                                    track.madihDetails?.imageUrl,
-                                width: 280,
-                                height: 280,
-                                fit: BoxFit.cover,
-                                fallbackWidget: _buildFallbackCover(),
-                              )
-                            : _buildFallbackCover(),
+                  AnimatedBuilder(
+                    animation: _coverScaleAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _coverScaleAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: Center(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Coral glow behind (accent/15%, blur-2xl, scale 1.1)
+                          Container(
+                            width: 280 * 1.1,
+                            height: 280 * 1.1,
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(RannaTheme.radius2xl),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: RannaTheme.accent
+                                      .withValues(alpha: 0.15),
+                                  blurRadius: 48,
+                                  spreadRadius: 8,
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Cover image
+                          Container(
+                            width: 280,
+                            height: 280,
+                            decoration: BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.circular(RannaTheme.radius2xl),
+                              boxShadow: RannaTheme.shadowLg,
+                              border: Border.all(
+                                color: RannaTheme.primaryForeground
+                                    .withValues(alpha: 0.10),
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(RannaTheme.radius2xl),
+                              child: track != null
+                                  ? RannaImage(
+                                      url: track.imageUrl ??
+                                          track.madihDetails?.imageUrl,
+                                      width: 280,
+                                      height: 280,
+                                      fit: BoxFit.cover,
+                                      fallbackWidget: _buildFallbackCover(),
+                                    )
+                                  : _buildFallbackCover(),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -121,43 +262,34 @@ class FullPlayer extends ConsumerWidget {
                   // 4. Track info
                   // =========================================================
                   Padding(
-                    padding: const EdgeInsetsDirectional.symmetric(
-                      horizontal: 32,
-                    ),
+                    padding:
+                        const EdgeInsetsDirectional.symmetric(horizontal: 32),
                     child: Column(
                       children: [
+                        // Title
                         Text(
                           track?.title ?? '',
-                          style: textTheme.titleLarge?.copyWith(
+                          style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: RannaTheme.foreground,
+                            color: Colors.white,
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
+                        // Subtitle: "Artist · Narrator"
                         Text(
-                          track?.madihDetails?.name ?? track?.madih ?? '',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: RannaTheme.mutedForeground,
+                          _buildSubtitle(track),
+                          style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.50),
                           ),
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (track?.rawi?.name != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '\u0631\u0648\u0627\u064A\u0629: ${track!.rawi!.name}', // رواية:
-                            style: textTheme.bodySmall?.copyWith(
-                              color: RannaTheme.mutedForeground,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -165,58 +297,71 @@ class FullPlayer extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // =========================================================
-                  // 5. Seek bar
+                  // 5. Progress slider
                   // =========================================================
                   Padding(
-                    padding: const EdgeInsetsDirectional.symmetric(
-                      horizontal: 24,
-                    ),
+                    padding:
+                        const EdgeInsetsDirectional.symmetric(horizontal: 24),
                     child: Column(
                       children: [
-                        Slider.adaptive(
-                          value: playerState.position.inSeconds
-                              .toDouble()
-                              .clamp(
-                                0,
-                                playerState.duration.inSeconds
-                                    .toDouble()
-                                    .clamp(0, double.infinity),
-                              ),
-                          min: 0,
-                          max: playerState.duration.inSeconds > 0
-                              ? playerState.duration.inSeconds.toDouble()
-                              : 1,
-                          activeColor: RannaTheme.accent,
-                          inactiveColor: RannaTheme.muted,
-                          onChanged: (value) {
-                            ref
-                                .read(audioPlayerProvider.notifier)
-                                .seekTo(Duration(seconds: value.toInt()));
-                          },
+                        SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 6,
+                            trackShape: const RoundedRectSliderTrackShape(),
+                            activeTrackColor: RannaTheme.accent,
+                            inactiveTrackColor: RannaTheme.primaryForeground
+                                .withValues(alpha: 0.15),
+                            thumbColor: RannaTheme.accent,
+                            thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 8),
+                            overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 16),
+                            overlayColor:
+                                RannaTheme.accent.withValues(alpha: 0.12),
+                          ),
+                          child: Slider(
+                            value: playerState.position.inSeconds
+                                .toDouble()
+                                .clamp(
+                                  0,
+                                  playerState.duration.inSeconds
+                                      .toDouble()
+                                      .clamp(0, double.infinity),
+                                ),
+                            min: 0,
+                            max: playerState.duration.inSeconds > 0
+                                ? playerState.duration.inSeconds.toDouble()
+                                : 1,
+                            onChanged: (value) {
+                              notifier
+                                  .seekTo(Duration(seconds: value.toInt()));
+                            },
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsetsDirectional.symmetric(
-                            horizontal: 8,
-                          ),
+                              horizontal: 8),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // In RTL: this shows on the right (start side)
+                              // RTL start (visual right) = duration
                               Text(
                                 formatDuration(
-                                  playerState.position.inSeconds,
-                                ),
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: RannaTheme.mutedForeground,
+                                    playerState.duration.inSeconds),
+                                style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                                  fontSize: 11,
+                                  color: RannaTheme.primaryForeground
+                                      .withValues(alpha: 0.40),
                                 ),
                               ),
-                              // In RTL: this shows on the left (end side)
+                              // RTL end (visual left) = current position
                               Text(
                                 formatDuration(
-                                  playerState.duration.inSeconds,
-                                ),
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: RannaTheme.mutedForeground,
+                                    playerState.position.inSeconds),
+                                style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                                  fontSize: 11,
+                                  color: RannaTheme.primaryForeground
+                                      .withValues(alpha: 0.40),
                                 ),
                               ),
                             ],
@@ -233,8 +378,34 @@ class FullPlayer extends ConsumerWidget {
                   // =========================================================
                   const PlayerControls(),
 
+                  const SizedBox(height: 16),
+
                   // =========================================================
-                  // 7. Spacer
+                  // 7. Favourite button
+                  // =========================================================
+                  Builder(builder: (context) {
+                    final trackId = track?.id;
+                    if (trackId == null) return const SizedBox.shrink();
+                    final isFav = ref.watch(favoritesProvider).contains(trackId);
+                    return GestureDetector(
+                      onTap: () {
+                        ref.read(favoritesProvider.notifier).toggle(trackId);
+                      },
+                      child: Icon(
+                        isFav
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 28,
+                        color: isFav
+                            ? RannaTheme.accent
+                            : RannaTheme.primaryForeground
+                                .withValues(alpha: 0.40),
+                      ),
+                    );
+                  }),
+
+                  // =========================================================
+                  // 8. Spacer
                   // =========================================================
                   const Spacer(),
                 ],
@@ -244,6 +415,19 @@ class FullPlayer extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Builds the "Artist · Narrator" subtitle string.
+  String _buildSubtitle(dynamic track) {
+    if (track == null) return '';
+    final parts = <String>[];
+    final artist = track.madihDetails?.name ?? track.madih;
+    if (artist != null && (artist as String).isNotEmpty) parts.add(artist);
+    final narrator = track.rawi?.name;
+    if (narrator != null && (narrator as String).isNotEmpty) {
+      parts.add(narrator);
+    }
+    return parts.join(' \u00B7 ');
   }
 
   /// Gradient fallback used when cover art fails to load.

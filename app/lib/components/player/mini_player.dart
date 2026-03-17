@@ -1,14 +1,18 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/utils/format.dart';
 
-/// A persistent mini player bar displayed at the bottom of the shell scaffold,
-/// above the navigation bar.
+/// A floating mini player bar with glass-dark styling.
 ///
-/// Shows the currently playing track with cover art, title, artist, and a
-/// play/pause toggle. Tapping the bar opens the full-screen player.
+/// Positioned by its parent (no [Positioned] here). Shows the current track
+/// with cover art, title, seek slider, and prev/play/next controls.
 ///
 /// Renders [SizedBox.shrink] when no track is loaded.
 class MiniPlayer extends ConsumerWidget {
@@ -22,106 +26,231 @@ class MiniPlayer extends ConsumerWidget {
 
     final isPlaying = ref.watch(isPlayingProvider);
     final playerState = ref.watch(audioPlayerProvider);
-    final textTheme = Theme.of(context).textTheme;
+    final notifier = ref.read(audioPlayerProvider.notifier);
 
     return GestureDetector(
-      onTap: () => ref.read(audioPlayerProvider.notifier).openFullPlayer(),
-      child: Container(
-        decoration: BoxDecoration(
-          color: RannaTheme.primary.withValues(alpha: 0.92),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // --- Progress indicator at the very top ---
-            LinearProgressIndicator(
-              value: playerState.progress,
-              minHeight: 2,
-              backgroundColor: RannaTheme.muted.withValues(alpha: 0.3),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(RannaTheme.accent),
-            ),
-
-            // --- Main row: cover art | track info | play/pause ---
-            Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: 12,
-                end: 4,
-                top: 8,
-                bottom: 8,
+      onTap: () => notifier.openFullPlayer(),
+      behavior: HitTestBehavior.opaque,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: RannaTheme.primary.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+              border: Border.all(
+                color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
               ),
-              child: Row(
-                children: [
-                  // Cover art
-                  RannaImage(
-                    url: track.imageUrl ?? track.madihDetails?.imageUrl,
-                    width: 48,
-                    height: 48,
-                    borderRadius: BorderRadius.circular(8),
-                    fallbackWidget: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topRight,
-                          end: Alignment.bottomLeft,
-                          colors: [
-                            RannaTheme.primary,
-                            RannaTheme.primaryGlow,
-                          ],
+              boxShadow: RannaTheme.shadowFloat,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                // --- Cover art with coral glow ---
+                GestureDetector(
+                  onTap: () => notifier.openFullPlayer(),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Coral glow behind
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
+                            boxShadow: [
+                              BoxShadow(
+                                color: RannaTheme.accent.withValues(alpha: 0.20),
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.music_note_rounded,
-                        color: Colors.white54,
-                        size: 24,
+                      // Cover image
+                      RannaImage(
+                        url: track.imageUrl ?? track.madihDetails?.imageUrl,
+                        width: 44,
+                        height: 44,
+                        borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
+                        fallbackWidget: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                              colors: [RannaTheme.primary, RannaTheme.primaryGlow],
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.music_note_rounded,
+                            color: Colors.white54,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
+                ),
 
-                  const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-                  // Title + artist
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          track.title,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                // --- Center section: title + slider + time ---
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Title
+                      Text(
+                        track.title,
+                        style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          track.madihDetails?.name ?? track.madih,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.white70,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // Seek slider
+                      SizedBox(
+                        height: 14,
+                        child: SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 4,
+                            trackShape: const RoundedRectSliderTrackShape(),
+                            activeTrackColor: RannaTheme.accent,
+                            inactiveTrackColor:
+                                RannaTheme.primaryForeground.withValues(alpha: 0.15),
+                            thumbColor: RannaTheme.accent,
+                            thumbShape:
+                                const RoundSliderThumbShape(enabledThumbRadius: 7),
+                            overlayShape:
+                                const RoundSliderOverlayShape(overlayRadius: 14),
+                            overlayColor: RannaTheme.accent.withValues(alpha: 0.12),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          child: Slider(
+                            value: playerState.position.inSeconds
+                                .toDouble()
+                                .clamp(
+                                  0,
+                                  playerState.duration.inSeconds
+                                      .toDouble()
+                                      .clamp(0, double.infinity),
+                                ),
+                            min: 0,
+                            max: playerState.duration.inSeconds > 0
+                                ? playerState.duration.inSeconds.toDouble()
+                                : 1,
+                            onChanged: (value) {
+                              notifier.seekTo(Duration(seconds: value.toInt()));
+                            },
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+
+                      // Current time
+                      Text(
+                        formatDuration(playerState.position.inSeconds),
+                        style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                          fontSize: 10,
+                          color:
+                              RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                        ),
+                      ),
+                    ],
                   ),
+                ),
 
-                  // Play / Pause button
-                  IconButton(
-                    onPressed: () =>
-                        ref.read(audioPlayerProvider.notifier).togglePlay(),
-                    icon: Icon(
+                const SizedBox(width: 12),
+
+                // --- Controls (end side in RTL) ---
+                // Previous
+                _MiniControlButton(
+                  icon: Icons.skip_previous_rounded,
+                  size: 32,
+                  iconColor:
+                      RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                  onTap: playerState.hasPrevious
+                      ? () => notifier.playPrevious()
+                      : null,
+                ),
+
+                // Play/Pause
+                GestureDetector(
+                  onTap: () => notifier.togglePlay(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: RannaTheme.primaryForeground,
+                      shape: BoxShape.circle,
+                      boxShadow: RannaTheme.shadowMd,
+                    ),
+                    child: Icon(
                       isPlaying
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 32,
+                      color: RannaTheme.primary,
+                      size: 24,
                     ),
                   ),
-                ],
-              ),
+                ),
+
+                // Next
+                _MiniControlButton(
+                  icon: Icons.skip_next_rounded,
+                  size: 32,
+                  iconColor:
+                      RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                  onTap: playerState.hasNext
+                      ? () => notifier.playNext()
+                      : null,
+                ),
+              ],
             ),
-          ],
+          ),
+        ),
+      ),
+    )
+        .animate()
+        .moveY(begin: 20, end: 0, curve: Curves.easeOutBack, duration: 500.ms)
+        .fadeIn(duration: 400.ms);
+  }
+}
+
+/// Ghost-style icon button used in the mini player controls.
+class _MiniControlButton extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color iconColor;
+  final VoidCallback? onTap;
+
+  const _MiniControlButton({
+    required this.icon,
+    required this.size,
+    required this.iconColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Center(
+          child: Icon(
+            icon,
+            size: size * 0.65,
+            color: onTap != null
+                ? iconColor
+                : iconColor.withValues(alpha: 0.25),
+          ),
         ),
       ),
     );

@@ -18,25 +18,35 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 10),
       child: Row(
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: RannaTheme.foreground,
-                ),
+            style: const TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: RannaTheme.foreground,
+            ),
           ),
           const Spacer(),
           if (onSeeAll != null)
             GestureDetector(
               onTap: onSeeAll,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: RannaTheme.secondary,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                  boxShadow: [
+                    BoxShadow(
+                      color: RannaTheme.secondary.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                      spreadRadius: -2,
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -50,8 +60,9 @@ class SectionHeader extends StatelessWidget {
                     Text(
                       'عرض الكل',
                       style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                         color: RannaTheme.secondaryForeground,
                       ),
                     ),

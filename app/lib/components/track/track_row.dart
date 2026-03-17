@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
@@ -29,6 +30,12 @@ class TrackRow extends ConsumerWidget {
     final playerState = ref.watch(audioPlayerProvider);
     final isCurrentTrack = playerState.currentTrackId == track.id;
     final isCurrentAndPlaying = isCurrentTrack && ref.watch(isPlayingProvider);
+    final favorites = ref.watch(favoritesProvider);
+    final isFav = favorites.contains(track.id);
+
+    // Build subtitle: "Artist · Narrator"
+    final artist = track.madihDetails?.name ?? track.madih;
+    final subtitle = track.rawi != null ? '$artist \u00B7 ${track.rawi!.name}' : artist;
 
     return Material(
       color: isCurrentTrack
@@ -47,99 +54,136 @@ class TrackRow extends ConsumerWidget {
               );
           onTap?.call();
         },
-        child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 12, 10),
-          child: Row(
-            children: [
-              // 1. Track number or equalizer bars
-              SizedBox(
-                width: 28,
-                child: Center(
-                  child: isCurrentAndPlaying
-                      ? const _EqualizerBars()
-                      : Text(
-                          toArabicNum(index + 1),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(color: RannaTheme.mutedForeground),
-                          textAlign: TextAlign.center,
-                        ),
+        child: SizedBox(
+          height: 56,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                // 1. Track number or equalizer bars
+                SizedBox(
+                  width: 20,
+                  child: Center(
+                    child: isCurrentAndPlaying
+                        ? const _EqualizerBars()
+                        : Text(
+                            toArabicNum(index + 1),
+                            style: TextStyle(
+                              fontFamily: RannaTheme.fontFustat,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: RannaTheme.mutedForeground.withValues(alpha: 0.5),
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 10),
 
-              // 2. Album art
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: RannaImage(
-                  url: track.imageUrl,
-                  width: 40,
-                  height: 40,
-                  fallbackWidget: Container(
+                // 2. Thumbnail
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
+                  child: RannaImage(
+                    url: track.imageUrl,
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                    fallbackWidget: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [RannaTheme.primary, RannaTheme.primaryGlow],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        track.title.isNotEmpty ? track.title[0] : '',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                      child: Center(
+                        child: Text(
+                          track.title.isNotEmpty ? track.title[0] : '',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 10),
 
-              // 3. Title and subtitle
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight:
-                                isCurrentTrack ? FontWeight.w600 : FontWeight.w500,
-                            color: isCurrentTrack
-                                ? RannaTheme.accent
-                                : RannaTheme.foreground,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '${track.madihDetails?.name ?? track.madih}'
-                      '${track.rawi != null ? ' - ${track.rawi!.name}' : ''}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: RannaTheme.mutedForeground,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                // 3. Title and subtitle
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        style: TextStyle(
+                          fontFamily: RannaTheme.fontFustat,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isCurrentTrack
+                              ? RannaTheme.accent
+                              : RannaTheme.foreground,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontFamily: RannaTheme.fontFustat,
+                          fontSize: 11,
+                          color: RannaTheme.mutedForeground,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
 
-              // 4. Duration
-              Text(
-                formatDuration(track.durationSeconds),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: RannaTheme.mutedForeground,
+                // 4. Duration
+                Text(
+                  formatDuration(track.durationSeconds),
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
+                    fontSize: 11,
+                    color: RannaTheme.mutedForeground.withValues(alpha: 0.5),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 4),
+
+                // 5. Heart button
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: IconButton(
+                    onPressed: () {
+                      ref.read(favoritesProvider.notifier).toggle(track.id);
+                    },
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      isFav
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      size: 18,
+                      color: isFav
+                          ? RannaTheme.accent
+                          : RannaTheme.mutedForeground.withValues(alpha: 0.3),
                     ),
-              ),
-            ],
+                    style: IconButton.styleFrom(
+                      shape: const CircleBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

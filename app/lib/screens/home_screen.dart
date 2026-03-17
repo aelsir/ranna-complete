@@ -1,32 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
-import 'package:ranna/components/home/artist_card.dart';
 import 'package:ranna/components/home/collection_card.dart';
 import 'package:ranna/components/home/section_header.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/models/rawi.dart';
+import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final homeData = ref.watch(homeDataProvider);
 
     return Scaffold(
-      backgroundColor: RannaTheme.background,
+      backgroundColor: Colors.transparent,
       body: homeData.when(
         loading: () => _buildLoading(),
-        error: (error, stack) => _buildError(context, ref, error),
-        data: (data) => _buildContent(context, ref, data),
+        error: (error, stack) {
+          debugPrint('━━━ HomeScreen ERROR ━━━');
+          debugPrint('$error');
+          debugPrint('$stack');
+          return _buildError(context, error);
+        },
+        data: (data) => _buildContent(context, data),
       ),
     );
   }
@@ -38,31 +71,43 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildLoading() {
     return CustomScrollView(
       slivers: [
-        _buildAppBar(null),
+        _buildStickyAppBar(),
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const ShimmerBox(width: double.infinity, height: 220, borderRadius: 20),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: 100,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 4,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (_, __) => const ShimmerBox(width: 140, height: 100, borderRadius: 12),
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ShimmerBox(
+                  width: double.infinity, height: 360, borderRadius: 0),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 2.2,
+                      children: List.generate(
+                          4,
+                          (_) => const ShimmerBox(
+                              width: double.infinity,
+                              height: 80,
+                              borderRadius: 12)),
+                    ),
+                    const SizedBox(height: 24),
+                    ...List.generate(
+                        5,
+                        (_) => const Padding(
+                              padding: EdgeInsets.only(bottom: 4),
+                              child: ShimmerTrackRow(),
+                            )),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                ...List.generate(5, (_) => const Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: ShimmerTrackRow(),
-                )),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -73,16 +118,18 @@ class HomeScreen extends ConsumerWidget {
   // Error state
   // ---------------------------------------------------------------------------
 
-  Widget _buildError(BuildContext context, WidgetRef ref, [Object? error]) {
+  Widget _buildError(BuildContext context, [Object? error]) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: RannaTheme.mutedForeground),
+            Icon(Icons.error_outline,
+                size: 64, color: RannaTheme.mutedForeground),
             const SizedBox(height: 16),
-            Text('حدث خطأ', style: Theme.of(context).textTheme.titleMedium),
+            Text('\u062D\u062F\u062B \u062E\u0637\u0623',
+                style: Theme.of(context).textTheme.titleMedium),
             if (error != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -107,30 +154,48 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // App bar
+  // Sticky glass app bar
   // ---------------------------------------------------------------------------
 
-  SliverAppBar _buildAppBar(BuildContext? context) {
+  SliverAppBar _buildStickyAppBar() {
+    final isScrolled = _scrollOffset > 40;
     return SliverAppBar(
-      floating: true,
-      backgroundColor: RannaTheme.card,
-      elevation: 0,
+      pinned: true,
+      floating: false,
+      // Use animated solid color instead of BackdropFilter to avoid
+      // Flutter web mouse_tracker assertion errors.
+      backgroundColor: isScrolled
+          ? RannaTheme.card.withValues(alpha: 0.95)
+          : Colors.transparent,
+      surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
+      elevation: 0,
       centerTitle: false,
-      title: Text(
-        'رنّة',
+      toolbarHeight: 56,
+      bottom: isScrolled
+          ? const PreferredSize(
+              preferredSize: Size.fromHeight(0.5),
+              child: Divider(height: 0.5, thickness: 0.5, color: RannaTheme.border),
+            )
+          : null,
+      title: AnimatedDefaultTextStyle(
+        duration: const Duration(milliseconds: 200),
         style: TextStyle(
-          color: RannaTheme.primary,
-          fontWeight: FontWeight.bold,
+          fontFamily: RannaTheme.fontFustat,
+          color: isScrolled ? RannaTheme.primary : Colors.white,
+          fontWeight: FontWeight.w800,
           fontSize: 26,
         ),
+        child: const Text('رنّة'),
       ),
       actions: [
-        if (context != null)
-          IconButton(
-            icon: const Icon(Icons.search, color: RannaTheme.foreground),
-            onPressed: () => context.go('/search'),
+        IconButton(
+          icon: Icon(
+            Icons.search_rounded,
+            color: isScrolled ? RannaTheme.foreground : Colors.white,
           ),
+          onPressed: () => context.go('/search'),
+        ),
       ],
     );
   }
@@ -139,36 +204,47 @@ class HomeScreen extends ConsumerWidget {
   // Main content
   // ---------------------------------------------------------------------------
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, HomeData data) {
+  Widget _buildContent(BuildContext context, HomeData data) {
     return CustomScrollView(
+      controller: _scrollController,
       slivers: [
-        _buildAppBar(context),
+        _buildStickyAppBar(),
 
-        // Hero banner
-        SliverToBoxAdapter(child: _buildHeroBanner(context, data)),
+        // Hero banner (full-bleed, no margin)
+        SliverToBoxAdapter(
+          child: _HeroBanner(data: data),
+        ),
 
         // Continue Listening
         if (data.recentTracks.isNotEmpty) ...[
           SliverToBoxAdapter(
-            child: SectionHeader(title: 'أكمل الاستماع', onSeeAll: null),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SectionHeader(title: 'أكمل الاستماع', onSeeAll: null),
+            ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildContinueListeningGrid(context, ref, data),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _ContinueListeningGrid(
+                tracks: data.recentTracks.take(4).toList(),
+                queue: data.recentTracks,
+              ),
             ),
           ),
         ],
 
-        // Most Listened
+        // Trending Tracks
         if (data.popularTracks.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: SectionHeader(title: 'الأكثر استماعاً', onSeeAll: null),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildMostListenedCard(context, ref, data),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _TrendingTracksCard(
+                tracks: data.popularTracks.take(5).toList(),
+              ),
             ),
           ),
         ],
@@ -183,25 +259,36 @@ class HomeScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 180,
+              height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsetsDirectional.only(start: 16),
+                padding: const EdgeInsetsDirectional.only(start: 20, end: 20),
                 itemCount: data.collections.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   final collection = data.collections[index];
                   return CollectionCard(
                     collection: collection,
                     onTap: () => context.push('/playlist/${collection.id}'),
-                  );
+                  )
+                      .animate()
+                      .fadeIn(
+                        delay: Duration(milliseconds: 50 * index),
+                        duration: 400.ms,
+                      )
+                      .slideX(
+                        begin: 0.1,
+                        delay: Duration(milliseconds: 50 * index),
+                        duration: 400.ms,
+                        curve: Curves.easeOut,
+                      );
                 },
               ),
             ),
           ),
         ],
 
-        // Artists
+        // Popular Artists
         if (data.artists.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: SectionHeader(
@@ -211,18 +298,30 @@ class HomeScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 110,
+              height: 120,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsetsDirectional.only(start: 16),
+                padding: const EdgeInsetsDirectional.only(start: 20, end: 20),
                 itemCount: data.artists.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final artist = data.artists[index];
-                  return ArtistCard(
+                  return _PopularArtistAvatar(
                     artist: artist,
-                    onTap: () => context.push('/profile/artist/${artist.id}'),
-                  );
+                    onTap: () =>
+                        context.push('/profile/artist/${artist.id}'),
+                  )
+                      .animate()
+                      .fadeIn(
+                        delay: Duration(milliseconds: 40 * index),
+                        duration: 350.ms,
+                      )
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        delay: Duration(milliseconds: 40 * index),
+                        duration: 350.ms,
+                        curve: Curves.easeOut,
+                      );
                 },
               ),
             ),
@@ -239,17 +338,30 @@ class HomeScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 110,
+              height: 120,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsetsDirectional.only(start: 16),
+                padding: const EdgeInsetsDirectional.only(start: 20, end: 20),
                 itemCount: data.narrators.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
+                  final narrator = data.narrators[index];
                   return _NarratorCard(
-                    narrator: data.narrators[index],
-                    onTap: () => context.push('/profile/narrator/${data.narrators[index].id}'),
-                  );
+                    narrator: narrator,
+                    onTap: () => context
+                        .push('/profile/narrator/${narrator.id}'),
+                  )
+                      .animate()
+                      .fadeIn(
+                        delay: Duration(milliseconds: 40 * index),
+                        duration: 350.ms,
+                      )
+                      .scale(
+                        begin: const Offset(0.8, 0.8),
+                        delay: Duration(milliseconds: 40 * index),
+                        duration: 350.ms,
+                        curve: Curves.easeOut,
+                      );
                 },
               ),
             ),
@@ -263,18 +375,37 @@ class HomeScreen extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Card(
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: RannaTheme.card,
+                  borderRadius:
+                      BorderRadius.circular(RannaTheme.radius2xl),
+                  boxShadow: RannaTheme.shadowCard,
+                  border: Border.all(
+                    color: RannaTheme.border.withValues(alpha: 0.3),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: data.recentTracks
                       .asMap()
                       .entries
-                      .map((entry) => TrackRow(
-                            track: entry.value,
-                            index: entry.key,
-                            queue: data.recentTracks,
+                      .map((entry) => Column(
+                            children: [
+                              TrackRow(
+                                track: entry.value,
+                                index: entry.key,
+                                queue: data.recentTracks,
+                              ),
+                              if (entry.key < data.recentTracks.length - 1)
+                                Divider(
+                                  height: 1,
+                                  indent: 76,
+                                  color: RannaTheme.border
+                                      .withValues(alpha: 0.3),
+                                ),
+                            ],
                           ))
                       .toList(),
                 ),
@@ -284,124 +415,174 @@ class HomeScreen extends ConsumerWidget {
         ],
 
         // Bottom padding for mini player + nav bar
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        const SliverToBoxAdapter(child: SizedBox(height: 140)),
       ],
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // Hero banner
-  // ---------------------------------------------------------------------------
+// =============================================================================
+// Hero Banner — full-bleed with gradient overlays
+// =============================================================================
 
-  Widget _buildHeroBanner(BuildContext context, HomeData data) {
+class _HeroBanner extends StatelessWidget {
+  final HomeData data;
+
+  const _HeroBanner({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
     final bgImageUrl = data.featuredTracks.isNotEmpty
         ? getImageUrl(data.featuredTracks.first.imageUrl)
         : '';
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      height: 240,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(
         color: RannaTheme.primary,
       ),
-      clipBehavior: Clip.antiAlias,
       child: Stack(
-        fit: StackFit.expand,
         children: [
+          // Non-positioned child to give Stack its intrinsic size
+          const SizedBox(height: 360, width: double.infinity),
+
           // Background image
           if (bgImageUrl.isNotEmpty)
-            RannaImage(
-              url: bgImageUrl,
-              width: double.infinity,
-              height: 240,
-              fit: BoxFit.cover,
-              fallbackWidget: Container(color: RannaTheme.primary),
+            Positioned.fill(
+              child: RannaImage(
+                url: bgImageUrl,
+                width: double.infinity,
+                height: 360,
+                fit: BoxFit.cover,
+                fallbackWidget: Container(color: RannaTheme.primary),
+              ),
             ),
-          // Dark gradient overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: AlignmentDirectional.topEnd,
-                end: AlignmentDirectional.bottomStart,
-                colors: [
-                  Colors.black.withValues(alpha: 0.15),
-                  RannaTheme.primary.withValues(alpha: 0.85),
-                ],
+
+          // Gradient overlay 1: bottom to top (primary tint)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    RannaTheme.primary,
+                    RannaTheme.primary.withValues(alpha: 0.3),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
               ),
             ),
           ),
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(20),
+
+          // Gradient overlay 2: bottom-right to top-left (accent tint)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: AlignmentDirectional.bottomStart,
+                  end: AlignmentDirectional.topEnd,
+                  colors: [
+                    RannaTheme.primary.withValues(alpha: 0.2),
+                    RannaTheme.accent.withValues(alpha: 0.1),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Content — bottom-right in RTL (which is bottom-start)
+          Positioned(
+            bottom: 40,
+            right: 24,
+            left: 24,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Counter chip
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: RannaTheme.secondary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'استمع لأكثر من ٤٩١ مديحة',
-                        style: TextStyle(color: Colors.white70, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                // Main title
+                // Live badge pill
+                _LiveBadge()
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .slideY(begin: 0.3, duration: 600.ms, curve: Curves.easeOut),
+
+                const SizedBox(height: 16),
+
+                // Title
                 const Text(
-                  'المداح السودانية',
+                  'المدائح السودانية',
                   style: TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
                     color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'أحمل المداح السودانية والأذكار من أشهر المادحين السودانيين',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                )
+                    .animate()
+                    .fadeIn(delay: 200.ms, duration: 600.ms)
+                    .slideY(
+                        begin: 0.2,
+                        delay: 200.ms,
+                        duration: 600.ms,
+                        curve: Curves.easeOut),
+
+                const SizedBox(height: 8),
+
+                // Subtitle
+                Text(
+                  'أجمل المدائح والأذكار من أشهر المادحين السودانيين',
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontNotoNaskh,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 14),
+                )
+                    .animate()
+                    .fadeIn(delay: 350.ms, duration: 500.ms),
+
+                const SizedBox(height: 20),
+
                 // CTA button
-                ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.headphones, size: 15),
-                  label: const Text('اختبرنا لك'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: RannaTheme.secondary,
-                    foregroundColor: RannaTheme.secondaryForeground,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                    boxShadow: RannaTheme.shadowGlowSecondary,
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.shuffle_rounded, size: 18),
+                    label: const Text('إخترنا لك'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: RannaTheme.secondary,
+                      foregroundColor: RannaTheme.secondaryForeground,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(RannaTheme.radiusFull),
+                      ),
+                      textStyle: const TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
+                )
+                    .animate()
+                    .fadeIn(delay: 500.ms, duration: 500.ms)
+                    .slideY(
+                        begin: 0.3,
+                        delay: 500.ms,
+                        duration: 500.ms,
+                        curve: Curves.easeOut),
               ],
             ),
           ),
@@ -409,50 +590,96 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // Continue Listening — 2×2 dark card grid
-  // ---------------------------------------------------------------------------
+// =============================================================================
+// Live badge pill with pulsing green dot
+// =============================================================================
 
-  Widget _buildContinueListeningGrid(
-      BuildContext context, WidgetRef ref, HomeData data) {
-    final tracks = data.recentTracks.take(4).toList();
+class _LiveBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: RannaTheme.primary.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Pulsing green dot
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: RannaTheme.secondary,
+              shape: BoxShape.circle,
+            ),
+          )
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .scaleXY(end: 1.3, duration: 1200.ms, curve: Curves.easeInOut)
+              .then()
+              .scaleXY(end: 1.0, duration: 1200.ms, curve: Curves.easeInOut),
+          const SizedBox(width: 8),
+          const Text(
+            'استمع الآن لأكثر من ٤٩١ مدحة',
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Continue Listening Grid — 2-column, dark cards
+// =============================================================================
+
+class _ContinueListeningGrid extends StatelessWidget {
+  final List<MadhaWithRelations> tracks;
+  final List<MadhaWithRelations> queue;
+
+  const _ContinueListeningGrid({
+    required this.tracks,
+    required this.queue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: tracks.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 2.6,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 2.0,
       ),
-      itemBuilder: (context, index) =>
-          _ContinueCard(track: tracks[index], queue: data.recentTracks),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Most Listened — white card with numbered rows + heart icons
-  // ---------------------------------------------------------------------------
-
-  Widget _buildMostListenedCard(
-      BuildContext context, WidgetRef ref, HomeData data) {
-    final tracks = data.popularTracks.take(5).toList();
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        children: tracks
-            .asMap()
-            .entries
-            .map((entry) => _PopularTrackRow(
-                  track: entry.value,
-                  index: entry.key,
-                  queue: tracks,
-                ))
-            .toList(),
-      ),
+      itemBuilder: (context, index) => _ContinueCard(
+        track: tracks[index],
+        queue: queue,
+      )
+          .animate()
+          .fadeIn(
+            delay: Duration(milliseconds: 80 * index),
+            duration: 400.ms,
+          )
+          .slideY(
+            begin: 0.15,
+            delay: Duration(milliseconds: 80 * index),
+            duration: 400.ms,
+            curve: Curves.easeOut,
+          ),
     );
   }
 }
@@ -484,49 +711,100 @@ class _ContinueCard extends ConsumerWidget {
             );
       },
       child: Container(
+        height: 80,
         decoration: BoxDecoration(
-          color: RannaTheme.primary,
-          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF0F1F28),
+          borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
         ),
-        padding: const EdgeInsets.all(10),
-        child: Row(
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            RannaImage(
-              url: track.imageUrl,
-              width: 40,
-              height: 40,
-              borderRadius: BorderRadius.circular(8),
-              fallbackWidget: Container(
-                color: RannaTheme.primaryGlow,
-                child: const Icon(Icons.music_note, color: Colors.white54, size: 16),
+            // Background image at 60% opacity
+            if (track.imageUrl != null)
+              Opacity(
+                opacity: 0.6,
+                child: RannaImage(
+                  url: track.imageUrl,
+                  width: double.infinity,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  fallbackWidget: Container(color: RannaTheme.primary),
+                ),
+              ),
+
+            // Gradient overlay
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.7),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
+
+            // Content
+            Positioned(
+              bottom: 14,
+              right: 12,
+              left: 12,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     track.title,
                     style: const TextStyle(
+                      fontFamily: RannaTheme.fontFustat,
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (track.madihDetails != null) ...[
+                  if (track.madihDetails != null ||
+                      track.madih.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      track.madihDetails!.name,
-                      style: const TextStyle(color: Colors.white54, fontSize: 10),
+                      track.madihDetails?.name ?? track.madih,
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontNotoNaskh,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 11,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ],
+              ),
+            ),
+
+            // Progress bar at bottom
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                ),
+                child: FractionallySizedBox(
+                  alignment: AlignmentDirectional.centerStart,
+                  widthFactor: 0.35, // Placeholder progress
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: RannaTheme.accent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -537,15 +815,61 @@ class _ContinueCard extends ConsumerWidget {
 }
 
 // =============================================================================
-// Popular Track Row (with heart icon instead of duration)
+// Trending Tracks Card — numbered rows with heart icons and dividers
 // =============================================================================
 
-class _PopularTrackRow extends ConsumerWidget {
+class _TrendingTracksCard extends StatelessWidget {
+  final List<MadhaWithRelations> tracks;
+
+  const _TrendingTracksCard({required this.tracks});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: RannaTheme.card,
+        borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
+        boxShadow: RannaTheme.shadowCard,
+        border: Border.all(
+          color: RannaTheme.border.withValues(alpha: 0.3),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: tracks
+            .asMap()
+            .entries
+            .map((entry) => Column(
+                  children: [
+                    _TrendingTrackRow(
+                      track: entry.value,
+                      index: entry.key,
+                      queue: tracks,
+                    ),
+                    if (entry.key < tracks.length - 1)
+                      Divider(
+                        height: 1,
+                        indent: 76,
+                        color: RannaTheme.border.withValues(alpha: 0.3),
+                      ),
+                  ],
+                ))
+            .toList(),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Trending Track Row (with heart icon)
+// =============================================================================
+
+class _TrendingTrackRow extends ConsumerWidget {
   final MadhaWithRelations track;
   final int index;
   final List<MadhaWithRelations> queue;
 
-  const _PopularTrackRow({
+  const _TrendingTrackRow({
     required this.track,
     required this.index,
     required this.queue,
@@ -572,7 +896,7 @@ class _PopularTrackRow extends ConsumerWidget {
               );
         },
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 12, 10),
+          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 14, 12),
           child: Row(
             children: [
               // Track number
@@ -587,33 +911,41 @@ class _PopularTrackRow extends ConsumerWidget {
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(width: 10),
-              // Album art
-              RannaImage(
-                url: track.imageUrl,
-                width: 44,
-                height: 44,
-                borderRadius: BorderRadius.circular(8),
-                fallbackWidget: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              const SizedBox(width: 12),
+
+              // Thumbnail 40x40 rounded-lg
+              ClipRRect(
+                borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+                child: RannaImage(
+                  url: track.imageUrl,
+                  width: 40,
+                  height: 40,
+                  fallbackWidget: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [RannaTheme.primary, RannaTheme.primaryGlow],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      track.title.isNotEmpty ? track.title[0] : '',
-                      style: const TextStyle(
+                    child: Center(
+                      child: Text(
+                        track.title.isNotEmpty ? track.title[0] : '',
+                        style: const TextStyle(
+                          fontFamily: RannaTheme.fontFustat,
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14),
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
+
               // Title + subtitle
               Expanded(
                 child: Column(
@@ -632,6 +964,7 @@ class _PopularTrackRow extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       '${track.madihDetails?.name ?? track.madih}'
                       '${track.rawi != null ? ' - ${track.rawi!.name}' : ''}',
@@ -644,12 +977,30 @@ class _PopularTrackRow extends ConsumerWidget {
                   ],
                 ),
               ),
-              // Heart icon
-              Icon(
-                Icons.favorite_border,
-                size: 18,
-                color: RannaTheme.mutedForeground,
+
+              // Duration
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 8),
+                child: Text(
+                  formatDuration(track.durationSeconds),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: RannaTheme.mutedForeground,
+                      ),
+                ),
               ),
+
+              // Heart icon
+              Builder(builder: (context) {
+                final isFav = ref.watch(favoritesProvider).contains(track.id);
+                return GestureDetector(
+                  onTap: () => ref.read(favoritesProvider.notifier).toggle(track.id),
+                  child: Icon(
+                    isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    size: 18,
+                    color: isFav ? RannaTheme.accent : RannaTheme.mutedForeground,
+                  ),
+                );
+              }),
             ],
           ),
         ),
@@ -659,7 +1010,88 @@ class _PopularTrackRow extends ConsumerWidget {
 }
 
 // =============================================================================
-// Narrator Card (circular avatar + name)
+// Popular Artist Avatar — circular 76dp
+// =============================================================================
+
+class _PopularArtistAvatar extends StatelessWidget {
+  final dynamic artist;
+  final VoidCallback? onTap;
+
+  const _PopularArtistAvatar({required this.artist, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 84,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: RannaTheme.border.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+                boxShadow: RannaTheme.shadowSm,
+              ),
+              child: ClipOval(
+                child: RannaImage(
+                  url: artist.imageUrl,
+                  width: 76,
+                  height: 76,
+                  fallbackWidget: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [RannaTheme.primary, RannaTheme.primaryGlow],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        artist.name.isNotEmpty ? artist.name[0] : '',
+                        style: const TextStyle(
+                          fontFamily: RannaTheme.fontFustat,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              artist.name,
+              style: const TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: RannaTheme.foreground,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Narrator Card — rounded-xl squares
 // =============================================================================
 
 class _NarratorCard extends StatelessWidget {
@@ -673,43 +1105,62 @@ class _NarratorCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 80,
+        width: 84,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipOval(
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+                border: Border.all(
+                  color: RannaTheme.border.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+                boxShadow: RannaTheme.shadowSm,
+              ),
+              clipBehavior: Clip.antiAlias,
               child: RannaImage(
                 url: narrator.imageUrl,
-                width: 64,
-                height: 64,
+                width: 76,
+                height: 76,
+                borderRadius: BorderRadius.circular(RannaTheme.radiusXl - 2),
                 fallbackWidget: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
                       colors: [RannaTheme.primaryGlow, RannaTheme.primary],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    shape: BoxShape.circle,
+                    borderRadius:
+                        BorderRadius.circular(RannaTheme.radiusXl - 2),
                   ),
                   child: Center(
                     child: Text(
                       narrator.name.isNotEmpty ? narrator.name[0] : '',
                       style: const TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                        fontSize: 24,
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               narrator.name,
-              style: Theme.of(context).textTheme.labelSmall,
+              style: const TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: RannaTheme.foreground,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,

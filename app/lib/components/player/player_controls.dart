@@ -5,11 +5,16 @@ import 'package:ranna/theme/app_theme.dart';
 
 /// Playback control row used by the full-screen player.
 ///
-/// Displays five buttons in this logical order:
+/// Displays five buttons in logical order:
 ///   [skipBackward 15s] [previous] [play/pause] [next] [skipForward 15s]
 ///
 /// In RTL context the [Row] auto-reverses, so skip-backward appears on the
 /// visual right -- which is the expected layout for RTL music apps.
+///
+/// Styling follows the full player spec:
+///   - Rewind/Forward: 40dp ghost buttons, Icons.replay_10 / Icons.forward_10
+///   - Previous/Next: 48dp ghost, primaryForeground/60%
+///   - Play/Pause: 64dp circle, bg-primaryForeground text-primary, shadow-glow-accent
 class PlayerControls extends ConsumerWidget {
   const PlayerControls({super.key});
 
@@ -22,32 +27,29 @@ class PlayerControls extends ConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // --- Skip backward 15 s ---
-        IconButton(
-          onPressed: () => notifier.skipBackward(),
-          icon: const Icon(
-            Icons.replay_10,
-            size: 28,
-            color: RannaTheme.foreground,
-          ),
+        // --- Skip backward 15s ---
+        _GhostButton(
+          icon: Icons.replay_10,
+          size: 40,
+          iconSize: 24,
+          iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.60),
+          onTap: () => notifier.skipBackward(),
         ),
 
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
 
         // --- Previous track ---
-        IconButton(
-          onPressed:
-              playerState.hasPrevious ? () => notifier.playPrevious() : null,
-          icon: Icon(
-            Icons.skip_previous_rounded,
-            size: 36,
-            color: playerState.hasPrevious
-                ? RannaTheme.foreground
-                : RannaTheme.mutedForeground,
-          ),
+        _GhostButton(
+          icon: Icons.skip_previous_rounded,
+          size: 48,
+          iconSize: 30,
+          iconColor: playerState.hasPrevious
+              ? RannaTheme.primaryForeground.withValues(alpha: 0.60)
+              : RannaTheme.primaryForeground.withValues(alpha: 0.20),
+          onTap: playerState.hasPrevious ? () => notifier.playPrevious() : null,
         ),
 
-        const SizedBox(width: 24),
+        const SizedBox(width: 20),
 
         // --- Play / Pause (large circular button) ---
         GestureDetector(
@@ -55,44 +57,81 @@ class PlayerControls extends ConsumerWidget {
           child: Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(
-              color: RannaTheme.accent,
+            decoration: BoxDecoration(
+              color: RannaTheme.primaryForeground,
               shape: BoxShape.circle,
+              boxShadow: RannaTheme.shadowGlowAccent,
             ),
-            child: Icon(
-              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              color: Colors.white,
-              size: 36,
+            child: Center(
+              child: Icon(
+                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: RannaTheme.primary,
+                size: 36,
+              ),
             ),
           ),
         ),
 
-        const SizedBox(width: 24),
+        const SizedBox(width: 20),
 
         // --- Next track ---
-        IconButton(
-          onPressed: playerState.hasNext ? () => notifier.playNext() : null,
-          icon: Icon(
-            Icons.skip_next_rounded,
-            size: 36,
-            color: playerState.hasNext
-                ? RannaTheme.foreground
-                : RannaTheme.mutedForeground,
-          ),
+        _GhostButton(
+          icon: Icons.skip_next_rounded,
+          size: 48,
+          iconSize: 30,
+          iconColor: playerState.hasNext
+              ? RannaTheme.primaryForeground.withValues(alpha: 0.60)
+              : RannaTheme.primaryForeground.withValues(alpha: 0.20),
+          onTap: playerState.hasNext ? () => notifier.playNext() : null,
         ),
 
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
 
-        // --- Skip forward 15 s ---
-        IconButton(
-          onPressed: () => notifier.skipForward(),
-          icon: const Icon(
-            Icons.forward_10,
-            size: 28,
-            color: RannaTheme.foreground,
-          ),
+        // --- Skip forward 15s ---
+        _GhostButton(
+          icon: Icons.forward_10,
+          size: 40,
+          iconSize: 24,
+          iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.60),
+          onTap: () => notifier.skipForward(),
         ),
       ],
+    );
+  }
+}
+
+/// A transparent (ghost) icon button with a fixed tap target size.
+class _GhostButton extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final double iconSize;
+  final Color iconColor;
+  final VoidCallback? onTap;
+
+  const _GhostButton({
+    required this.icon,
+    required this.size,
+    required this.iconSize,
+    required this.iconColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Center(
+          child: Icon(
+            icon,
+            size: iconSize,
+            color: iconColor,
+          ),
+        ),
+      ),
     );
   }
 }

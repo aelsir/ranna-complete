@@ -1,9 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/screens/home_screen.dart';
 import 'package:ranna/screens/search_screen.dart';
+import 'package:ranna/screens/favorites_screen.dart';
+import 'package:ranna/screens/account_screen.dart';
 import 'package:ranna/screens/browse_screen.dart';
 import 'package:ranna/screens/profile_screen.dart';
 import 'package:ranna/screens/playlist_screen.dart';
@@ -25,54 +28,29 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) {
-          return ShellScaffold(child: child);
-        },
+        builder: (context, state, child) => ShellScaffold(child: child),
         routes: [
+          GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+          GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+          GoRoute(path: '/favorites', builder: (context, state) => const FavoritesScreen()),
+          GoRoute(path: '/account', builder: (context, state) => const AccountScreen()),
+          GoRoute(path: '/browse', builder: (context, state) => const BrowseScreen()),
           GoRoute(
-            path: '/',
-            builder: (context, state) => const HomeScreen(),
+            path: '/profile/:type/:id',
+            builder: (context, state) => ProfileScreen(
+              type: state.pathParameters['type']!,
+              id: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
-            path: '/search',
-            builder: (context, state) => const SearchScreen(),
+            path: '/playlist/:id',
+            builder: (context, state) => PlaylistScreen(id: state.pathParameters['id']!),
           ),
-          GoRoute(
-            path: '/browse',
-            builder: (context, state) => const BrowseScreen(),
-          ),
+          GoRoute(path: '/artists', builder: (context, state) => const AllArtistsScreen()),
+          GoRoute(path: '/narrators', builder: (context, state) => const AllNarratorsScreen()),
+          GoRoute(path: '/tariqas', builder: (context, state) => const AllTariqasScreen()),
+          GoRoute(path: '/funoon', builder: (context, state) => const AllFunoonScreen()),
         ],
-      ),
-      GoRoute(
-        path: '/profile/:type/:id',
-        builder: (context, state) {
-          final type = state.pathParameters['type']!;
-          final id = state.pathParameters['id']!;
-          return ProfileScreen(type: type, id: id);
-        },
-      ),
-      GoRoute(
-        path: '/playlist/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return PlaylistScreen(id: id);
-        },
-      ),
-      GoRoute(
-        path: '/artists',
-        builder: (context, state) => const AllArtistsScreen(),
-      ),
-      GoRoute(
-        path: '/narrators',
-        builder: (context, state) => const AllNarratorsScreen(),
-      ),
-      GoRoute(
-        path: '/tariqas',
-        builder: (context, state) => const AllTariqasScreen(),
-      ),
-      GoRoute(
-        path: '/funoon',
-        builder: (context, state) => const AllFunoonScreen(),
       ),
     ],
   );
@@ -100,8 +78,7 @@ class RannaApp extends ConsumerWidget {
   }
 }
 
-/// Shell scaffold wrapping bottom nav screens with mini player + bottom nav bar.
-/// The full player overlays everything when opened.
+/// Shell scaffold with content area, floating mini player, and floating bottom nav.
 class ShellScaffold extends ConsumerWidget {
   final Widget child;
   const ShellScaffold({super.key, required this.child});
@@ -109,66 +86,190 @@ class ShellScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFullPlayerOpen = ref.watch(isFullPlayerOpenProvider);
+    final hasTrack = ref.watch(currentTrackProvider) != null;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Stack(
-      children: [
-        // Main content + mini player + nav bar
-        Scaffold(
-          body: Column(
-            children: [
-              Expanded(child: child),
-              const MiniPlayer(),
-            ],
+    // Bottom nav height + spacing
+    const navBarHeight = 64.0;
+    const navBarBottomMargin = 2.0;
+    // Mini player height
+    const miniPlayerHeight = 72.0;
+
+    final totalBottomForContent = navBarHeight + navBarBottomMargin + bottomPadding + 4 +
+        (hasTrack ? miniPlayerHeight + 4 : 0);
+
+    return Scaffold(
+      backgroundColor: RannaTheme.background,
+      body: Stack(
+        children: [
+          // ===== Content Shell =====
+          Positioned(
+            top: 2,
+            left: 3,
+            right: 3,
+            bottom: totalBottomForContent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: RannaTheme.card,
+                borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+                border: Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
+                boxShadow: RannaTheme.shadowCard,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: child,
+            ),
           ),
-          bottomNavigationBar: const _BottomNavBar(),
-        ),
-        // Full player overlay
-        if (isFullPlayerOpen) const Positioned.fill(child: FullPlayer()),
-      ],
+
+          // ===== Mini Player =====
+          if (hasTrack)
+            Positioned(
+              left: 3,
+              right: 3,
+              bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
+              child: const MiniPlayer(),
+            ),
+
+          // ===== Bottom Navigation =====
+          Positioned(
+            left: 3,
+            right: 3,
+            bottom: navBarBottomMargin + bottomPadding,
+            child: const _FloatingBottomNav(),
+          ),
+
+          // ===== Full Player Overlay =====
+          if (isFullPlayerOpen)
+            Positioned(
+              left: 3,
+              right: 3,
+              top: 2,
+              bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
+              child: const FullPlayer(),
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar();
+// =============================================================================
+// Floating Bottom Navigation Bar
+// =============================================================================
+
+class _FloatingBottomNav extends StatelessWidget {
+  const _FloatingBottomNav();
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/search')) return 1;
-    if (location.startsWith('/browse')) return 2;
+    if (location.startsWith('/favorites')) return 2;
     return 0;
+  }
+
+  static const _tabs = [
+    _TabData(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'السَّاحة'),
+    _TabData(icon: Icons.search_outlined, activeIcon: Icons.search_rounded, label: 'فتّش'),
+    _TabData(icon: Icons.favorite_outline_rounded, activeIcon: Icons.favorite_rounded, label: 'مُختاراتي'),
+    // TODO: Re-enable when auth is implemented
+    // _TabData(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'زاويتي'),
+  ];
+
+  void _onTap(BuildContext context, int index) {
+    switch (index) {
+      case 0: context.go('/');
+      case 1: context.go('/search');
+      case 2: context.go('/favorites');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final index = _currentIndex(context);
-    return NavigationBar(
-      selectedIndex: index,
-      onDestinationSelected: (i) {
-        switch (i) {
-          case 0:
-            context.go('/');
-          case 1:
-            context.go('/search');
-          case 2:
-            context.go('/browse');
-        }
-      },
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
-          label: 'الرئيسية',
+    final currentIndex = _currentIndex(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.2)),
+            boxShadow: RannaTheme.shadowFloat,
+          ),
+          child: Row(
+            children: List.generate(_tabs.length, (index) {
+              final tab = _tabs[index];
+              final isActive = index == currentIndex;
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _onTap(context, index),
+                  child: _AnimatedTab(
+                    icon: isActive ? tab.activeIcon : tab.icon,
+                    label: tab.label,
+                    isActive: isActive,
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
-        NavigationDestination(
-          icon: Icon(Icons.search_outlined),
-          selectedIcon: Icon(Icons.search),
-          label: 'البحث',
+      ),
+    );
+  }
+}
+
+class _TabData {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  const _TabData({required this.icon, required this.activeIcon, required this.label});
+}
+
+class _AnimatedTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+
+  const _AnimatedTab({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Animated pill behind active icon
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(
+            horizontal: isActive ? 16 : 0,
+            vertical: isActive ? 4 : 0,
+          ),
+          decoration: BoxDecoration(
+            color: isActive ? RannaTheme.muted.withValues(alpha: 0.7) : Colors.transparent,
+            borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: isActive ? RannaTheme.foreground : RannaTheme.mutedForeground,
+          ),
         ),
-        NavigationDestination(
-          icon: Icon(Icons.explore_outlined),
-          selectedIcon: Icon(Icons.explore),
-          label: 'تصفح',
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+            color: isActive ? RannaTheme.foreground : RannaTheme.mutedForeground,
+          ),
         ),
       ],
     );

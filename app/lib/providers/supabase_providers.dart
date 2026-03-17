@@ -7,6 +7,7 @@ import 'package:ranna/models/rawi.dart';
 import 'package:ranna/models/tariqa.dart';
 import 'package:ranna/models/fan.dart';
 import 'package:ranna/models/collection.dart';
+import 'package:ranna/providers/favorites_provider.dart';
 
 final supabaseProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -147,30 +148,163 @@ class HomeData {
 // Search
 // ============================================
 
-final searchQueryProvider = StateProvider<String>((ref) => '');
+enum SearchFilter { all, madha, madih, rawi }
 
-final searchResultsProvider = FutureProvider<List<MadhaWithRelations>>((ref) async {
+final searchQueryProvider = StateProvider<String>((ref) => '');
+final searchFilterProvider = StateProvider<SearchFilter>((ref) => SearchFilter.all);
+
+/// A unified search result that can be a track, artist, or narrator.
+class SearchResult {
+  final SearchResultType type;
+  final String id;
+  final String name;
+  final String? subtitle;
+  final String? imageUrl;
+  // Only set for track results
+  final MadhaWithRelations? track;
+
+  const SearchResult({
+    required this.type,
+    required this.id,
+    required this.name,
+    this.subtitle,
+    this.imageUrl,
+    this.track,
+  });
+}
+
+enum SearchResultType { madha, madih, rawi }
+
+final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
   final query = ref.watch(searchQueryProvider);
+  final filter = ref.watch(searchFilterProvider);
   if (query.trim().isEmpty) return [];
 
   final supabase = ref.read(supabaseProvider);
+  final List<SearchResult> results = [];
+
   try {
-    // Use ilike on title only — avoids .or() which can fail on web.
-    // Also no joins to avoid PostgREST embedding issues.
+    // Search tracks (madha)
+    if (filter == SearchFilter.all || filter == SearchFilter.madha) {
+      final dynamic tracksRaw = await supabase
+          .from('madha')
+          .select()
+          .eq('status', 'approved')
+          .ilike('title', '%$query%')
+          .order('play_count', ascending: false)
+          .limit(30);
+      final tracksList = _asList(tracksRaw);
+      for (final t in tracksList) {
+        final track = MadhaWithRelations.fromJson(t);
+        results.add(SearchResult(
+          type: SearchResultType.madha,
+          id: track.id,
+          name: track.title,
+          subtitle: track.madih,
+          imageUrl: track.imageUrl,
+          track: track,
+        ));
+      }
+    }
+
+    // Search artists (madiheen)
+    if (filter == SearchFilter.all || filter == SearchFilter.madih) {
+      final dynamic artistsRaw = await supabase
+          .from('madiheen')
+          .select()
+          .eq('status', 'approved')
+          .ilike('name', '%$query%')
+          .order('name')
+          .limit(20);
+      final artistsList = _asList(artistsRaw);
+      for (final a in artistsList) {
+        final artist = Madih.fromJson(a);
+        results.add(SearchResult(
+          type: SearchResultType.madih,
+          id: artist.id,
+          name: artist.name,
+          subtitle: 'مادح',
+          imageUrl: artist.imageUrl,
+        ));
+      }
+    }
+
+    // Search narrators (ruwat)
+    if (filter == SearchFilter.all || filter == SearchFilter.rawi) {
+      final dynamic narratorsRaw = await supabase
+          .from('ruwat')
+          .select()
+          .eq('status', 'approved')
+          .ilike('name', '%$query%')
+          .order('name')
+          .limit(20);
+      final narratorsList = _asList(narratorsRaw);
+      for (final n in narratorsList) {
+        final narrator = Rawi.fromJson(n);
+        results.add(SearchResult(
+          type: SearchResultType.rawi,
+          id: narrator.id,
+          name: narrator.name,
+          subtitle: 'راوي',
+          imageUrl: narrator.imageUrl,
+        ));
+      }
+    }
+
+    // Also search tracks by artist name (the `madih` text field on madha)
+    if (filter == SearchFilter.all || filter == SearchFilter.madha) {
+      final dynamic tracksByArtistRaw = await supabase
+          .from('madha')
+          .select()
+          .eq('status', 'approved')
+          .ilike('madih', '%$query%')
+          .order('play_count', ascending: false)
+          .limit(20);
+      final tracksByArtistList = _asList(tracksByArtistRaw);
+      final existingIds = results.map((r) => r.id).toSet();
+      for (final t in tracksByArtistList) {
+        final track = MadhaWithRelations.fromJson(t);
+        if (!existingIds.contains(track.id)) {
+          results.add(SearchResult(
+            type: SearchResultType.madha,
+            id: track.id,
+            name: track.title,
+            subtitle: track.madih,
+            imageUrl: track.imageUrl,
+            track: track,
+          ));
+        }
+      }
+    }
+
+    debugPrint('🔍 search: ${results.length} results for "$query" (filter: $filter)');
+    return results;
+  } catch (e, st) {
+    debugPrint('⛔ searchResultsProvider error: $e');
+    debugPrint('$st');
+    return [];
+  }
+});
+
+// ============================================
+// Favorites
+// ============================================
+
+final favoriteTracksProvider = FutureProvider<List<MadhaWithRelations>>((ref) async {
+  final favoriteIds = ref.watch(favoritesProvider);
+  if (favoriteIds.isEmpty) return [];
+
+  final supabase = ref.read(supabaseProvider);
+  try {
     final dynamic results = await supabase
         .from('madha')
         .select()
-        .eq('status', 'approved')
-        .ilike('title', '%$query%')
-        .order('play_count', ascending: false)
-        .limit(50);
-
-    debugPrint('🔍 searchResultsProvider raw type: ${results.runtimeType}');
+        .inFilter('id', favoriteIds.toList())
+        .order('created_at', ascending: false);
     final list = _asList(results);
-    debugPrint('🔍 searchResultsProvider: ${list.length} results for "$query"');
     return list.map((e) => MadhaWithRelations.fromJson(e)).toList();
   } catch (e, st) {
-    debugPrint('⛔ searchResultsProvider error: $e');
+    debugPrint('⛔ favoriteTracksProvider error: $e');
     debugPrint('$st');
     return [];
   }
