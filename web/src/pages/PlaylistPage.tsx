@@ -64,7 +64,7 @@ const PlaylistPage = () => {
         <div className="absolute bottom-0 right-0 left-0 px-5 pb-5">
           <p className="font-fustat text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">قائمة تشغيل</p>
           <h1 className="font-fustat text-2xl font-extrabold text-foreground md:text-3xl">{playlist.name}</h1>
-          <p className="mt-1 text-xs text-muted-foreground">{playlist.description || ""} · {playlistTracks?.length || 0} مدحة</p>
+          <p className="mt-1 text-xs text-muted-foreground">{playlist.description || ""} · {playlistTracks?.length || 0} مقطع</p>
         </div>
       </div>
 

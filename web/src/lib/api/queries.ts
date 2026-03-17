@@ -68,6 +68,20 @@ export async function getApprovedMadhaatCount(): Promise<number> {
   return count || 0;
 }
 
+/** Lightweight fetch of ALL approved tracks for playlist picker (dashboard only). */
+export async function getAllMadhaatMinimal(): Promise<
+  { id: string; title: string; madih: string | null; madih_id: string | null; rawi_id: string | null; created_at: string }[]
+> {
+  const { data, error } = await supabase
+    .from("madha")
+    .select("id, title, madih, madih_id, rawi_id, created_at")
+    .eq("status", "approved")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getAdminMadhaat(options?: {
   page?: number;
   limit?: number;

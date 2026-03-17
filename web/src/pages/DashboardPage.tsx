@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Music,
@@ -58,8 +58,8 @@ import {
   useUpdateRawi,
   useDeleteRuwat,
   useAdminMadhaat,
-  useSearch,
   useAdminCollections,
+  useAllMadhaatMinimal,
 } from "@/lib/api/hooks";
 import type { MadhaWithRelations, Collection, MadhaInsert, Madih, MadihInsert, Rawi, RawiInsert } from "@/types/database";
 import { uploadToR2 } from "@/lib/upload";
@@ -353,17 +353,48 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const [newTrack, setNewTrack] = useState<Partial<ExtendedTrack>>({});
   const [newPlaylist, setNewPlaylist] = useState<Partial<Playlist & { selectedTrackIds: string[] }>>({});
   const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
-  const { data: rawSearchResults } = useSearch(playlistTrackSearch);
-  const searchResults = (rawSearchResults || []) as MadhaWithRelations[];
+  const [playlistArtistFilter, setPlaylistArtistFilter] = useState("");
 
-  const displayTracks = playlistTrackSearch.trim().length > 0 
-    ? searchResults.map((t) => ({
-        id: t.id,
-        title: t.title,
-        artistName: t.madiheen?.name || t.madih || "",
-        narratorName: t.ruwat?.name || t.writer || "",
-      }))
-    : madhat;
+  // All tracks (lightweight) for playlist picker — no limit
+  const { data: allMinimalTracks } = useAllMadhaatMinimal();
+
+  // Build lookup maps for artist/narrator names from existing fetched data
+  const artistNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const a of artists) map[a.id] = a.name;
+    return map;
+  }, [artists]);
+
+  const narratorNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const n of narrators) map[n.id] = n.name;
+    return map;
+  }, [narrators]);
+
+  // Client-side filtered track list for playlist picker
+  const playlistPickerTracks = useMemo(() => {
+    const all = (allMinimalTracks || []).map((t) => ({
+      id: t.id,
+      title: t.title,
+      artistName: (t.madih_id && artistNameMap[t.madih_id]) || t.madih || "",
+      narratorName: (t.rawi_id && narratorNameMap[t.rawi_id]) || "",
+      madihId: t.madih_id || "",
+    }));
+    let filtered = all;
+    if (playlistArtistFilter) {
+      filtered = filtered.filter((t) => t.madihId === playlistArtistFilter);
+    }
+    if (playlistTrackSearch.trim()) {
+      const q = playlistTrackSearch.trim().toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.artistName.toLowerCase().includes(q) ||
+          t.narratorName.toLowerCase().includes(q)
+      );
+    }
+    return filtered;
+  }, [allMinimalTracks, playlistTrackSearch, playlistArtistFilter, artistNameMap, narratorNameMap]);
 
   // Madiheen & Ruwat state
   const [editingMadih, setEditingMadih] = useState<Madih | null>(null);
@@ -2010,20 +2041,70 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               </div>
             </div>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-fustat text-muted-foreground">اختر المدائح</label>
-                <div className="relative w-64">
-                  <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    value={playlistTrackSearch}
-                    onChange={(e) => setPlaylistTrackSearch(e.target.value)}
-                    placeholder="ابحث عن مدحة أو مادح..."
-                    className="h-8 pr-7 text-xs"
-                  />
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <label className="text-xs font-fustat text-muted-foreground">اختر المقاطع</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={playlistArtistFilter}
+                    onChange={(e) => setPlaylistArtistFilter(e.target.value)}
+                    className="h-8 text-xs border border-border rounded-lg px-2 bg-background"
+                  >
+                    <option value="">كل المداحين</option>
+                    {artists.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                  <div className="relative w-56">
+                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={playlistTrackSearch}
+                      onChange={(e) => setPlaylistTrackSearch(e.target.value)}
+                      placeholder="ابحث عن مقطع أو مادح..."
+                      className="h-8 pr-7 text-xs"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="border border-border rounded-xl max-h-48 overflow-auto p-2 space-y-1">
-                {displayTracks.map((t) => {
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-[11px] h-7 px-2"
+                  onClick={() => {
+                    const visibleIds = playlistPickerTracks.map((t) => t.id);
+                    const current = new Set(newPlaylist.selectedTrackIds || []);
+                    for (const id of visibleIds) current.add(id);
+                    setNewPlaylist({ ...newPlaylist, selectedTrackIds: Array.from(current) });
+                  }}
+                >
+                  تحديد الكل ({playlistPickerTracks.length})
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-[11px] h-7 px-2"
+                  onClick={() => {
+                    if (playlistTrackSearch || playlistArtistFilter) {
+                      const visibleIds = new Set(playlistPickerTracks.map((t) => t.id));
+                      const current = (newPlaylist.selectedTrackIds || []).filter((id) => !visibleIds.has(id));
+                      setNewPlaylist({ ...newPlaylist, selectedTrackIds: current });
+                    } else {
+                      setNewPlaylist({ ...newPlaylist, selectedTrackIds: [] });
+                    }
+                  }}
+                >
+                  إلغاء التحديد
+                </Button>
+                {(newPlaylist.selectedTrackIds?.length || 0) > 0 && (
+                  <span className="text-[11px] text-primary font-medium mr-auto">
+                    {newPlaylist.selectedTrackIds!.length} مقطع محدد
+                  </span>
+                )}
+              </div>
+              <div className="border border-border rounded-xl max-h-80 overflow-auto p-2 space-y-1">
+                {playlistPickerTracks.map((t) => {
                   const isSelected = newPlaylist.selectedTrackIds?.includes(t.id);
                   return (
                     <button
@@ -2049,12 +2130,10 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                     </button>
                   );
                 })}
+                {playlistPickerTracks.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">لا توجد نتائج</p>
+                )}
               </div>
-              {newPlaylist.selectedTrackIds && newPlaylist.selectedTrackIds.length > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {newPlaylist.selectedTrackIds.length} مدحة محددة
-                </p>
-              )}
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -2123,20 +2202,70 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 </div>
               </div>
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-fustat text-muted-foreground">اختر المدائح</label>
-                  <div className="relative w-64">
-                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                      value={playlistTrackSearch}
-                      onChange={(e) => setPlaylistTrackSearch(e.target.value)}
-                      placeholder="ابحث عن مدحة أو مادح..."
-                      className="h-8 pr-7 text-xs"
-                    />
+                <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                  <label className="text-xs font-fustat text-muted-foreground">اختر المقاطع</label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={playlistArtistFilter}
+                      onChange={(e) => setPlaylistArtistFilter(e.target.value)}
+                      className="h-8 text-xs border border-border rounded-lg px-2 bg-background"
+                    >
+                      <option value="">كل المداحين</option>
+                      {artists.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                    <div className="relative w-56">
+                      <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={playlistTrackSearch}
+                        onChange={(e) => setPlaylistTrackSearch(e.target.value)}
+                        placeholder="ابحث عن مقطع أو مادح..."
+                        className="h-8 pr-7 text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="border border-border rounded-xl max-h-48 overflow-auto p-2 space-y-1">
-                  {displayTracks.map((t) => {
+                <div className="flex items-center gap-2 mb-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-[11px] h-7 px-2"
+                    onClick={() => {
+                      const visibleIds = playlistPickerTracks.map((t) => t.id);
+                      const current = new Set(editingPlaylist.trackIds || []);
+                      for (const id of visibleIds) current.add(id);
+                      setEditingPlaylist({ ...editingPlaylist, trackIds: Array.from(current) });
+                    }}
+                  >
+                    تحديد الكل ({playlistPickerTracks.length})
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-[11px] h-7 px-2"
+                    onClick={() => {
+                      if (playlistTrackSearch || playlistArtistFilter) {
+                        const visibleIds = new Set(playlistPickerTracks.map((t) => t.id));
+                        const current = (editingPlaylist.trackIds || []).filter((id) => !visibleIds.has(id));
+                        setEditingPlaylist({ ...editingPlaylist, trackIds: current });
+                      } else {
+                        setEditingPlaylist({ ...editingPlaylist, trackIds: [] });
+                      }
+                    }}
+                  >
+                    إلغاء التحديد
+                  </Button>
+                  {(editingPlaylist.trackIds?.length || 0) > 0 && (
+                    <span className="text-[11px] text-primary font-medium mr-auto">
+                      {editingPlaylist.trackIds!.length} مقطع محدد
+                    </span>
+                  )}
+                </div>
+                <div className="border border-border rounded-xl max-h-80 overflow-auto p-2 space-y-1">
+                  {playlistPickerTracks.map((t) => {
                     const isSelected = editingPlaylist.trackIds?.includes(t.id);
                     return (
                       <button
@@ -2162,12 +2291,10 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                       </button>
                     );
                   })}
+                  {playlistPickerTracks.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">لا توجد نتائج</p>
+                  )}
                 </div>
-                {editingPlaylist.trackIds && editingPlaylist.trackIds.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {editingPlaylist.trackIds.length} مدحة محددة
-                  </p>
-                )}
               </div>
             </div>
           )}

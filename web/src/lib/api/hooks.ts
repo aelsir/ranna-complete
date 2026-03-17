@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getApprovedMadhaat,
   getApprovedMadhaatCount,
+  getAllMadhaatMinimal,
   getAdminMadhaat,
   getMadhaById,
   getMadhaatByIds,
@@ -110,6 +111,15 @@ export function useMadhaatCount() {
   return useQuery({
     queryKey: [...queryKeys.madhaat, "count"],
     queryFn: getApprovedMadhaatCount,
+  });
+}
+
+/** All approved tracks (minimal fields) for playlist track picker in dashboard. */
+export function useAllMadhaatMinimal() {
+  return useQuery({
+    queryKey: [...queryKeys.madhaat, "allMinimal"],
+    queryFn: getAllMadhaatMinimal,
+    staleTime: 5 * 60 * 1000, // cache 5 min — rarely changes mid-session
   });
 }
 
