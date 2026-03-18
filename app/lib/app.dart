@@ -19,37 +19,50 @@ import 'package:ranna/components/player/full_player.dart';
 import 'package:ranna/services/audio_player_service.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     routes: [
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => ShellScaffold(child: child),
-        routes: [
-          GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
-          GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
-          GoRoute(path: '/favorites', builder: (context, state) => const FavoritesScreen()),
-          GoRoute(path: '/account', builder: (context, state) => const AccountScreen()),
-          GoRoute(path: '/browse', builder: (context, state) => const BrowseScreen()),
-          GoRoute(
-            path: '/profile/:type/:id',
-            builder: (context, state) => ProfileScreen(
-              type: state.pathParameters['type']!,
-              id: state.pathParameters['id']!,
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            ShellScaffold(navigationShell: navigationShell),
+        branches: [
+          // Tab 0: Home (and sub-pages that share the shell)
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const HomeScreen(),
+              routes: [
+                GoRoute(path: 'account', builder: (context, state) => const AccountScreen()),
+                GoRoute(path: 'browse', builder: (context, state) => const BrowseScreen()),
+                GoRoute(
+                  path: 'profile/:type/:id',
+                  builder: (context, state) => ProfileScreen(
+                    type: state.pathParameters['type']!,
+                    id: state.pathParameters['id']!,
+                  ),
+                ),
+                GoRoute(
+                  path: 'playlist/:id',
+                  builder: (context, state) => PlaylistScreen(id: state.pathParameters['id']!),
+                ),
+                GoRoute(path: 'artists', builder: (context, state) => const AllArtistsScreen()),
+                GoRoute(path: 'narrators', builder: (context, state) => const AllNarratorsScreen()),
+                GoRoute(path: 'tariqas', builder: (context, state) => const AllTariqasScreen()),
+                GoRoute(path: 'funoon', builder: (context, state) => const AllFunoonScreen()),
+              ],
             ),
-          ),
-          GoRoute(
-            path: '/playlist/:id',
-            builder: (context, state) => PlaylistScreen(id: state.pathParameters['id']!),
-          ),
-          GoRoute(path: '/artists', builder: (context, state) => const AllArtistsScreen()),
-          GoRoute(path: '/narrators', builder: (context, state) => const AllNarratorsScreen()),
-          GoRoute(path: '/tariqas', builder: (context, state) => const AllTariqasScreen()),
-          GoRoute(path: '/funoon', builder: (context, state) => const AllFunoonScreen()),
+          ]),
+          // Tab 1: Search
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+          ]),
+          // Tab 2: Favorites
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/favorites', builder: (context, state) => const FavoritesScreen()),
+          ]),
         ],
       ),
     ],
@@ -80,8 +93,8 @@ class RannaApp extends ConsumerWidget {
 
 /// Shell scaffold with content area, floating mini player, and floating bottom nav.
 class ShellScaffold extends ConsumerWidget {
-  final Widget child;
-  const ShellScaffold({super.key, required this.child});
+  final StatefulNavigationShell navigationShell;
+  const ShellScaffold({super.key, required this.navigationShell});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -118,7 +131,7 @@ class ShellScaffold extends ConsumerWidget {
                 boxShadow: RannaTheme.shadowCard,
               ),
               clipBehavior: Clip.antiAlias,
-              child: child,
+              child: navigationShell,
             ),
           ),
 
@@ -136,7 +149,7 @@ class ShellScaffold extends ConsumerWidget {
             left: 3,
             right: 3,
             bottom: navBarBottomMargin + bottomPadding,
-            child: const _FloatingBottomNav(),
+            child: _FloatingBottomNav(navigationShell: navigationShell),
           ),
 
           // ===== Full Player Overlay =====
@@ -159,34 +172,18 @@ class ShellScaffold extends ConsumerWidget {
 // =============================================================================
 
 class _FloatingBottomNav extends StatelessWidget {
-  const _FloatingBottomNav();
-
-  int _currentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/search')) return 1;
-    if (location.startsWith('/favorites')) return 2;
-    return 0;
-  }
+  final StatefulNavigationShell navigationShell;
+  const _FloatingBottomNav({required this.navigationShell});
 
   static const _tabs = [
     _TabData(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'السَّاحة'),
     _TabData(icon: Icons.search_outlined, activeIcon: Icons.search_rounded, label: 'فتّش'),
     _TabData(icon: Icons.favorite_outline_rounded, activeIcon: Icons.favorite_rounded, label: 'مُختاراتي'),
-    // TODO: Re-enable when auth is implemented
-    // _TabData(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'زاويتي'),
   ];
-
-  void _onTap(BuildContext context, int index) {
-    switch (index) {
-      case 0: context.go('/');
-      case 1: context.go('/search');
-      case 2: context.go('/favorites');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _currentIndex(context);
+    final currentIndex = navigationShell.currentIndex;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
@@ -208,7 +205,7 @@ class _FloatingBottomNav extends StatelessWidget {
               return Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _onTap(context, index),
+                  onTap: () => navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
                   child: _AnimatedTab(
                     icon: isActive ? tab.activeIcon : tab.icon,
                     label: tab.label,

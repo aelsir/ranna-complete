@@ -27,11 +27,9 @@ class TrackRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(audioPlayerProvider);
-    final isCurrentTrack = playerState.currentTrackId == track.id;
+    final isCurrentTrack = ref.watch(audioPlayerProvider.select((s) => s.currentTrackId)) == track.id;
     final isCurrentAndPlaying = isCurrentTrack && ref.watch(isPlayingProvider);
-    final favorites = ref.watch(favoritesProvider);
-    final isFav = favorites.contains(track.id);
+    final isFav = ref.watch(favoritesProvider.select((s) => s.contains(track.id)));
 
     // Build subtitle: "Artist · Narrator"
     final artist = track.madihDetails?.name ?? track.madih;

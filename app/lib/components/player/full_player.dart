@@ -88,7 +88,8 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
   Widget build(BuildContext context) {
     final isOpen = ref.watch(isFullPlayerOpenProvider);
     final track = ref.watch(currentTrackProvider);
-    final playerState = ref.watch(audioPlayerProvider);
+    final position = ref.watch(audioPlayerProvider.select((s) => s.position));
+    final duration = ref.watch(audioPlayerProvider.select((s) => s.duration));
     final notifier = ref.read(audioPlayerProvider.notifier);
 
     // Trigger animation when opened
@@ -320,17 +321,17 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                 RannaTheme.accent.withValues(alpha: 0.12),
                           ),
                           child: Slider(
-                            value: playerState.position.inSeconds
+                            value: position.inSeconds
                                 .toDouble()
                                 .clamp(
                                   0,
-                                  playerState.duration.inSeconds
+                                  duration.inSeconds
                                       .toDouble()
                                       .clamp(0, double.infinity),
                                 ),
                             min: 0,
-                            max: playerState.duration.inSeconds > 0
-                                ? playerState.duration.inSeconds.toDouble()
+                            max: duration.inSeconds > 0
+                                ? duration.inSeconds.toDouble()
                                 : 1,
                             onChanged: (value) {
                               notifier
@@ -347,7 +348,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                               // RTL start (visual right) = duration
                               Text(
                                 formatDuration(
-                                    playerState.duration.inSeconds),
+                                    duration.inSeconds),
                                 style: TextStyle(fontFamily: RannaTheme.fontFustat,
                                   fontSize: 11,
                                   color: RannaTheme.primaryForeground
@@ -357,7 +358,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                               // RTL end (visual left) = current position
                               Text(
                                 formatDuration(
-                                    playerState.position.inSeconds),
+                                    position.inSeconds),
                                 style: TextStyle(fontFamily: RannaTheme.fontFustat,
                                   fontSize: 11,
                                   color: RannaTheme.primaryForeground

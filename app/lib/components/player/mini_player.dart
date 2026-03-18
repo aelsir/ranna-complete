@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,25 +23,26 @@ class MiniPlayer extends ConsumerWidget {
     if (track == null) return const SizedBox.shrink();
 
     final isPlaying = ref.watch(isPlayingProvider);
-    final playerState = ref.watch(audioPlayerProvider);
+    final position = ref.watch(audioPlayerProvider.select((s) => s.position));
+    final duration = ref.watch(audioPlayerProvider.select((s) => s.duration));
+    final hasPrevious = ref.watch(audioPlayerProvider.select((s) => s.hasPrevious));
+    final hasNext = ref.watch(audioPlayerProvider.select((s) => s.hasNext));
     final notifier = ref.read(audioPlayerProvider.notifier);
 
     return GestureDetector(
       onTap: () => notifier.openFullPlayer(),
       behavior: HitTestBehavior.opaque,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              color: RannaTheme.primary.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-              border: Border.all(
-                color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
-              ),
-              boxShadow: RannaTheme.shadowFloat,
-            ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: RannaTheme.primary,
+          borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+          border: Border.all(
+            color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
+          ),
+          boxShadow: RannaTheme.shadowFloat,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
@@ -132,17 +131,17 @@ class MiniPlayer extends ConsumerWidget {
                             overlayColor: RannaTheme.accent.withValues(alpha: 0.12),
                           ),
                           child: Slider(
-                            value: playerState.position.inSeconds
+                            value: position.inSeconds
                                 .toDouble()
                                 .clamp(
                                   0,
-                                  playerState.duration.inSeconds
+                                  duration.inSeconds
                                       .toDouble()
                                       .clamp(0, double.infinity),
                                 ),
                             min: 0,
-                            max: playerState.duration.inSeconds > 0
-                                ? playerState.duration.inSeconds.toDouble()
+                            max: duration.inSeconds > 0
+                                ? duration.inSeconds.toDouble()
                                 : 1,
                             onChanged: (value) {
                               notifier.seekTo(Duration(seconds: value.toInt()));
@@ -153,7 +152,7 @@ class MiniPlayer extends ConsumerWidget {
 
                       // Current time
                       Text(
-                        formatDuration(playerState.position.inSeconds),
+                        formatDuration(position.inSeconds),
                         style: TextStyle(fontFamily: RannaTheme.fontFustat,
                           fontSize: 10,
                           color:
@@ -173,7 +172,7 @@ class MiniPlayer extends ConsumerWidget {
                   size: 32,
                   iconColor:
                       RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: playerState.hasPrevious
+                  onTap: hasPrevious
                       ? () => notifier.playPrevious()
                       : null,
                 ),
@@ -205,7 +204,7 @@ class MiniPlayer extends ConsumerWidget {
                   size: 32,
                   iconColor:
                       RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: playerState.hasNext
+                  onTap: hasNext
                       ? () => notifier.playNext()
                       : null,
                 ),
@@ -213,9 +212,7 @@ class MiniPlayer extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-    )
-        .animate()
+    ).animate()
         .moveY(begin: 20, end: 0, curve: Curves.easeOutBack, duration: 500.ms)
         .fadeIn(duration: 400.ms);
   }

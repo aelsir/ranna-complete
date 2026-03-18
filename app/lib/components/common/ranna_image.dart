@@ -40,6 +40,11 @@ class RannaImage extends StatelessWidget {
       );
     }
 
+    // Cache images at the exact display size × device pixel ratio to save memory.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheW = (width * dpr).round();
+    final cacheH = (height * dpr).round();
+
     Widget image;
     // On web, use Image.network directly (CachedNetworkImage can have issues)
     if (kIsWeb) {
@@ -48,6 +53,8 @@ class RannaImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        cacheWidth: cacheW,
+        cacheHeight: cacheH,
         errorBuilder: (context, error, stackTrace) {
           assert(() { debugPrint('RannaImage: failed to load $resolvedUrl'); return true; }());
           return SizedBox(
@@ -76,6 +83,8 @@ class RannaImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        memCacheWidth: cacheW,
+        memCacheHeight: cacheH,
         errorWidget: (context, url, error) {
           assert(() { debugPrint('RannaImage: failed to load $url'); return true; }());
           return SizedBox(

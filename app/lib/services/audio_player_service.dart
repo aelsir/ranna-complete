@@ -92,6 +92,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<ja.PlayerState>? _playerStateSub;
+  DateTime? _lastPositionUpdate;
   StreamSubscription<ja.ProcessingState>? _processingStateSub;
 
   AudioPlayerService(this._ref) : super(const PlayerState()) {
@@ -107,7 +108,11 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
 
   void _listenToPlayerStreams() {
     _positionSub = _player.positionStream.listen((pos) {
-      if (mounted) {
+      if (!mounted) return;
+      final now = DateTime.now();
+      if (_lastPositionUpdate == null ||
+          now.difference(_lastPositionUpdate!) > const Duration(milliseconds: 250)) {
+        _lastPositionUpdate = now;
         state = state.copyWith(position: pos);
       }
     });

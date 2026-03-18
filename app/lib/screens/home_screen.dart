@@ -24,24 +24,33 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0;
+  final ValueNotifier<bool> _isScrolled = ValueNotifier(false);
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _isScrolled.addListener(_onScrolledChanged);
   }
 
   void _onScroll() {
-    setState(() {
-      _scrollOffset = _scrollController.offset;
-    });
+    final scrolled = _scrollController.offset > 40;
+    if (_isScrolled.value != scrolled) {
+      _isScrolled.value = scrolled;
+    }
+  }
+
+  /// Only fires when the boolean flips (not on every pixel).
+  void _onScrolledChanged() {
+    setState(() {});
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
+    _isScrolled.removeListener(_onScrolledChanged);
     _scrollController.dispose();
+    _isScrolled.dispose();
     super.dispose();
   }
 
@@ -158,12 +167,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ---------------------------------------------------------------------------
 
   SliverAppBar _buildStickyAppBar() {
-    final isScrolled = _scrollOffset > 40;
+    final isScrolled = _isScrolled.value;
     return SliverAppBar(
       pinned: true,
       floating: false,
-      // Use animated solid color instead of BackdropFilter to avoid
-      // Flutter web mouse_tracker assertion errors.
       backgroundColor: isScrolled
           ? RannaTheme.card.withValues(alpha: 0.95)
           : Colors.transparent,
@@ -264,18 +271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   return CollectionCard(
                     collection: collection,
                     onTap: () => context.push('/playlist/${collection.id}'),
-                  )
-                      .animate()
-                      .fadeIn(
-                        delay: Duration(milliseconds: 50 * index),
-                        duration: 400.ms,
-                      )
-                      .slideX(
-                        begin: 0.1,
-                        delay: Duration(milliseconds: 50 * index),
-                        duration: 400.ms,
-                        curve: Curves.easeOut,
-                      );
+                  );
                 },
               ),
             ),
@@ -304,18 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     artist: artist,
                     onTap: () =>
                         context.push('/profile/artist/${artist.id}'),
-                  )
-                      .animate()
-                      .fadeIn(
-                        delay: Duration(milliseconds: 40 * index),
-                        duration: 350.ms,
-                      )
-                      .scale(
-                        begin: const Offset(0.8, 0.8),
-                        delay: Duration(milliseconds: 40 * index),
-                        duration: 350.ms,
-                        curve: Curves.easeOut,
-                      );
+                  );
                 },
               ),
             ),
@@ -344,18 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     narrator: narrator,
                     onTap: () => context
                         .push('/profile/narrator/${narrator.id}'),
-                  )
-                      .animate()
-                      .fadeIn(
-                        delay: Duration(milliseconds: 40 * index),
-                        duration: 350.ms,
-                      )
-                      .scale(
-                        begin: const Offset(0.8, 0.8),
-                        delay: Duration(milliseconds: 40 * index),
-                        duration: 350.ms,
-                        curve: Curves.easeOut,
-                      );
+                  );
                 },
               ),
             ),
@@ -672,18 +646,7 @@ class _ContinueListeningGrid extends StatelessWidget {
       itemBuilder: (context, index) => _ContinueCard(
         track: tracks[index],
         queue: queue,
-      )
-          .animate()
-          .fadeIn(
-            delay: Duration(milliseconds: 80 * index),
-            duration: 400.ms,
-          )
-          .slideY(
-            begin: 0.15,
-            delay: Duration(milliseconds: 80 * index),
-            duration: 400.ms,
-            curve: Curves.easeOut,
-          ),
+      ),
     );
   }
 }
@@ -881,8 +844,7 @@ class _TrendingTrackRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(audioPlayerProvider);
-    final isCurrentTrack = playerState.currentTrackId == track.id;
+    final isCurrentTrack = ref.watch(audioPlayerProvider.select((s) => s.currentTrackId)) == track.id;
 
     return Material(
       color: isCurrentTrack
@@ -995,7 +957,7 @@ class _TrendingTrackRow extends ConsumerWidget {
 
               // Heart icon
               Builder(builder: (context) {
-                final isFav = ref.watch(favoritesProvider).contains(track.id);
+                final isFav = ref.watch(favoritesProvider.select((s) => s.contains(track.id)));
                 return GestureDetector(
                   onTap: () => ref.read(favoritesProvider.notifier).toggle(track.id),
                   child: Icon(
