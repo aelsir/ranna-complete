@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
@@ -214,9 +213,7 @@ class MiniPlayer extends ConsumerWidget {
             ),
           ),
         ),
-    ).animate()
-        .moveY(begin: 20, end: 0, curve: Curves.easeOutBack, duration: 500.ms)
-        .fadeIn(duration: 400.ms);
+    );
   }
 }
 

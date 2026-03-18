@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -185,14 +184,10 @@ class _FloatingBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentIndex = navigationShell.currentIndex;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-        child: Container(
+    return Container(
           height: 68,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.92),
+            color: Colors.white.withValues(alpha: 0.97),
             borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
             border: Border.all(color: RannaTheme.border.withValues(alpha: 0.15)),
             boxShadow: RannaTheme.shadowFloat,
@@ -215,8 +210,6 @@ class _FloatingBottomNav extends StatelessWidget {
               );
             }),
           ),
-        ),
-      ),
     );
   }
 }

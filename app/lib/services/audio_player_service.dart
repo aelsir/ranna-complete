@@ -202,7 +202,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       final now = DateTime.now();
       if (_lastPositionUpdate == null ||
           now.difference(_lastPositionUpdate!) >
-              const Duration(milliseconds: 250)) {
+              const Duration(milliseconds: 1000)) {
         _lastPositionUpdate = now;
         state = state.copyWith(position: pos);
       }
@@ -469,10 +469,10 @@ final audioPlayerProvider =
 // =====================================================
 
 final currentTrackProvider = Provider<MadhaWithRelations?>((ref) {
-  final playerState = ref.watch(audioPlayerProvider);
-  if (playerState.currentTrackId == null) return null;
+  final trackId = ref.watch(audioPlayerProvider.select((s) => s.currentTrackId));
+  if (trackId == null) return null;
   final cache = ref.watch(trackCacheProvider);
-  return cache[playerState.currentTrackId];
+  return cache[trackId];
 });
 
 final isPlayingProvider = Provider<bool>((ref) {

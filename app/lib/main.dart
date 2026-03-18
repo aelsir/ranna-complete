@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ranna/app.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ranna/services/audio_player_service.dart';
 
 void main() async {
@@ -11,7 +12,6 @@ void main() async {
   usePathUrlStrategy();
 
   // ── Global error logging ──────────────────────────────────────────────────
-  // Flutter framework errors (layout, rendering, etc.)
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('━━━ FLUTTER ERROR ━━━');
@@ -19,13 +19,15 @@ void main() async {
     debugPrint('${details.stack}');
   };
 
-  // Async / uncaught errors
   PlatformDispatcher.instance.onError = (error, stack) {
     debugPrint('━━━ PLATFORM ERROR ━━━');
     debugPrint('$error');
     debugPrint('$stack');
     return true;
   };
+
+  // Pre-warm SharedPreferences cache so FavoritesNotifier._load() is instant
+  await SharedPreferences.getInstance();
 
   await Supabase.initialize(
     url: const String.fromEnvironment('SUPABASE_URL'),

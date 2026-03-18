@@ -32,6 +32,7 @@ List<Map<String, dynamic>> _asList(dynamic result) {
 // ============================================
 
 final homeDataProvider = FutureProvider<HomeData>((ref) async {
+  ref.keepAlive();
   final supabase = ref.read(supabaseProvider);
 
   Future<List<Map<String, dynamic>>> safeQuery(
@@ -50,19 +51,11 @@ final homeDataProvider = FutureProvider<HomeData>((ref) async {
 
   // Use select('*') without joins to avoid PostgREST embedding issues on web.
   // Artist/narrator details are fetched lazily via separate providers when needed.
-  final featuredRaw = await safeQuery('featured', () => supabase
-      .from('madha')
-      .select()
-      .eq('status', 'approved')
-      .eq('is_featured', true)
-      .order('created_at', ascending: false)
-      .limit(10));
 
-  // Trending: most played in the last 7 days via DB function
+  // Trending must run first (has conditional fallback), then parallelize the rest.
   var popularRaw = await safeQuery('popular', () => supabase
       .rpc('get_trending_tracks', params: {'days_window': 7, 'max_results': 10}));
 
-  // Fallback to all-time play_count if no trending data yet
   if (popularRaw.isEmpty) {
     popularRaw = await safeQuery('popular_fallback', () => supabase
         .from('madha')
@@ -72,32 +65,46 @@ final homeDataProvider = FutureProvider<HomeData>((ref) async {
         .limit(10));
   }
 
-  final recentRaw = await safeQuery('recent', () => supabase
-      .from('madha')
-      .select()
-      .eq('status', 'approved')
-      .order('created_at', ascending: false)
-      .limit(10));
+  // Run remaining 5 queries in parallel
+  final results = await Future.wait([
+    safeQuery('featured', () => supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .eq('is_featured', true)
+        .order('created_at', ascending: false)
+        .limit(10)),
+    safeQuery('recent', () => supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .order('created_at', ascending: false)
+        .limit(10)),
+    safeQuery('artists', () => supabase
+        .from('madiheen')
+        .select()
+        .eq('status', 'approved')
+        .order('name')
+        .limit(20)),
+    safeQuery('collections', () => supabase
+        .from('collections')
+        .select()
+        .eq('is_active', true)
+        .order('display_order', ascending: false)
+        .limit(20)),
+    safeQuery('narrators', () => supabase
+        .from('ruwat')
+        .select()
+        .eq('status', 'approved')
+        .order('name')
+        .limit(20)),
+  ]);
 
-  final artistsRaw = await safeQuery('artists', () => supabase
-      .from('madiheen')
-      .select()
-      .eq('status', 'approved')
-      .order('name')
-      .limit(20));
-
-  final collectionsRaw = await safeQuery('collections', () => supabase
-      .from('collections')
-      .select()
-      .eq('is_active', true)
-      .order('display_order', ascending: false));
-
-  final narratorsRaw = await safeQuery('narrators', () => supabase
-      .from('ruwat')
-      .select()
-      .eq('status', 'approved')
-      .order('name')
-      .limit(20));
+  final featuredRaw = results[0];
+  final recentRaw = results[1];
+  final artistsRaw = results[2];
+  final collectionsRaw = results[3];
+  final narratorsRaw = results[4];
 
   // Build a lookup of madih image URLs so tracks without their own image
   // can fall back to the madih's photo.
@@ -298,6 +305,7 @@ final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
 // ============================================
 
 final favoriteTracksProvider = FutureProvider<List<MadhaWithRelations>>((ref) async {
+  ref.keepAlive();
   final favoriteIds = ref.watch(favoritesProvider);
   if (favoriteIds.isEmpty) return [];
 
@@ -341,6 +349,7 @@ const _artistsPageSize = 30;
 
 final paginatedArtistsProvider =
     FutureProvider.family<List<Madih>, int>((ref, page) async {
+  ref.keepAlive();
   final supabase = ref.read(supabaseProvider);
   try {
     final from = page * _artistsPageSize;
@@ -425,6 +434,7 @@ const _narratorsPageSize = 30;
 
 final paginatedNarratorsProvider =
     FutureProvider.family<List<Rawi>, int>((ref, page) async {
+  ref.keepAlive();
   final supabase = ref.read(supabaseProvider);
   try {
     final from = page * _narratorsPageSize;

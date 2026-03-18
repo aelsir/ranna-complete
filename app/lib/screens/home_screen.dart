@@ -32,7 +32,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _isScrolled.addListener(_onScrolledChanged);
   }
 
   void _onScroll() {
@@ -42,15 +41,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  /// Only fires when the boolean flips (not on every pixel).
-  void _onScrolledChanged() {
-    setState(() {});
-  }
-
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
-    _isScrolled.removeListener(_onScrolledChanged);
     _scrollController.dispose();
     _isScrolled.dispose();
     super.dispose();
@@ -84,41 +77,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       slivers: [
         _buildStickyAppBar(forceScrolled: true),
         SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const ShimmerBox(
-                  width: double.infinity, height: 360, borderRadius: 0),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 2.2,
-                      children: List.generate(
-                          4,
-                          (_) => const ShimmerBox(
-                              width: double.infinity,
-                              height: 80,
-                              borderRadius: 12)),
-                    ),
-                    const SizedBox(height: 24),
-                    ...List.generate(
-                        5,
-                        (_) => const Padding(
-                              padding: EdgeInsets.only(bottom: 4),
-                              child: ShimmerTrackRow(),
-                            )),
-                  ],
+          child: ShimmerGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const ShimmerBox(
+                    width: double.infinity, height: 360, borderRadius: 0),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 2.2,
+                        children: List.generate(
+                            4,
+                            (_) => const ShimmerBox(
+                                width: double.infinity,
+                                height: 80,
+                                borderRadius: 12)),
+                      ),
+                      const SizedBox(height: 24),
+                      ...List.generate(
+                          5,
+                          (_) => const Padding(
+                                padding: EdgeInsets.only(bottom: 4),
+                                child: ShimmerTrackRow(),
+                              )),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

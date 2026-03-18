@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -120,13 +118,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           ),
         );
       },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
+      child: Container(
             decoration: BoxDecoration(
-              color: RannaTheme.primary.withValues(alpha: 0.85),
+              color: RannaTheme.primary.withValues(alpha: 0.97),
               borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
               border: Border.all(
                 color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
@@ -434,8 +428,6 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 
