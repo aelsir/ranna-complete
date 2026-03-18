@@ -1,9 +1,9 @@
-import { usePopularMadhaat } from "@/lib/api/hooks";
+import { useTrendingTracks } from "@/lib/api/hooks";
 import { Card, CardContent } from "@/components/ui/card";
 import TrackRow from "@/components/TrackRow";
 
 const TrendingTracks = () => {
-  const { data: tracks, isLoading, error } = usePopularMadhaat(5);
+  const { data: tracks, isLoading, error } = useTrendingTracks(7, 5);
 
   if (error) {
     console.error("TrendingTracks query error:", error);

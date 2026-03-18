@@ -334,6 +334,53 @@ export async function getPopularMadhaat(
   return (data as unknown as MadhaWithRelations[]) || [];
 }
 
+/**
+ * Get trending tracks from the last N days via the DB function.
+ * Falls back to all-time play_count if no recent play events exist.
+ */
+export async function getTrendingTracks(
+  daysWindow = 7,
+  limit = 10
+): Promise<MadhaWithRelations[]> {
+  const { data, error } = await supabase.rpc("get_trending_tracks", {
+    days_window: daysWindow,
+    max_results: limit,
+  });
+
+  if (error) throw error;
+
+  // The RPC returns raw madha rows — enrich with relations
+  if (data && data.length > 0) {
+    const ids = (data as { id: string }[]).map((r) => r.id);
+    const { data: enriched, error: enrichErr } = await supabase
+      .from("madha")
+      .select(`*, madiheen:madih_id (*), ruwat:rawi_id (*)`)
+      .in("id", ids);
+    if (!enrichErr && enriched) {
+      // Preserve the trending order from the RPC
+      const byId = new Map(enriched.map((r) => [r.id, r]));
+      return ids
+        .map((id) => byId.get(id))
+        .filter(Boolean) as unknown as MadhaWithRelations[];
+    }
+  }
+
+  // Fallback: no trending data yet, use all-time play_count
+  return getPopularMadhaat(limit);
+}
+
+/**
+ * Log a play event for trending analytics. Fire-and-forget.
+ */
+export async function logPlayEvent(madhaId: string): Promise<void> {
+  const userId = supabase.auth.getUser
+    ? (await supabase.auth.getUser()).data.user?.id
+    : null;
+  const row: Record<string, string> = { madha_id: madhaId };
+  if (userId) row.user_id = userId;
+  await supabase.from("play_events").insert(row).throwOnError();
+}
+
 // ============================================
 // Madiheen (artists/performers)
 // ============================================
@@ -850,7 +897,7 @@ export async function getHomePageData(): Promise<HomePageData> {
     collections,
   ] = await Promise.all([
     getApprovedMadhaat({ limit: 20, orderBy: "created_at" }),
-    getPopularMadhaat(20),
+    getTrendingTracks(7, 20),
     getApprovedMadiheen(),
     getApprovedRuwat(),
     getTuruq(),

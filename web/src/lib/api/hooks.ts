@@ -18,6 +18,8 @@ import {
   searchMadhaat,
   getFeaturedMadhaat,
   getPopularMadhaat,
+  getTrendingTracks,
+  logPlayEvent,
   getApprovedMadiheen,
   getMadiheenWithMadhaat,
   getMadihById,
@@ -71,6 +73,7 @@ export const queryKeys = {
   search: (query: string) => ["search", query] as const,
   featured: ["madhaat", "featured"] as const,
   popular: ["madhaat", "popular"] as const,
+  trending: ["madhaat", "trending"] as const,
   madiheen: ["madiheen"] as const,
   madih: (id: string) => ["madih", id] as const,
   ruwat: ["ruwat"] as const,
@@ -205,6 +208,20 @@ export function usePopularMadhaat(limit = 20) {
   return useQuery({
     queryKey: [...queryKeys.popular, limit],
     queryFn: () => getPopularMadhaat(limit),
+  });
+}
+
+export function useTrendingTracks(daysWindow = 7, limit = 10) {
+  return useQuery({
+    queryKey: [...queryKeys.trending, daysWindow, limit],
+    queryFn: () => getTrendingTracks(daysWindow, limit),
+  });
+}
+
+/** Fire-and-forget: log a play event for trending analytics. */
+export function useLogPlayEvent() {
+  return useMutation({
+    mutationFn: (madhaId: string) => logPlayEvent(madhaId),
   });
 }
 

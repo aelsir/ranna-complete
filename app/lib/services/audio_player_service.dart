@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:ranna/models/madha.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // =====================================================
 // R2 Public URL (from environment / compile-time define)
@@ -312,8 +313,24 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
         ja.AudioSource.uri(Uri.parse(url)),
       );
       await _player.play();
+
+      // Log play event for trending analytics (fire-and-forget)
+      _logPlayEvent(trackId);
     } catch (e) {
       state = state.copyWith(isPlaying: false);
+    }
+  }
+
+  /// Logs a play event to Supabase for trending calculations.
+  void _logPlayEvent(String trackId) {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      final data = <String, dynamic>{'madha_id': trackId};
+      if (userId != null) data['user_id'] = userId;
+      supabase.from('play_events').insert(data).then((_) {}).catchError((_) {});
+    } catch (_) {
+      // Non-critical — don't interrupt playback
     }
   }
 

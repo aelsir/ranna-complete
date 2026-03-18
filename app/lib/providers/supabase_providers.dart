@@ -58,12 +58,19 @@ final homeDataProvider = FutureProvider<HomeData>((ref) async {
       .order('created_at', ascending: false)
       .limit(10));
 
-  final popularRaw = await safeQuery('popular', () => supabase
-      .from('madha')
-      .select()
-      .eq('status', 'approved')
-      .order('play_count', ascending: false)
-      .limit(10));
+  // Trending: most played in the last 7 days via DB function
+  var popularRaw = await safeQuery('popular', () => supabase
+      .rpc('get_trending_tracks', params: {'days_window': 7, 'max_results': 10}));
+
+  // Fallback to all-time play_count if no trending data yet
+  if (popularRaw.isEmpty) {
+    popularRaw = await safeQuery('popular_fallback', () => supabase
+        .from('madha')
+        .select()
+        .eq('status', 'approved')
+        .order('play_count', ascending: false)
+        .limit(10));
+  }
 
   final recentRaw = await safeQuery('recent', () => supabase
       .from('madha')
@@ -329,6 +336,28 @@ final allArtistsProvider = FutureProvider<List<Madih>>((ref) async {
   }
 });
 
+/// Paginated artists provider. Takes page index (0-based), returns a page of artists.
+const _artistsPageSize = 30;
+
+final paginatedArtistsProvider =
+    FutureProvider.family<List<Madih>, int>((ref, page) async {
+  final supabase = ref.read(supabaseProvider);
+  try {
+    final from = page * _artistsPageSize;
+    final to = from + _artistsPageSize - 1;
+    final dynamic results = await supabase
+        .from('madiheen')
+        .select()
+        .eq('status', 'approved')
+        .order('name')
+        .range(from, to);
+    return _asList(results).map((e) => Madih.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ paginatedArtistsProvider error: $e');
+    return [];
+  }
+});
+
 final artistTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, artistId) async {
   final supabase = ref.read(supabaseProvider);
@@ -387,6 +416,28 @@ final allNarratorsProvider = FutureProvider<List<Rawi>>((ref) async {
     return _asList(results).map((e) => Rawi.fromJson(e)).toList();
   } catch (e) {
     debugPrint('⛔ allNarratorsProvider error: $e');
+    return [];
+  }
+});
+
+/// Paginated narrators provider. Takes page index (0-based), returns a page of narrators.
+const _narratorsPageSize = 30;
+
+final paginatedNarratorsProvider =
+    FutureProvider.family<List<Rawi>, int>((ref, page) async {
+  final supabase = ref.read(supabaseProvider);
+  try {
+    final from = page * _narratorsPageSize;
+    final to = from + _narratorsPageSize - 1;
+    final dynamic results = await supabase
+        .from('ruwat')
+        .select()
+        .eq('status', 'approved')
+        .order('name')
+        .range(from, to);
+    return _asList(results).map((e) => Rawi.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ paginatedNarratorsProvider error: $e');
     return [];
   }
 });

@@ -4,19 +4,77 @@ import 'package:go_router/go_router.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
+import 'package:ranna/models/madih.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/theme/app_theme.dart';
 
-/// Grid listing of all artists (Madiheen).
-///
-/// Displays a 3-column grid of circular artist avatars with names.
-/// Tapping an artist navigates to their profile page.
-class AllArtistsScreen extends ConsumerWidget {
+/// Grid listing of all artists (Madiheen) with infinite scroll pagination.
+class AllArtistsScreen extends ConsumerStatefulWidget {
   const AllArtistsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final artistsAsync = ref.watch(allArtistsProvider);
+  ConsumerState<AllArtistsScreen> createState() => _AllArtistsScreenState();
+}
+
+class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final List<Madih> _artists = [];
+  int _currentPage = 0;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isLoadingMore || !_hasMore) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadNextPage();
+    }
+  }
+
+  void _loadNextPage() {
+    setState(() => _isLoadingMore = true);
+    _currentPage++;
+    // Triggering a watch on the next page will cause the build to re-run
+    // and pick up the new data via the effect below.
+    ref.invalidate(paginatedArtistsProvider(_currentPage));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch all loaded pages
+    for (int page = 0; page <= _currentPage; page++) {
+      final pageAsync = ref.watch(paginatedArtistsProvider(page));
+      pageAsync.whenData((pageData) {
+        // Collect all unique artists
+        final existingIds = _artists.map((a) => a.id).toSet();
+        for (final artist in pageData) {
+          if (!existingIds.contains(artist.id)) {
+            _artists.add(artist);
+            existingIds.add(artist.id);
+          }
+        }
+        if (pageData.length < 30) {
+          _hasMore = false;
+        }
+        if (_isLoadingMore) {
+          _isLoadingMore = false;
+        }
+      });
+    }
+
+    final firstPageAsync = ref.watch(paginatedArtistsProvider(0));
 
     return Scaffold(
       backgroundColor: RannaTheme.background,
@@ -24,7 +82,7 @@ class AllArtistsScreen extends ConsumerWidget {
         title: const Text('المادحين'),
         backgroundColor: RannaTheme.primary,
       ),
-      body: artistsAsync.when(
+      body: firstPageAsync.when(
         loading: () => _buildLoading(),
         error: (_, __) => Center(
           child: Text(
@@ -32,7 +90,8 @@ class AllArtistsScreen extends ConsumerWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        data: (artists) => CustomScrollView(
+        data: (_) => CustomScrollView(
+          controller: _scrollController,
           slivers: [
             SliverPadding(
               padding: const EdgeInsetsDirectional.all(16),
@@ -45,8 +104,8 @@ class AllArtistsScreen extends ConsumerWidget {
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final artist = artists[index];
-
+                    if (index >= _artists.length) return null;
+                    final artist = _artists[index];
                     return GestureDetector(
                       onTap: () =>
                           context.push('/profile/artist/${artist.id}'),
@@ -58,7 +117,8 @@ class AllArtistsScreen extends ConsumerWidget {
                               url: artist.imageUrl,
                               width: 80,
                               height: 80,
-                              fallbackWidget: _buildGradientFallback(artist.name),
+                              fallbackWidget:
+                                  _buildGradientFallback(artist.name),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -76,10 +136,24 @@ class AllArtistsScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  childCount: artists.length,
+                  childCount: _artists.length,
                 ),
               ),
             ),
+            // Loading indicator at bottom
+            if (_hasMore)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+              ),
             const SliverToBoxAdapter(
               child: SizedBox(height: 100),
             ),

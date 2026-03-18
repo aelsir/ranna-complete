@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
-import { useMadha } from "@/lib/api/hooks";
+import { useMadha, useLogPlayEvent } from "@/lib/api/hooks";
 import { getAudioUrl, getImageUrl } from "@/lib/format";
 
 const MiniPlayer = () => {
@@ -29,6 +29,7 @@ const MiniPlayer = () => {
   } = usePlayer();
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
+  const logPlay = useLogPlayEvent();
 
   const audioSrc = track ? getAudioUrl(track.audio_url) : "";
   const coverImage = track ? getImageUrl(track.image_url) : "";
@@ -57,7 +58,11 @@ const MiniPlayer = () => {
     audio.src = audioSrc;
     audio.load();
     audio.play().catch(() => {});
-  }, [audioSrc, audioRef]);
+    // Log play event for trending analytics (fire-and-forget)
+    if (nowPlayingId) {
+      logPlay.mutate(nowPlayingId);
+    }
+  }, [audioSrc, audioRef, nowPlayingId]);
 
   // Register OS Media Session Handlers
   useEffect(() => {
