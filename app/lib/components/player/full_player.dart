@@ -134,282 +134,303 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
               boxShadow: RannaTheme.shadowFloat,
             ),
             child: SafeArea(
-              child: Column(
-                children: [
-                  // =========================================================
-                  // 1. Header
-                  // =========================================================
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(
-                      start: 8,
-                      end: 16,
-                      top: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        // Collapse button
-                        GestureDetector(
-                          onTap: () => notifier.closeFullPlayer(),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.transparent,
-                              border: Border.all(
-                                color: RannaTheme.primaryForeground
-                                    .withValues(alpha: 0.1),
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 24,
-                              color: RannaTheme.primaryForeground
-                                  .withValues(alpha: 0.60),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            '\u0627\u0644\u0622\u0646 \u064A\u064F\u0633\u062A\u0645\u0639', // الآن يُستمع
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: RannaTheme.primaryForeground
-                                  .withValues(alpha: 0.50),
-                            ),
-                          ),
-                        ),
-                        // Invisible placeholder to keep title centred
-                        const SizedBox(width: 40),
-                      ],
-                    ),
-                  ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final h = constraints.maxHeight;
+                  // Scale cover art to fit: ~40% of available height, capped at 280
+                  final coverSize = (h * 0.40).clamp(160.0, 280.0);
+                  final glowSize = coverSize * 1.1;
+                  // Scale spacing proportionally
+                  final gapLarge = (h * 0.035).clamp(12.0, 32.0);
+                  final gapMedium = (h * 0.025).clamp(8.0, 24.0);
+                  final gapSmall = (h * 0.018).clamp(6.0, 16.0);
 
-                  // =========================================================
-                  // 2. Spacer
-                  // =========================================================
-                  const Spacer(),
-
-                  // =========================================================
-                  // 3. Cover art with coral glow and spring scale
-                  // =========================================================
-                  AnimatedBuilder(
-                    animation: _coverScaleAnimation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _coverScaleAnimation.value,
-                        child: child,
-                      );
-                    },
-                    child: Center(
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Coral glow behind (accent/15%, blur-2xl, scale 1.1)
-                          Container(
-                            width: 280 * 1.1,
-                            height: 280 * 1.1,
-                            decoration: BoxDecoration(
-                              borderRadius:
-                                  BorderRadius.circular(RannaTheme.radius2xl),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: RannaTheme.accent
-                                      .withValues(alpha: 0.15),
-                                  blurRadius: 48,
-                                  spreadRadius: 8,
+                  return Column(
+                    children: [
+                      // =====================================================
+                      // 1. Header
+                      // =====================================================
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                          start: 8,
+                          end: 16,
+                          top: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => notifier.closeFullPlayer(),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.transparent,
+                                  border: Border.all(
+                                    color: RannaTheme.primaryForeground
+                                        .withValues(alpha: 0.1),
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          // Cover image
-                          Container(
-                            width: 280,
-                            height: 280,
-                            decoration: BoxDecoration(
-                              borderRadius:
-                                  BorderRadius.circular(RannaTheme.radius2xl),
-                              boxShadow: RannaTheme.shadowLg,
-                              border: Border.all(
-                                color: RannaTheme.primaryForeground
-                                    .withValues(alpha: 0.10),
+                                child: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 24,
+                                  color: RannaTheme.primaryForeground
+                                      .withValues(alpha: 0.60),
+                                ),
                               ),
                             ),
-                            child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(RannaTheme.radius2xl),
-                              child: track != null
-                                  ? RannaImage(
-                                      url: track.imageUrl ??
-                                          track.madihDetails?.imageUrl,
-                                      width: 280,
-                                      height: 280,
-                                      fit: BoxFit.cover,
-                                      fallbackWidget: _buildFallbackCover(),
-                                    )
-                                  : _buildFallbackCover(),
+                            Expanded(
+                              child: Text(
+                                '\u0627\u0644\u0622\u0646 \u064A\u064F\u0633\u062A\u0645\u0639',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: RannaTheme.fontFustat,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: RannaTheme.primaryForeground
+                                      .withValues(alpha: 0.50),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 40),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 32),
+                      // =====================================================
+                      // 2. Spacer (top)
+                      // =====================================================
+                      const Spacer(),
 
-                  // =========================================================
-                  // 4. Track info
-                  // =========================================================
-                  Padding(
-                    padding:
-                        const EdgeInsetsDirectional.symmetric(horizontal: 32),
-                    child: Column(
-                      children: [
-                        // Title
-                        Text(
-                          track?.title ?? '',
-                          style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        // Subtitle: "Artist · Narrator"
-                        Text(
-                          _buildSubtitle(track),
-                          style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.50),
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // =========================================================
-                  // 5. Progress slider
-                  // =========================================================
-                  Padding(
-                    padding:
-                        const EdgeInsetsDirectional.symmetric(horizontal: 24),
-                    child: Column(
-                      children: [
-                        SliderTheme(
-                          data: SliderThemeData(
-                            trackHeight: 6,
-                            trackShape: const RoundedRectSliderTrackShape(),
-                            activeTrackColor: RannaTheme.accent,
-                            inactiveTrackColor: RannaTheme.primaryForeground
-                                .withValues(alpha: 0.15),
-                            thumbColor: RannaTheme.accent,
-                            thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 8),
-                            overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 16),
-                            overlayColor:
-                                RannaTheme.accent.withValues(alpha: 0.12),
-                          ),
-                          child: Slider(
-                            value: position.inSeconds
-                                .toDouble()
-                                .clamp(
-                                  0,
-                                  duration.inSeconds
-                                      .toDouble()
-                                      .clamp(0, double.infinity),
-                                ),
-                            min: 0,
-                            max: duration.inSeconds > 0
-                                ? duration.inSeconds.toDouble()
-                                : 1,
-                            onChanged: (value) {
-                              notifier
-                                  .seekTo(Duration(seconds: value.toInt()));
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsetsDirectional.symmetric(
-                              horizontal: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      // =====================================================
+                      // 3. Cover art – responsive size
+                      // =====================================================
+                      AnimatedBuilder(
+                        animation: _coverScaleAnimation,
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scale: _coverScaleAnimation.value,
+                            child: child,
+                          );
+                        },
+                        child: Center(
+                          child: Stack(
+                            alignment: Alignment.center,
                             children: [
-                              // RTL start (visual right) = duration
-                              Text(
-                                formatDuration(
-                                    duration.inSeconds),
-                                style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                                  fontSize: 11,
-                                  color: RannaTheme.primaryForeground
-                                      .withValues(alpha: 0.40),
+                              Container(
+                                width: glowSize,
+                                height: glowSize,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                      RannaTheme.radius2xl),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: RannaTheme.accent
+                                          .withValues(alpha: 0.15),
+                                      blurRadius: 48,
+                                      spreadRadius: 8,
+                                    ),
+                                  ],
                                 ),
                               ),
-                              // RTL end (visual left) = current position
-                              Text(
-                                formatDuration(
-                                    position.inSeconds),
-                                style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                                  fontSize: 11,
-                                  color: RannaTheme.primaryForeground
-                                      .withValues(alpha: 0.40),
+                              Container(
+                                width: coverSize,
+                                height: coverSize,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                      RannaTheme.radius2xl),
+                                  boxShadow: RannaTheme.shadowLg,
+                                  border: Border.all(
+                                    color: RannaTheme.primaryForeground
+                                        .withValues(alpha: 0.10),
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                      RannaTheme.radius2xl),
+                                  child: track != null
+                                      ? RannaImage(
+                                          url: track.imageUrl ??
+                                              track.madihDetails?.imageUrl,
+                                          width: coverSize,
+                                          height: coverSize,
+                                          fit: BoxFit.cover,
+                                          fallbackWidget:
+                                              _buildFallbackCover(),
+                                        )
+                                      : _buildFallbackCover(),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // =========================================================
-                  // 6. Player controls
-                  // =========================================================
-                  const PlayerControls(),
-
-                  const SizedBox(height: 16),
-
-                  // =========================================================
-                  // 7. Favourite button
-                  // =========================================================
-                  Builder(builder: (context) {
-                    final trackId = track?.id;
-                    if (trackId == null) return const SizedBox.shrink();
-                    final isFav = ref.watch(favoritesProvider).contains(trackId);
-                    return GestureDetector(
-                      onTap: () {
-                        ref.read(favoritesProvider.notifier).toggle(trackId);
-                      },
-                      child: Icon(
-                        isFav
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 28,
-                        color: isFav
-                            ? RannaTheme.accent
-                            : RannaTheme.primaryForeground
-                                .withValues(alpha: 0.40),
                       ),
-                    );
-                  }),
 
-                  // =========================================================
-                  // 8. Spacer
-                  // =========================================================
-                  const Spacer(),
-                ],
+                      SizedBox(height: gapLarge),
+
+                      // =====================================================
+                      // 4. Track info
+                      // =====================================================
+                      Padding(
+                        padding: const EdgeInsetsDirectional.symmetric(
+                            horizontal: 32),
+                        child: Column(
+                          children: [
+                            Text(
+                              track?.title ?? '',
+                              style: TextStyle(
+                                fontFamily: RannaTheme.fontFustat,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _buildSubtitle(track),
+                              style: TextStyle(
+                                fontFamily: RannaTheme.fontFustat,
+                                fontSize: 14,
+                                color:
+                                    Colors.white.withValues(alpha: 0.50),
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: gapMedium),
+
+                      // =====================================================
+                      // 5. Progress slider
+                      // =====================================================
+                      Padding(
+                        padding: const EdgeInsetsDirectional.symmetric(
+                            horizontal: 24),
+                        child: Column(
+                          children: [
+                            SliderTheme(
+                              data: SliderThemeData(
+                                trackHeight: 6,
+                                trackShape:
+                                    const RoundedRectSliderTrackShape(),
+                                activeTrackColor: RannaTheme.accent,
+                                inactiveTrackColor:
+                                    RannaTheme.primaryForeground
+                                        .withValues(alpha: 0.15),
+                                thumbColor: RannaTheme.accent,
+                                thumbShape:
+                                    const RoundSliderThumbShape(
+                                        enabledThumbRadius: 8),
+                                overlayShape:
+                                    const RoundSliderOverlayShape(
+                                        overlayRadius: 16),
+                                overlayColor: RannaTheme.accent
+                                    .withValues(alpha: 0.12),
+                              ),
+                              child: Slider(
+                                value: position.inSeconds
+                                    .toDouble()
+                                    .clamp(
+                                      0,
+                                      duration.inSeconds
+                                          .toDouble()
+                                          .clamp(0, double.infinity),
+                                    ),
+                                min: 0,
+                                max: duration.inSeconds > 0
+                                    ? duration.inSeconds.toDouble()
+                                    : 1,
+                                onChanged: (value) {
+                                  notifier.seekTo(
+                                      Duration(seconds: value.toInt()));
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsetsDirectional.symmetric(
+                                      horizontal: 8),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    formatDuration(duration.inSeconds),
+                                    style: TextStyle(
+                                      fontFamily: RannaTheme.fontFustat,
+                                      fontSize: 11,
+                                      color: RannaTheme.primaryForeground
+                                          .withValues(alpha: 0.40),
+                                    ),
+                                  ),
+                                  Text(
+                                    formatDuration(position.inSeconds),
+                                    style: TextStyle(
+                                      fontFamily: RannaTheme.fontFustat,
+                                      fontSize: 11,
+                                      color: RannaTheme.primaryForeground
+                                          .withValues(alpha: 0.40),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: gapSmall),
+
+                      // =====================================================
+                      // 6. Player controls
+                      // =====================================================
+                      const PlayerControls(),
+
+                      SizedBox(height: gapSmall),
+
+                      // =====================================================
+                      // 7. Favourite button
+                      // =====================================================
+                      Builder(builder: (context) {
+                        final trackId = track?.id;
+                        if (trackId == null) {
+                          return const SizedBox.shrink();
+                        }
+                        final isFav =
+                            ref.watch(favoritesProvider).contains(trackId);
+                        return GestureDetector(
+                          onTap: () {
+                            ref
+                                .read(favoritesProvider.notifier)
+                                .toggle(trackId);
+                          },
+                          child: Icon(
+                            isFav
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 28,
+                            color: isFav
+                                ? RannaTheme.accent
+                                : RannaTheme.primaryForeground
+                                    .withValues(alpha: 0.40),
+                          ),
+                        );
+                      }),
+
+                      // =====================================================
+                      // 8. Spacer (bottom)
+                      // =====================================================
+                      const Spacer(),
+                    ],
+                  );
+                },
               ),
             ),
           ),

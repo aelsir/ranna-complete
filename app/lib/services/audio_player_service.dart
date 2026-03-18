@@ -210,6 +210,11 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     _durationSub = _player.durationStream.listen((dur) {
       if (mounted && dur != null) {
         state = state.copyWith(duration: dur);
+        // Update native media controls with actual duration
+        final current = audioHandler.mediaItem.value;
+        if (current != null && current.duration != dur) {
+          audioHandler.mediaItem.add(current.copyWith(duration: dur));
+        }
       }
     });
 

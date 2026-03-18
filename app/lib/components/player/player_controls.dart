@@ -27,26 +27,27 @@ class PlayerControls extends ConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // --- Skip backward 15s ---
+        // --- Skip forward 10s (RTL: visual right) ---
         _GhostButton(
-          icon: Icons.replay_10,
+          icon: Icons.forward_10,
           size: 40,
           iconSize: 24,
           iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.60),
-          onTap: () => notifier.skipBackward(),
+          onTap: () => notifier.skipForward(),
         ),
 
         const SizedBox(width: 12),
 
-        // --- Previous track ---
+        // --- Next track (RTL: visual right of play) ---
         _GhostButton(
-          icon: Icons.skip_previous_rounded,
+          icon: Icons.skip_next_rounded,
           size: 48,
           iconSize: 30,
-          iconColor: playerState.hasPrevious
+          iconColor: playerState.hasNext
               ? RannaTheme.primaryForeground.withValues(alpha: 0.60)
               : RannaTheme.primaryForeground.withValues(alpha: 0.20),
-          onTap: playerState.hasPrevious ? () => notifier.playPrevious() : null,
+          onTap: playerState.hasNext ? () => notifier.playNext() : null,
+          flipHorizontally: true,
         ),
 
         const SizedBox(width: 20),
@@ -74,26 +75,27 @@ class PlayerControls extends ConsumerWidget {
 
         const SizedBox(width: 20),
 
-        // --- Next track ---
+        // --- Previous track (RTL: visual left of play) ---
         _GhostButton(
-          icon: Icons.skip_next_rounded,
+          icon: Icons.skip_previous_rounded,
           size: 48,
           iconSize: 30,
-          iconColor: playerState.hasNext
+          iconColor: playerState.hasPrevious
               ? RannaTheme.primaryForeground.withValues(alpha: 0.60)
               : RannaTheme.primaryForeground.withValues(alpha: 0.20),
-          onTap: playerState.hasNext ? () => notifier.playNext() : null,
+          onTap: playerState.hasPrevious ? () => notifier.playPrevious() : null,
+          flipHorizontally: true,
         ),
 
         const SizedBox(width: 12),
 
-        // --- Skip forward 15s ---
+        // --- Skip backward 10s (RTL: visual left) ---
         _GhostButton(
-          icon: Icons.forward_10,
+          icon: Icons.replay_10,
           size: 40,
           iconSize: 24,
           iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.60),
-          onTap: () => notifier.skipForward(),
+          onTap: () => notifier.skipBackward(),
         ),
       ],
     );
@@ -107,6 +109,7 @@ class _GhostButton extends StatelessWidget {
   final double iconSize;
   final Color iconColor;
   final VoidCallback? onTap;
+  final bool flipHorizontally;
 
   const _GhostButton({
     required this.icon,
@@ -114,23 +117,28 @@ class _GhostButton extends StatelessWidget {
     required this.iconSize,
     required this.iconColor,
     this.onTap,
+    this.flipHorizontally = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    Widget iconWidget = Icon(
+      icon,
+      size: iconSize,
+      color: iconColor,
+    );
+
+    if (flipHorizontally) {
+      iconWidget = Transform.flip(flipX: true, child: iconWidget);
+    }
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: size,
         height: size,
-        child: Center(
-          child: Icon(
-            icon,
-            size: iconSize,
-            color: iconColor,
-          ),
-        ),
+        child: Center(child: iconWidget),
       ),
     );
   }

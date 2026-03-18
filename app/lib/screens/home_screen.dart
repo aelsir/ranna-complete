@@ -296,7 +296,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                reverse: true,
                 padding: const EdgeInsetsDirectional.only(start: 20, end: 20),
                 itemCount: data.collections.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),

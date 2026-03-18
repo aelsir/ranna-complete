@@ -83,7 +83,7 @@ final homeDataProvider = FutureProvider<HomeData>((ref) async {
       .from('collections')
       .select()
       .eq('is_active', true)
-      .order('display_order'));
+      .order('display_order', ascending: false));
 
   final narratorsRaw = await safeQuery('narrators', () => supabase
       .from('ruwat')

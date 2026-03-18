@@ -165,16 +165,17 @@ class MiniPlayer extends ConsumerWidget {
 
                 const SizedBox(width: 12),
 
-                // --- Controls (end side in RTL) ---
-                // Previous
+                // --- Controls (RTL-aware: next on right, prev on left) ---
+                // Next
                 _MiniControlButton(
-                  icon: Icons.skip_previous_rounded,
+                  icon: Icons.skip_next_rounded,
                   size: 32,
                   iconColor:
                       RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: hasPrevious
-                      ? () => notifier.playPrevious()
+                  onTap: hasNext
+                      ? () => notifier.playNext()
                       : null,
+                  flipHorizontally: true,
                 ),
 
                 // Play/Pause
@@ -198,15 +199,16 @@ class MiniPlayer extends ConsumerWidget {
                   ),
                 ),
 
-                // Next
+                // Previous
                 _MiniControlButton(
-                  icon: Icons.skip_next_rounded,
+                  icon: Icons.skip_previous_rounded,
                   size: 32,
                   iconColor:
                       RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: hasNext
-                      ? () => notifier.playNext()
+                  onTap: hasPrevious
+                      ? () => notifier.playPrevious()
                       : null,
+                  flipHorizontally: true,
                 ),
               ],
             ),
@@ -224,31 +226,37 @@ class _MiniControlButton extends StatelessWidget {
   final double size;
   final Color iconColor;
   final VoidCallback? onTap;
+  final bool flipHorizontally;
 
   const _MiniControlButton({
     required this.icon,
     required this.size,
     required this.iconColor,
     this.onTap,
+    this.flipHorizontally = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    Widget iconWidget = Icon(
+      icon,
+      size: size * 0.65,
+      color: onTap != null
+          ? iconColor
+          : iconColor.withValues(alpha: 0.25),
+    );
+
+    if (flipHorizontally) {
+      iconWidget = Transform.flip(flipX: true, child: iconWidget);
+    }
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
         width: size,
         height: size,
-        child: Center(
-          child: Icon(
-            icon,
-            size: size * 0.65,
-            color: onTap != null
-                ? iconColor
-                : iconColor.withValues(alpha: 0.25),
-          ),
-        ),
+        child: Center(child: iconWidget),
       ),
     );
   }
