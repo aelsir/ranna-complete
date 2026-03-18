@@ -76,7 +76,7 @@ class RannaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'رنّة',
+      title: 'رنّة للمدائح',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: RannaTheme.lightTheme,

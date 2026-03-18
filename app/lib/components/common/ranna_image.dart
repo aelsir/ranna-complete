@@ -41,9 +41,10 @@ class RannaImage extends StatelessWidget {
     }
 
     // Cache images at the exact display size × device pixel ratio to save memory.
+    // Skip cache sizing when dimensions are unbounded (e.g. double.infinity).
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cacheW = (width * dpr).round();
-    final cacheH = (height * dpr).round();
+    final cacheW = width.isFinite ? (width * dpr).round() : null;
+    final cacheH = height.isFinite ? (height * dpr).round() : null;
 
     Widget image;
     // On web, use Image.network directly (CachedNetworkImage can have issues)

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:ranna/models/madha.dart';
@@ -56,16 +57,10 @@ class PlayerState {
     );
   }
 
-  /// Whether a track is loaded and ready (or playing).
   bool get hasTrack => currentTrackId != null;
-
-  /// Whether there is a next track in the queue.
   bool get hasNext => queue.isNotEmpty && currentIndex < queue.length - 1;
-
-  /// Whether there is a previous track in the queue.
   bool get hasPrevious => queue.isNotEmpty && currentIndex > 0;
 
-  /// Progress as a value between 0.0 and 1.0.
   double get progress {
     if (duration.inMilliseconds == 0) return 0.0;
     return (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
@@ -74,19 +69,109 @@ class PlayerState {
 
 // =====================================================
 // Track cache provider
-// Screens that load madha data should populate this cache
-// so the audio player can resolve track IDs to audio URLs.
 // =====================================================
 
 final trackCacheProvider =
     StateProvider<Map<String, MadhaWithRelations>>((ref) => {});
 
 // =====================================================
+// RannaAudioHandler — bridges just_audio with native controls
+// =====================================================
+
+class RannaAudioHandler extends BaseAudioHandler with SeekHandler {
+  final ja.AudioPlayer _player = ja.AudioPlayer();
+
+  ja.AudioPlayer get player => _player;
+
+  /// Set by AudioPlayerService to handle skip from native controls.
+  void Function()? onSkipToNext;
+  void Function()? onSkipToPrevious;
+
+  RannaAudioHandler() {
+    // Broadcast playback state to native controls
+    _player.playbackEventStream.map(_transformEvent).pipe(playbackState);
+  }
+
+  PlaybackState _transformEvent(ja.PlaybackEvent event) {
+    return PlaybackState(
+      controls: [
+        MediaControl.skipToPrevious,
+        if (_player.playing) MediaControl.pause else MediaControl.play,
+        MediaControl.skipToNext,
+      ],
+      systemActions: const {
+        MediaAction.seek,
+        MediaAction.seekForward,
+        MediaAction.seekBackward,
+      },
+      androidCompactActionIndices: const [0, 1, 2],
+      processingState: const {
+        ja.ProcessingState.idle: AudioProcessingState.idle,
+        ja.ProcessingState.loading: AudioProcessingState.loading,
+        ja.ProcessingState.buffering: AudioProcessingState.buffering,
+        ja.ProcessingState.ready: AudioProcessingState.ready,
+        ja.ProcessingState.completed: AudioProcessingState.completed,
+      }[_player.processingState]!,
+      playing: _player.playing,
+      updatePosition: _player.position,
+      bufferedPosition: _player.bufferedPosition,
+      speed: _player.speed,
+      queueIndex: event.currentIndex,
+    );
+  }
+
+  @override
+  Future<void> play() => _player.play();
+
+  @override
+  Future<void> pause() => _player.pause();
+
+  @override
+  Future<void> seek(Duration position) => _player.seek(position);
+
+  @override
+  Future<void> skipToNext() async {
+    onSkipToNext?.call();
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    onSkipToPrevious?.call();
+  }
+
+  @override
+  Future<void> stop() async {
+    await _player.stop();
+    return super.stop();
+  }
+
+  Future<void> dispose() async {
+    await _player.dispose();
+  }
+}
+
+/// Initialize the audio handler. Call once in main().
+Future<RannaAudioHandler> initAudioHandler() async {
+  return await AudioService.init(
+    builder: () => RannaAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.ranna.audio',
+      androidNotificationChannelName: 'رنّة للمدائح',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: true,
+    ),
+  );
+}
+
+/// Global reference set by main().
+late final RannaAudioHandler audioHandler;
+
+// =====================================================
 // AudioPlayerService - Core player as a StateNotifier
 // =====================================================
 
 class AudioPlayerService extends StateNotifier<PlayerState> {
-  final ja.AudioPlayer _player = ja.AudioPlayer();
+  final ja.AudioPlayer _player;
   final Ref _ref;
 
   StreamSubscription<Duration>? _positionSub;
@@ -95,11 +180,15 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   DateTime? _lastPositionUpdate;
   StreamSubscription<ja.ProcessingState>? _processingStateSub;
 
-  AudioPlayerService(this._ref) : super(const PlayerState()) {
+  AudioPlayerService(this._ref)
+      : _player = audioHandler.player,
+        super(const PlayerState()) {
     _listenToPlayerStreams();
+    // Wire native lock screen skip controls to our queue logic
+    audioHandler.onSkipToNext = () => playNext();
+    audioHandler.onSkipToPrevious = () => playPrevious();
   }
 
-  /// The underlying just_audio player, exposed for advanced use cases.
   ja.AudioPlayer get player => _player;
 
   // ---------------------------------------------------
@@ -111,7 +200,8 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       if (!mounted) return;
       final now = DateTime.now();
       if (_lastPositionUpdate == null ||
-          now.difference(_lastPositionUpdate!) > const Duration(milliseconds: 250)) {
+          now.difference(_lastPositionUpdate!) >
+              const Duration(milliseconds: 250)) {
         _lastPositionUpdate = now;
         state = state.copyWith(position: pos);
       }
@@ -137,13 +227,10 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     });
   }
 
-  /// Called when the current track finishes playing.
-  /// Auto-advances to the next track in the queue.
   void _onTrackCompleted() {
     if (state.hasNext) {
       playNext();
     } else {
-      // End of queue - reset position and stop playing
       state = state.copyWith(
         isPlaying: false,
         position: Duration.zero,
@@ -161,20 +248,15 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     if (track == null || track.audioUrl == null) return null;
 
     final audioPath = track.audioUrl!;
-
-    // If the URL is already absolute, use it directly
     if (audioPath.startsWith('http://') || audioPath.startsWith('https://')) {
       return audioPath;
     }
 
-    // Otherwise, build the full URL using the R2 public base URL
-    // Remove leading slash if present to avoid double slashes
     final cleanPath =
         audioPath.startsWith('/') ? audioPath.substring(1) : audioPath;
     return '$_r2PublicUrl/$cleanPath';
   }
 
-  /// Get the cached track data for a given track ID.
   MadhaWithRelations? _getCachedTrack(String trackId) {
     return _ref.read(trackCacheProvider)[trackId];
   }
@@ -183,12 +265,6 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   // Playback controls
   // ---------------------------------------------------
 
-  /// Play a specific track by ID.
-  ///
-  /// Optionally provide a [queue] of track IDs. If provided, the player will
-  /// set up the full queue and position the current index at [trackId].
-  ///
-  /// If [queue] is not provided, a single-item queue is created.
   Future<void> playTrack(String trackId, {List<String>? queue}) async {
     final trackQueue = queue ?? [trackId];
     final index = trackQueue.indexOf(trackId);
@@ -205,45 +281,46 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     await _loadAndPlay(trackId);
   }
 
-  /// Load a track's audio URL into the player and start playback.
   Future<void> _loadAndPlay(String trackId) async {
     final url = _resolveAudioUrl(trackId);
     if (url == null) {
-      // No audio URL available - cannot play
       state = state.copyWith(isPlaying: false);
       return;
     }
 
     try {
-      // Set up MediaItem tag with track metadata for potential lock screen display
       final track = _getCachedTrack(trackId);
-      final tag = MediaItem(
+
+      // Update native media controls with track metadata
+      final artUri = _resolveArtworkUri(track);
+      audioHandler.mediaItem.add(MediaItem(
         id: trackId,
         title: track?.title ?? 'Unknown',
-        artist: track?.madih ?? track?.madihDetails?.name,
-        artUri: _resolveArtworkUri(track),
-      );
+        artist: track?.madihDetails?.name ?? track?.madih,
+        artUri: artUri,
+        duration: track?.durationSeconds != null
+            ? Duration(seconds: track!.durationSeconds!)
+            : null,
+      ));
 
       await _player.setAudioSource(
-        ja.AudioSource.uri(
-          Uri.parse(url),
-          tag: tag,
-        ),
+        ja.AudioSource.uri(Uri.parse(url)),
       );
       await _player.play();
     } catch (e) {
-      // Log the error but don't crash. The UI can show an error state
-      // based on isPlaying being false with a currentTrackId set.
       state = state.copyWith(isPlaying: false);
     }
   }
 
   /// Resolve artwork URL for a track.
+  /// Fallback chain: track image > madih image > rawi image > null
+  /// (null falls back to ranna logo in the UI layer)
   Uri? _resolveArtworkUri(MadhaWithRelations? track) {
     if (track == null) return null;
 
-    // Prefer track image, fall back to artist image
-    final imagePath = track.imageUrl ?? track.madihDetails?.imageUrl;
+    final imagePath = track.imageUrl ??
+        track.madihDetails?.imageUrl ??
+        track.rawi?.imageUrl;
     if (imagePath == null) return null;
 
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
@@ -255,7 +332,6 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     return Uri.tryParse('$_r2PublicUrl/$cleanPath');
   }
 
-  /// Toggle play/pause for the current track.
   Future<void> togglePlay() async {
     if (_player.playing) {
       await _player.pause();
@@ -264,35 +340,29 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     }
   }
 
-  /// Pause playback.
   Future<void> pause() async {
     await _player.pause();
   }
 
-  /// Resume playback.
   Future<void> resume() async {
     await _player.play();
   }
 
-  /// Seek to a specific position.
   Future<void> seekTo(Duration position) async {
     await _player.seek(position);
   }
 
-  /// Skip forward by 15 seconds.
   Future<void> skipForward() async {
     final newPos = _player.position + const Duration(seconds: 15);
     final maxPos = _player.duration ?? Duration.zero;
     await _player.seek(newPos > maxPos ? maxPos : newPos);
   }
 
-  /// Skip backward by 15 seconds.
   Future<void> skipBackward() async {
     final newPos = _player.position - const Duration(seconds: 15);
     await _player.seek(newPos < Duration.zero ? Duration.zero : newPos);
   }
 
-  /// Play the next track in the queue.
   Future<void> playNext() async {
     if (!state.hasNext) return;
 
@@ -309,12 +379,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     await _loadAndPlay(nextTrackId);
   }
 
-  /// Play the previous track in the queue.
-  ///
-  /// If the current position is more than 3 seconds in, restart the current
-  /// track instead of going to the previous one.
   Future<void> playPrevious() async {
-    // If we're more than 3 seconds into the track, restart it
     if (_player.position > const Duration(seconds: 3)) {
       await _player.seek(Duration.zero);
       return;
@@ -342,17 +407,14 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   // Full player view toggle
   // ---------------------------------------------------
 
-  /// Toggle the full player view open/closed.
   void toggleFullPlayer() {
     state = state.copyWith(isFullPlayerOpen: !state.isFullPlayerOpen);
   }
 
-  /// Open the full player view.
   void openFullPlayer() {
     state = state.copyWith(isFullPlayerOpen: true);
   }
 
-  /// Close the full player view.
   void closeFullPlayer() {
     state = state.copyWith(isFullPlayerOpen: false);
   }
@@ -367,29 +429,8 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     _durationSub?.cancel();
     _playerStateSub?.cancel();
     _processingStateSub?.cancel();
-    _player.dispose();
     super.dispose();
   }
-}
-
-// =====================================================
-// just_audio MediaItem tag (lightweight metadata holder)
-// =====================================================
-
-/// A simple metadata tag attached to each AudioSource so that
-/// lock screen / notification controls can display track info.
-class MediaItem {
-  final String id;
-  final String title;
-  final String? artist;
-  final Uri? artUri;
-
-  const MediaItem({
-    required this.id,
-    required this.title,
-    this.artist,
-    this.artUri,
-  });
 }
 
 // =====================================================
@@ -405,7 +446,6 @@ final audioPlayerProvider =
 // Convenience selector providers
 // =====================================================
 
-/// The currently playing track's cached data (if available).
 final currentTrackProvider = Provider<MadhaWithRelations?>((ref) {
   final playerState = ref.watch(audioPlayerProvider);
   if (playerState.currentTrackId == null) return null;
@@ -413,12 +453,10 @@ final currentTrackProvider = Provider<MadhaWithRelations?>((ref) {
   return cache[playerState.currentTrackId];
 });
 
-/// Whether the player is currently playing.
 final isPlayingProvider = Provider<bool>((ref) {
   return ref.watch(audioPlayerProvider.select((s) => s.isPlaying));
 });
 
-/// Whether the full player view is open.
 final isFullPlayerOpenProvider = Provider<bool>((ref) {
   return ref.watch(audioPlayerProvider.select((s) => s.isFullPlayerOpen));
 });

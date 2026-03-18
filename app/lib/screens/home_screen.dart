@@ -1,3 +1,5 @@
+import 'dart:math';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,7 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildLoading() {
     return CustomScrollView(
       slivers: [
-        _buildStickyAppBar(),
+        _buildStickyAppBar(forceScrolled: true),
         SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,8 +168,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Sticky glass app bar
   // ---------------------------------------------------------------------------
 
-  SliverAppBar _buildStickyAppBar() {
-    final isScrolled = _isScrolled.value;
+  SliverAppBar _buildStickyAppBar({bool forceScrolled = false}) {
+    final isScrolled = forceScrolled || _isScrolled.value;
     return SliverAppBar(
       pinned: true,
       floating: false,
@@ -208,12 +210,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildContent(BuildContext context, HomeData data) {
     return CustomScrollView(
       controller: _scrollController,
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         _buildStickyAppBar(),
 
+        CupertinoSliverRefreshControl(
+          onRefresh: () async {
+            ref.invalidate(homeDataProvider);
+            // Wait for the provider to finish refetching
+            await ref.read(homeDataProvider.future);
+          },
+        ),
+
         // Hero banner (full-bleed, no margin)
         SliverToBoxAdapter(
-          child: _HeroBanner(data: data),
+          child: _HeroBanner(
+            data: data,
+            onShufflePlay: () {
+              // Collect all available tracks
+              final allTracks = <MadhaWithRelations>[
+                ...data.popularTracks,
+                ...data.recentTracks,
+                ...data.featuredTracks,
+              ];
+              if (allTracks.isEmpty) return;
+              // Pick a random track
+              final random = allTracks[Random().nextInt(allTracks.length)];
+              // Cache and play
+              ref.read(trackCacheProvider.notifier).state = {
+                ...ref.read(trackCacheProvider),
+                for (final t in allTracks) t.id: t,
+              };
+              ref.read(audioPlayerProvider.notifier).playTrack(
+                    random.id,
+                    queue: allTracks.map((t) => t.id).toList(),
+                  );
+            },
+          ),
         ),
 
         // Continue Listening
@@ -263,6 +296,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               height: 200,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                reverse: true,
                 padding: const EdgeInsetsDirectional.only(start: 20, end: 20),
                 itemCount: data.collections.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
@@ -395,8 +429,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 class _HeroBanner extends StatelessWidget {
   final HomeData data;
+  final VoidCallback? onShufflePlay;
 
-  const _HeroBanner({required this.data});
+  const _HeroBanner({required this.data, this.onShufflePlay});
 
   @override
   Widget build(BuildContext context) {
@@ -514,7 +549,7 @@ class _HeroBanner extends StatelessWidget {
                     boxShadow: RannaTheme.shadowGlowSecondary,
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: onShufflePlay,
                     icon: const Icon(Icons.shuffle_rounded, size: 18),
                     label: const Text('إخترنا لك'),
                     style: ElevatedButton.styleFrom(
