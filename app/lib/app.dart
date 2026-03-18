@@ -87,10 +87,12 @@ class ShellScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isFullPlayerOpen = ref.watch(isFullPlayerOpenProvider);
     final hasTrack = ref.watch(currentTrackProvider) != null;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final padding = MediaQuery.of(context).padding;
+    final topPadding = padding.top;
+    final bottomPadding = padding.bottom;
 
     // Bottom nav height + spacing
-    const navBarHeight = 64.0;
+    const navBarHeight = 68.0;
     const navBarBottomMargin = 2.0;
     // Mini player height
     const miniPlayerHeight = 72.0;
@@ -104,7 +106,7 @@ class ShellScaffold extends ConsumerWidget {
         children: [
           // ===== Content Shell =====
           Positioned(
-            top: 2,
+            top: topPadding + 2,
             left: 3,
             right: 3,
             bottom: totalBottomForContent,
@@ -142,7 +144,7 @@ class ShellScaffold extends ConsumerWidget {
             Positioned(
               left: 3,
               right: 3,
-              top: 2,
+              top: topPadding + 2,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
               child: const FullPlayer(),
             ),
@@ -187,17 +189,18 @@ class _FloatingBottomNav extends StatelessWidget {
     final currentIndex = _currentIndex(context);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+      borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
         child: Container(
-          height: 64,
+          height: 68,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.2)),
+            color: Colors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.15)),
             boxShadow: RannaTheme.shadowFloat,
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: List.generate(_tabs.length, (index) {
               final tab = _tabs[index];
@@ -241,37 +244,41 @@ class _AnimatedTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Animated pill behind active icon
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.symmetric(
-            horizontal: isActive ? 16 : 0,
-            vertical: isActive ? 4 : 0,
-          ),
-          decoration: BoxDecoration(
-            color: isActive ? RannaTheme.muted.withValues(alpha: 0.7) : Colors.transparent,
-            borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
-          ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: isActive ? RannaTheme.foreground : RannaTheme.mutedForeground,
-          ),
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isActive ? 16 : 12,
+          vertical: isActive ? 10 : 8,
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-            color: isActive ? RannaTheme.foreground : RannaTheme.mutedForeground,
-          ),
+        decoration: BoxDecoration(
+          color: isActive ? RannaTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
         ),
-      ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isActive ? Colors.white : RannaTheme.mutedForeground,
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

@@ -178,15 +178,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Divider(height: 0.5, thickness: 0.5, color: RannaTheme.border),
             )
           : null,
-      title: AnimatedDefaultTextStyle(
-        duration: const Duration(milliseconds: 200),
-        style: TextStyle(
-          fontFamily: RannaTheme.fontFustat,
-          color: isScrolled ? RannaTheme.primary : Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: 26,
-        ),
-        child: const Text('رنّة'),
+      title: Image.asset(
+        'assets/images/logo-ranna.png',
+        height: 32,
       ),
       actions: [
         IconButton(
@@ -432,10 +426,6 @@ class _HeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgImageUrl = data.featuredTracks.isNotEmpty
-        ? getImageUrl(data.featuredTracks.first.imageUrl)
-        : '';
-
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: const BoxDecoration(
@@ -444,19 +434,15 @@ class _HeroBanner extends StatelessWidget {
       child: Stack(
         children: [
           // Non-positioned child to give Stack its intrinsic size
-          const SizedBox(height: 360, width: double.infinity),
+          const SizedBox(height: 480, width: double.infinity),
 
-          // Background image
-          if (bgImageUrl.isNotEmpty)
-            Positioned.fill(
-              child: RannaImage(
-                url: bgImageUrl,
-                width: double.infinity,
-                height: 360,
-                fit: BoxFit.cover,
-                fallbackWidget: Container(color: RannaTheme.primary),
-              ),
+          // Background image — local asset
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/hero-bg.jpg',
+              fit: BoxFit.cover,
             ),
+          ),
 
           // Gradient overlay 1: bottom to top (primary tint)
           Positioned.fill(
@@ -602,7 +588,7 @@ class _LiveBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: RannaTheme.primary.withValues(alpha: 0.2),
+        color: RannaTheme.primary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.1),
@@ -611,22 +597,40 @@ class _LiveBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Pulsing green dot
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: RannaTheme.secondary,
-              shape: BoxShape.circle,
+          // Pulsing green dot with glow
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Outer glow ring
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: RannaTheme.secondary.withValues(alpha: 0.3),
+                  ),
+                )
+                    .animate(onPlay: (c) => c.repeat(reverse: true))
+                    .scaleXY(begin: 0.6, end: 1.0, duration: 1200.ms, curve: Curves.easeInOut)
+                    .fadeIn(begin: 0.3, duration: 1200.ms),
+                // Inner dot
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: RannaTheme.secondary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
             ),
-          )
-              .animate(onPlay: (c) => c.repeat(reverse: true))
-              .scaleXY(end: 1.3, duration: 1200.ms, curve: Curves.easeInOut)
-              .then()
-              .scaleXY(end: 1.0, duration: 1200.ms, curve: Curves.easeInOut),
+          ),
           const SizedBox(width: 8),
           const Text(
-            'استمع الآن لأكثر من ٤٩١ مدحة',
+            'استمع الآن لأكثر من ٦٠٥ مدحة',
             style: TextStyle(
               fontFamily: RannaTheme.fontFustat,
               color: Colors.white70,
