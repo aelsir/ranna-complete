@@ -603,17 +603,102 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     );
   };
 
-  const handleDeleteSelected = () => {
-    const count = selectedTracks.size;
-    deleteMadhaatMutation.mutate(Array.from(selectedTracks), {
-      onSuccess: () => {
-        setSelectedTracks(new Set());
-        toast({ title: "تم الحذف", description: `تم حذف ${count} مدحة بنجاح` });
-      },
-      onError: (err) => {
-        toast({ title: "خطأ في الحذف", description: (err as Error).message, variant: "destructive" });
-      },
-    });
+  const handleDeleteSelected = () => setDeleteConfirm({ type: "tracks" });
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+
+    if (deleteConfirm.type === "tracks") {
+      const count = selectedTracks.size;
+      deleteMadhaatMutation.mutate(Array.from(selectedTracks), {
+        onSuccess: () => {
+          setSelectedTracks(new Set());
+          setDeleteConfirm(null);
+          toast({ title: "تم الحذف", description: `تم حذف ${count} مدحة بنجاح` });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ في الحذف", description: (err as Error).message, variant: "destructive" });
+        },
+      });
+    } else if (deleteConfirm.type === "madiheen") {
+      const count = selectedMadiheen.size;
+      deleteMadiheenMutation.mutate(Array.from(selectedMadiheen), {
+        onSuccess: () => {
+          setSelectedMadiheen(new Set());
+          setDeleteConfirm(null);
+          toast({ title: "تم الحذف", description: `تم حذف ${count} مادح بنجاح` });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" });
+        },
+      });
+    } else if (deleteConfirm.type === "ruwat") {
+      const count = selectedRuwat.size;
+      deleteRuwatMutation.mutate(Array.from(selectedRuwat), {
+        onSuccess: () => {
+          setSelectedRuwat(new Set());
+          setDeleteConfirm(null);
+          toast({ title: "تم الحذف", description: `تم حذف ${count} راوي بنجاح` });
+        },
+        onError: (err) => {
+          toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" });
+        },
+      });
+    }
+  };
+
+  const getDeleteDescription = () => {
+    if (!deleteConfirm) return { title: "", desc: "" };
+
+    if (deleteConfirm.type === "tracks") {
+      const count = selectedTracks.size;
+      return {
+        title: `حذف ${count} مدحة`,
+        desc: `سيتم حذف ${count} مدحة نهائيًا. سيتم أيضًا إزالتها من المفضلة وقوائم التشغيل وسجل الاستماع.`,
+      };
+    }
+
+    if (deleteConfirm.type === "madiheen") {
+      const count = selectedMadiheen.size;
+      const affectedTracks = (fetchedTracks || []).filter(
+        (t) => t.madih_id && selectedMadiheen.has(t.madih_id)
+      ).length;
+      const names = artists
+        .filter((a) => selectedMadiheen.has(a.id))
+        .map((a) => a.name)
+        .slice(0, 3);
+      const nameStr = names.join("، ") + (count > 3 ? ` و${count - 3} آخرين` : "");
+      return {
+        title: `حذف ${count} مادح`,
+        desc: `سيتم حذف: ${nameStr}.${
+          affectedTracks > 0
+            ? ` سيفقد ${affectedTracks} مدحة ارتباطها بالمادح (لن تُحذف المدحات).`
+            : ""
+        }`,
+      };
+    }
+
+    if (deleteConfirm.type === "ruwat") {
+      const count = selectedRuwat.size;
+      const affectedTracks = (fetchedTracks || []).filter(
+        (t) => t.rawi_id && selectedRuwat.has(t.rawi_id)
+      ).length;
+      const names = narrators
+        .filter((n) => selectedRuwat.has(n.id))
+        .map((n) => n.name)
+        .slice(0, 3);
+      const nameStr = names.join("، ") + (count > 3 ? ` و${count - 3} آخرين` : "");
+      return {
+        title: `حذف ${count} راوي`,
+        desc: `سيتم حذف: ${nameStr}.${
+          affectedTracks > 0
+            ? ` سيفقد ${affectedTracks} مدحة ارتباطها بالراوي (لن تُحذف المدحات).`
+            : ""
+        }`,
+      };
+    }
+
+    return { title: "", desc: "" };
   };
 
   // ── Inline Edit & Find-Replace handlers ──
@@ -1053,31 +1138,19 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               </Button>
             )}
             {selectedMadiheen.size > 0 && activeSection === "madiheen" && (
-              <Button variant="destructive" size="sm" disabled={deleteMadiheenMutation.isPending} className="gap-1.5 text-xs"
-                onClick={() => {
-                  const count = selectedMadiheen.size;
-                  deleteMadiheenMutation.mutate(Array.from(selectedMadiheen), {
-                    onSuccess: () => { setSelectedMadiheen(new Set()); toast({ title: "تم الحذف", description: `تم حذف ${count} مادح بنجاح` }); },
-                    onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
-                  });
-                }}
+              <Button variant="destructive" size="sm" className="gap-1.5 text-xs"
+                onClick={() => setDeleteConfirm({ type: "madiheen" })}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {deleteMadiheenMutation.isPending ? "جاري الحذف..." : "حذف"}
+                حذف
               </Button>
             )}
             {selectedRuwat.size > 0 && activeSection === "ruwat" && (
-              <Button variant="destructive" size="sm" disabled={deleteRuwatMutation.isPending} className="gap-1.5 text-xs"
-                onClick={() => {
-                  const count = selectedRuwat.size;
-                  deleteRuwatMutation.mutate(Array.from(selectedRuwat), {
-                    onSuccess: () => { setSelectedRuwat(new Set()); toast({ title: "تم الحذف", description: `تم حذف ${count} راوي بنجاح` }); },
-                    onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
-                  });
-                }}
+              <Button variant="destructive" size="sm" className="gap-1.5 text-xs"
+                onClick={() => setDeleteConfirm({ type: "ruwat" })}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {deleteRuwatMutation.isPending ? "جاري الحذف..." : "حذف"}
+                حذف
               </Button>
             )}
             {activeSection === "madhat" && (
@@ -2773,6 +2846,39 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           onPasteImage={() => openImagePicker("pasteTrack")}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent dir="rtl" className="font-fustat">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-fustat text-base">
+              {getDeleteDescription().title}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-fustat text-sm leading-relaxed">
+              {getDeleteDescription().desc}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="font-fustat text-xs" disabled={
+              deleteMadhaatMutation.isPending || deleteMadiheenMutation.isPending || deleteRuwatMutation.isPending
+            }>
+              إلغاء
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-fustat text-xs"
+              disabled={deleteMadhaatMutation.isPending || deleteMadiheenMutation.isPending || deleteRuwatMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+            >
+              {(deleteMadhaatMutation.isPending || deleteMadiheenMutation.isPending || deleteRuwatMutation.isPending)
+                ? "جاري الحذف..."
+                : "تأكيد الحذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Find & Replace Dialog */}
       <FindReplaceDialog
