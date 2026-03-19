@@ -206,8 +206,6 @@ const ACCEPTED_TYPES = [
   "audio/x-wav",
 ];
 
-const MAX_FILES = 50;
-
 function deriveTitle(filename: string): string {
   // Strip extension
   let name = filename.replace(/\.[^.]+$/, "");
@@ -258,10 +256,7 @@ export function useBulkUpload() {
 
   const addFiles = useCallback(async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
-    const remaining = MAX_FILES - state.files.length;
-    const toAdd = files
-      .filter((f) => ACCEPTED_TYPES.includes(f.type))
-      .slice(0, remaining);
+    const toAdd = files.filter((f) => ACCEPTED_TYPES.includes(f.type));
 
     const bulkFiles: BulkFile[] = await Promise.all(
       toAdd.map(async (file) => ({

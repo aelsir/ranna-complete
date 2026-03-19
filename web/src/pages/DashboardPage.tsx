@@ -32,12 +32,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog";
+import { FloatingActionBar } from "@/components/FloatingActionBar";
+import { InlineEditTable } from "@/components/InlineEditTable";
+import { FindReplaceDialog } from "@/components/FindReplaceDialog";
 import { useToast } from "@/hooks/use-toast";
+import type { PendingEdits } from "@/types/bulk-edit";
 import {
   useMadhaat,
   useMadiheen,
@@ -49,6 +63,8 @@ import {
   useUpdateMadha,
   useDeleteMadhaat,
   useBulkUpdateMadhaat,
+  useBatchUpdateMadhaat,
+  useAllMadhaatForReplace,
   useCreateCollection,
   useUpdateCollection,
   useCreateMadih,
@@ -253,6 +269,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const updateMadhaMutation = useUpdateMadha();
   const deleteMadhaatMutation = useDeleteMadhaat();
   const bulkUpdateMadhaatMutation = useBulkUpdateMadhaat();
+  const batchUpdateMutation = useBatchUpdateMadhaat();
   const createCollectionMutation = useCreateCollection();
   const updateCollectionMutation = useUpdateCollection();
   const createMadihMutation = useCreateMadih();
@@ -322,6 +339,11 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isFindReplaceOpen, setIsFindReplaceOpen] = useState(false);
+  const [pendingEdits, setPendingEdits] = useState<PendingEdits>(new Map());
+  const { data: allTracksForReplace, isLoading: isLoadingAllTracks } = useAllMadhaatForReplace(isFindReplaceOpen);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "tracks" | "madiheen" | "ruwat" } | null>(null);
 
   const madhat: ExtendedTrack[] = initialTracks.map((t) => {
     const original = fetchedTracks?.find((ft) => ft.id === t.id);
@@ -593,6 +615,67 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       },
     });
   };
+
+  // ── Inline Edit & Find-Replace handlers ──
+
+  const handleEditChange = useCallback((trackId: string, field: keyof MadhaInsert, value: string | null) => {
+    setPendingEdits((prev) => {
+      const next = new Map(prev);
+      if (value === null) {
+        // Reverted to original — remove field from edits
+        const existing = next.get(trackId);
+        if (existing) {
+          const { [field]: _, ...rest } = existing;
+          if (Object.keys(rest).length === 0) {
+            next.delete(trackId);
+          } else {
+            next.set(trackId, rest);
+          }
+        }
+      } else {
+        const existing = next.get(trackId) || {};
+        next.set(trackId, { ...existing, [field]: value });
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBatchSave = useCallback((updates: { id: string; changes: Partial<MadhaInsert> }[]) => {
+    const count = updates.length;
+    batchUpdateMutation.mutate(updates, {
+      onSuccess: () => {
+        setIsEditMode(false);
+        setPendingEdits(new Map());
+        setSelectedTracks(new Set());
+        toast({ title: "تم الحفظ", description: `تم تحديث ${count} مدحة بنجاح` });
+      },
+      onError: (err) => {
+        toast({ title: "خطأ في الحفظ", description: (err as Error).message, variant: "destructive" });
+      },
+    });
+  }, [batchUpdateMutation, toast]);
+
+  const handleInlineEditSave = useCallback(() => {
+    const updates = Array.from(pendingEdits.entries()).map(([id, changes]) => ({ id, changes }));
+    if (updates.length === 0) return;
+    handleBatchSave(updates);
+  }, [pendingEdits, handleBatchSave]);
+
+  const handleCancelEditMode = useCallback(() => {
+    if (pendingEdits.size > 0) {
+      if (!window.confirm("لديك تعديلات غير محفوظة. هل تريد الإلغاء؟")) return;
+    }
+    setIsEditMode(false);
+    setPendingEdits(new Map());
+  }, [pendingEdits]);
+
+  // Listen for Escape key in edit mode
+  useEffect(() => {
+    if (!isEditMode) return;
+    const handler = () => handleCancelEditMode();
+    window.addEventListener("inline-edit-escape", handler);
+    return () => window.removeEventListener("inline-edit-escape", handler);
+  }, [isEditMode, handleCancelEditMode]);
 
   const handleAddPlaylist = () => {
     if (!newPlaylist.title) {
@@ -958,24 +1041,16 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {selectedTracks.size > 0 && activeSection === "madhat" && (
-              <>
-                <Select onValueChange={(v) => setBulkEditField(v)}>
-                  <SelectTrigger className="w-40 h-9 text-xs">
-                    <SelectValue placeholder="تعديل جماعي..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="artistId">المادح</SelectItem>
-                    <SelectItem value="narratorId">الراوي</SelectItem>
-                    <SelectItem value="tariqa">الطريقة</SelectItem>
-                    <SelectItem value="fan">الفن</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="destructive" size="sm" onClick={handleDeleteSelected} disabled={deleteMadhaatMutation.isPending} className="gap-1.5 text-xs">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {deleteMadhaatMutation.isPending ? "جاري الحذف..." : "حذف"}
-                </Button>
-              </>
+            {activeSection === "madhat" && !isEditMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs font-fustat"
+                onClick={() => setIsFindReplaceOpen(true)}
+              >
+                <Search className="h-3.5 w-3.5" />
+                بحث واستبدال
+              </Button>
             )}
             {selectedMadiheen.size > 0 && activeSection === "madiheen" && (
               <Button variant="destructive" size="sm" disabled={deleteMadiheenMutation.isPending} className="gap-1.5 text-xs"
@@ -1187,119 +1262,136 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                {/* Table Header */}
-                <div className="grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide">
-                  <button onClick={selectAll} className="flex items-center justify-center">
-                    {selectedTracks.size === paginatedMadhat.length && paginatedMadhat.length > 0 ? (
-                      <CheckSquare className="h-4 w-4 text-primary" />
-                    ) : (
-                      <Square className="h-4 w-4" />
-                    )}
-                  </button>
-                  <span></span>
-                  <span>العنوان</span>
-                  <span>المادح</span>
-                  <span>الراوي</span>
-                  <span className="text-center">التشغيل</span>
-                  <span className="text-center">آخر تحديث</span>
-                  <span className="text-center">إجراءات</span>
-                </div>
-                <Separator className="mb-1" />
+                {isEditMode ? (
+                  <InlineEditTable
+                    tracks={paginatedMadhat}
+                    selectedTrackIds={selectedTracks}
+                    artists={artists.map(a => ({ id: a.id, name: a.name }))}
+                    narrators={narrators.map(n => ({ id: n.id, name: n.name }))}
+                    pendingEdits={pendingEdits}
+                    onEditChange={handleEditChange}
+                    onToggleSelect={toggleSelect}
+                    onSelectAll={selectAll}
+                    nowPlayingId={nowPlayingId}
+                    onPlayTrack={(id) => playTrack(id, paginatedMadhat.map(t => t.id))}
+                  />
+                ) : (
+                  <>
+                    {/* Table Header */}
+                    <div className="grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide">
+                      <button onClick={selectAll} className="flex items-center justify-center">
+                        {selectedTracks.size === paginatedMadhat.length && paginatedMadhat.length > 0 ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                      </button>
+                      <span></span>
+                      <span>العنوان</span>
+                      <span>المادح</span>
+                      <span>الراوي</span>
+                      <span className="text-center">التشغيل</span>
+                      <span className="text-center">آخر تحديث</span>
+                      <span className="text-center">إجراءات</span>
+                    </div>
+                    <Separator className="mb-1" />
 
-                {/* Rows */}
-                <div className="space-y-1">
-                  {paginatedMadhat.map((track) => {
-                    const status = getCompletionStatus(track);
-                    const isPlaying = nowPlayingId === track.id;
-                    const relativeDate = track.updatedAt
-                      ? (() => {
-                          const diff = Date.now() - new Date(track.updatedAt).getTime();
-                          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                          if (days === 0) return "اليوم";
-                          if (days === 1) return "أمس";
-                          if (days < 7) return `${days} أيام`;
-                          if (days < 30) return `${Math.floor(days / 7)} أسابيع`;
-                          return `${Math.floor(days / 30)} شهر`;
-                        })()
-                      : "—";
-                    return (
-                      <motion.div
-                        key={track.id}
-                        layout
-                        className={`grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
-                          selectedTracks.has(track.id)
-                            ? "bg-primary/5 border border-primary/20"
-                            : "hover:bg-muted/50 border border-transparent"
-                        }`}
-                        onClick={() => toggleSelect(track.id)}
-                        onDoubleClick={(e) => { e.stopPropagation(); setEditingTrack(track); }}
-                        onContextMenu={(e) => handleRightClickDetect(e, track.id, () => setEditingTrack(track))}
-                      >
-                        <div className="flex items-center justify-center">
-                          {selectedTracks.has(track.id) ? (
-                            <CheckSquare className="h-4 w-4 text-primary" />
-                          ) : (
-                            <Square className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="relative">
-                          <img
-                            src={getImageUrl(track.thumbnail)}
-                            alt={track.title}
-                            className="h-9 w-9 rounded-lg object-cover"
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playTrack(track.id, paginatedMadhat.map(t => t.id));
-                            }}
-                            className={`absolute inset-0 flex items-center justify-center rounded-lg transition-all ${
-                              isPlaying ? "bg-primary/80" : "bg-black/0 hover:bg-black/40"
+                    {/* Rows */}
+                    <div className="space-y-1">
+                      {paginatedMadhat.map((track) => {
+                        const status = getCompletionStatus(track);
+                        const isPlaying = nowPlayingId === track.id;
+                        const relativeDate = track.updatedAt
+                          ? (() => {
+                              const diff = Date.now() - new Date(track.updatedAt).getTime();
+                              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                              if (days === 0) return "اليوم";
+                              if (days === 1) return "أمس";
+                              if (days < 7) return `${days} أيام`;
+                              if (days < 30) return `${Math.floor(days / 7)} أسابيع`;
+                              return `${Math.floor(days / 30)} شهر`;
+                            })()
+                          : "—";
+                        return (
+                          <motion.div
+                            key={track.id}
+                            layout
+                            className={`grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
+                              selectedTracks.has(track.id)
+                                ? "bg-primary/5 border border-primary/20"
+                                : "hover:bg-muted/50 border border-transparent"
                             }`}
+                            onClick={() => toggleSelect(track.id)}
+                            onDoubleClick={(e) => { e.stopPropagation(); setEditingTrack(track); }}
+                            onContextMenu={(e) => handleRightClickDetect(e, track.id, () => setEditingTrack(track))}
                           >
-                            {isPlaying ? (
-                              <Pause className="h-3.5 w-3.5 text-white fill-white" />
-                            ) : (
-                              <Play className="h-3.5 w-3.5 text-white fill-white opacity-0 group-hover:opacity-100 hover:!opacity-100" style={{ opacity: undefined }} />
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <CompletionRing status={status} />
-                          <div className="min-w-0">
-                            <p className="font-fustat font-semibold text-foreground truncate">{track.title}</p>
-                            <span className={`text-[10px] ${
-                              status === "complete" ? "text-green-600" : status === "partial" ? "text-yellow-600" : "text-muted-foreground/60"
-                            }`}>
-                              {status === "complete" ? "مكتملة" : status === "partial" ? "ناقصة جزئياً" : "بيانات أساسية"}
+                            <div className="flex items-center justify-center">
+                              {selectedTracks.has(track.id) ? (
+                                <CheckSquare className="h-4 w-4 text-primary" />
+                              ) : (
+                                <Square className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="relative">
+                              <img
+                                src={getImageUrl(track.thumbnail)}
+                                alt={track.title}
+                                className="h-9 w-9 rounded-lg object-cover"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playTrack(track.id, paginatedMadhat.map(t => t.id));
+                                }}
+                                className={`absolute inset-0 flex items-center justify-center rounded-lg transition-all ${
+                                  isPlaying ? "bg-primary/80" : "bg-black/0 hover:bg-black/40"
+                                }`}
+                              >
+                                {isPlaying ? (
+                                  <Pause className="h-3.5 w-3.5 text-white fill-white" />
+                                ) : (
+                                  <Play className="h-3.5 w-3.5 text-white fill-white opacity-0 group-hover:opacity-100 hover:!opacity-100" style={{ opacity: undefined }} />
+                                )}
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <CompletionRing status={status} />
+                              <div className="min-w-0">
+                                <p className="font-fustat font-semibold text-foreground truncate">{track.title}</p>
+                                <span className={`text-[10px] ${
+                                  status === "complete" ? "text-green-600" : status === "partial" ? "text-yellow-600" : "text-muted-foreground/60"
+                                }`}>
+                                  {status === "complete" ? "مكتملة" : status === "partial" ? "ناقصة جزئياً" : "بيانات أساسية"}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-muted-foreground truncate">{track.artistName}</span>
+                            <span className="text-muted-foreground truncate">{track.narratorName}</span>
+                            <span className="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
+                              <Headphones className="h-3 w-3 opacity-50" />
+                              {(track.playCount || 0).toLocaleString("ar-SA")}
                             </span>
-                          </div>
-                        </div>
-                        <span className="text-muted-foreground truncate">{track.artistName}</span>
-                        <span className="text-muted-foreground truncate">{track.narratorName}</span>
-                        <span className="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
-                          <Headphones className="h-3 w-3 opacity-50" />
-                          {(track.playCount || 0).toLocaleString("ar-SA")}
-                        </span>
-                        <span className="text-muted-foreground/60 text-center text-[10px]">{relativeDate}</span>
-                        <div className="flex items-center justify-center">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="h-8 gap-1.5 font-fustat text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTrack(track);
-                            }}
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                            تعديل
-                          </Button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                            <span className="text-muted-foreground/60 text-center text-[10px]">{relativeDate}</span>
+                            <div className="flex items-center justify-center">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-8 gap-1.5 font-fustat text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingTrack(track);
+                                }}
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                تعديل
+                              </Button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
 
                 {paginatedMadhat.length === 0 && (
                   <div className="text-center py-20 text-muted-foreground">
@@ -2661,6 +2753,39 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         narrators={narrators.map(n => ({ id: n.id, name: n.name }))}
         tariqas={tariqas.map(t => ({ id: t.id, name: t.name }))}
         funoon={funoon.map(f => ({ id: f.id, name: f.name }))}
+      />
+
+      {/* Floating Action Bar (for track selection + edit mode) */}
+      {activeSection === "madhat" && (
+        <FloatingActionBar
+          selectedCount={selectedTracks.size}
+          isEditMode={isEditMode}
+          changeCount={pendingEdits.size}
+          isSaving={batchUpdateMutation.isPending}
+          isDeleting={deleteMadhaatMutation.isPending}
+          onInlineEdit={() => setIsEditMode(true)}
+          onFindReplace={() => setIsFindReplaceOpen(true)}
+          onDelete={handleDeleteSelected}
+          onClearSelection={() => setSelectedTracks(new Set())}
+          onSave={handleInlineEditSave}
+          onCancel={handleCancelEditMode}
+          onBulkFieldEdit={(field) => setBulkEditField(field)}
+          onPasteImage={() => openImagePicker("pasteTrack")}
+        />
+      )}
+
+      {/* Find & Replace Dialog */}
+      <FindReplaceDialog
+        open={isFindReplaceOpen}
+        onOpenChange={setIsFindReplaceOpen}
+        tracks={allTracksForReplace || []}
+        isLoadingTracks={isLoadingAllTracks}
+        artists={artists.map(a => ({ id: a.id, name: a.name }))}
+        narrators={narrators.map(n => ({ id: n.id, name: n.name }))}
+        tariqas={tariqas.map(t => ({ id: t.id, name: t.name }))}
+        funoon={funoon.map(f => ({ id: f.id, name: f.name }))}
+        onApply={handleBatchSave}
+        isApplying={batchUpdateMutation.isPending}
       />
     </div>
   );

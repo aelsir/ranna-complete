@@ -8,6 +8,7 @@ import {
   getApprovedMadhaat,
   getApprovedMadhaatCount,
   getAllMadhaatMinimal,
+  getAllMadhaatForReplace,
   getAdminMadhaat,
   getMadhaById,
   getMadhaatByIds,
@@ -43,6 +44,7 @@ import {
   updateMadha,
   deleteMadhaat,
   bulkUpdateMadhaat,
+  batchUpdateMadhaat,
   createCollection,
   updateCollection,
   createMadih,
@@ -123,6 +125,15 @@ export function useAllMadhaatMinimal() {
     queryKey: [...queryKeys.madhaat, "allMinimal"],
     queryFn: getAllMadhaatMinimal,
     staleTime: 5 * 60 * 1000, // cache 5 min — rarely changes mid-session
+  });
+}
+
+export function useAllMadhaatForReplace(enabled = false) {
+  return useQuery({
+    queryKey: [...queryKeys.madhaat, "allForReplace"],
+    queryFn: getAllMadhaatForReplace,
+    staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 
@@ -469,6 +480,18 @@ export function useBulkUpdateMadhaat() {
   return useMutation({
     mutationFn: ({ ids, field, value }: { ids: string[]; field: keyof MadhaInsert; value: any }) =>
       bulkUpdateMadhaat(ids, field, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.madhaat });
+      queryClient.invalidateQueries({ queryKey: queryKeys.homePageData });
+    },
+  });
+}
+
+export function useBatchUpdateMadhaat() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (updates: { id: string; changes: Partial<MadhaInsert> }[]) =>
+      batchUpdateMadhaat(updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.madhaat });
       queryClient.invalidateQueries({ queryKey: queryKeys.homePageData });

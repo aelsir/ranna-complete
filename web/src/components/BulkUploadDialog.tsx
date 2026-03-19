@@ -535,7 +535,7 @@ export function BulkUploadDialog({
                         اسحب الملفات هنا أو اضغط للاختيار
                       </p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        MP3, WAV, OGG, M4A — حتى 50 ملف
+                        MP3, WAV, OGG, M4A
                       </p>
                     </div>
                     <input

@@ -82,6 +82,19 @@ export async function getAllMadhaatMinimal(): Promise<
   return data || [];
 }
 
+/** Lightweight fetch of ALL tracks with fields needed for find & replace. */
+export async function getAllMadhaatForReplace(): Promise<
+  { id: string; title: string; madih_id: string | null; rawi_id: string | null; tariqa_id: string | null; fan_id: string | null }[]
+> {
+  const { data, error } = await supabase
+    .from("madha")
+    .select("id, title, madih_id, rawi_id, tariqa_id, fan_id")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getAdminMadhaat(options?: {
   page?: number;
   limit?: number;
@@ -973,6 +986,27 @@ export async function bulkUpdateMadhaat(
     .update({ [field]: value })
     .in("id", ids);
   if (error) throw error;
+}
+
+export async function batchUpdateMadhaat(
+  updates: { id: string; changes: Partial<MadhaInsert> }[]
+): Promise<void> {
+  if (!updates.length) return;
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const batch = updates.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(({ id, changes }) =>
+        supabase
+          .from("madha")
+          .update(changes)
+          .eq("id", id)
+          .then(({ error }) => {
+            if (error) throw error;
+          })
+      )
+    );
+  }
 }
 
 export async function createCollection(
