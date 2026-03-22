@@ -1,0 +1,20 @@
+{
+  "name": "ranna-backup",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "backup": "tsx backup.ts",
+    "backup:dry": "tsx backup.ts --dry-run",
+    "backup:test": "tsx backup.ts --limit 5",
+    "restore": "tsx restore.ts",
+    "restore:skip-db": "tsx restore.ts --skip-db",
+    "restore:from": "tsx restore.ts --from"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1003.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.0"
+  }
+}
