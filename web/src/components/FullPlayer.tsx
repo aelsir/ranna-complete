@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, Heart, Pause, Shuffle, Repeat, Repeat1, Timer, BookOpen } from "lucide-react";
 import { RtlPlay, RtlSkipBack, RtlSkipForward } from "@/components/icons/rtl-icons";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,13 @@ const FullPlayer = () => {
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
   const [showLyrics, setShowLyrics] = useState(false);
+
+  // Listen for mini player lyrics button event
+  useEffect(() => {
+    const handler = () => setShowLyrics(true);
+    window.addEventListener("ranna:show-lyrics", handler);
+    return () => window.removeEventListener("ranna:show-lyrics", handler);
+  }, []);
 
   const displayImage = getTrackDisplayImage(track);
   const trackTitle = track?.title || "";
@@ -286,7 +293,7 @@ const FullPlayer = () => {
               onValueChange={handleSeek}
               max={100}
               step={0.1}
-              className="h-6 [&>span:first-child]:h-1.5 [&>span:first-child]:rounded-full [&>span:first-child]:bg-primary-foreground/15 [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:bg-accent [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-glow-accent [&>span:first-child>span]:bg-accent [&>span:first-child>span]:rounded-full"
+              className="h-6 [&>span:first-child]:h-[3px] [&>span:first-child]:rounded-full [&>span:first-child]:bg-primary-foreground/15 [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:bg-primary-foreground [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-md [&>span:first-child>span]:bg-primary-foreground [&>span:first-child>span]:rounded-full"
             />
             <div className="flex justify-between">
               <span className="text-[11px] text-primary-foreground/40 tabular-nums font-fustat">
@@ -305,12 +312,12 @@ const FullPlayer = () => {
             transition={{ duration: 0.3, delay: 0.25 }}
             className="flex items-center justify-center gap-4 px-8 pb-6 shrink-0"
           >
-            {/* Skip back 15s */}
+            {/* Skip back 15s (uses forward-looking icon, flipped visually for RTL) */}
             <button
               onClick={skipBackward15s}
               className="h-12 w-12 flex items-center justify-center text-primary-foreground/60 hover:text-primary-foreground active:scale-90 transition-all"
             >
-              <Skip15Back className="h-7 w-7" />
+              <Skip15Forward className="h-7 w-7" />
             </button>
 
             {/* Previous */}
@@ -331,11 +338,11 @@ const FullPlayer = () => {
               <AnimatePresence mode="wait">
                 {isPlaying ? (
                   <motion.div key="pause" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                    <Pause className="h-8 w-8" fill="currentColor" />
+                    <Pause className="h-10 w-10" fill="currentColor" />
                   </motion.div>
                 ) : (
                   <motion.div key="play" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                    <RtlPlay className="h-8 w-8" fill="currentColor" />
+                    <RtlPlay className="h-10 w-10" fill="currentColor" />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -350,12 +357,12 @@ const FullPlayer = () => {
               <RtlSkipForward className="h-7 w-7" />
             </button>
 
-            {/* Skip forward 15s */}
+            {/* Skip forward 15s (uses back-looking icon, flipped visually for RTL) */}
             <button
               onClick={skipForward15s}
               className="h-12 w-12 flex items-center justify-center text-primary-foreground/60 hover:text-primary-foreground active:scale-90 transition-all"
             >
-              <Skip15Forward className="h-7 w-7" />
+              <Skip15Back className="h-7 w-7" />
             </button>
           </motion.div>
         </motion.div>

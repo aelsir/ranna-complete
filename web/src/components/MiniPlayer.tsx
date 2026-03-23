@@ -1,12 +1,39 @@
 import { useEffect } from "react";
-import { Pause } from "lucide-react";
-import { RtlPlay, RtlSkipBack, RtlSkipForward } from "@/components/icons/rtl-icons";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Heart, Pause, BookOpen } from "lucide-react";
+import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
 import { useMadha, useLogPlayEvent } from "@/lib/api/hooks";
 import { getAudioUrl, getTrackDisplayImage } from "@/lib/format";
+import { ShareButton } from "@/components/ShareButton";
+import { getTrackShareUrl } from "@/lib/share";
+
+/* ── Circular progress ring around the play button ── */
+const ProgressRing = ({ progress, size = 48, stroke = 3 }: { progress: number; size?: number; stroke?: number }) => {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (progress / 100) * circumference;
+
+  return (
+    <svg width={size} height={size} className="absolute inset-0 -rotate-90">
+      {/* Background track */}
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-primary-foreground/10" />
+      {/* Progress arc */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        className="text-accent transition-[stroke-dashoffset] duration-300"
+      />
+    </svg>
+  );
+};
 
 const MiniPlayer = () => {
   const {
@@ -26,6 +53,8 @@ const MiniPlayer = () => {
     skipBackward15s,
     isFullPlayerOpen,
     setFullPlayerOpen,
+    isFavorite,
+    toggleFavorite,
   } = usePlayer();
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
@@ -58,7 +87,6 @@ const MiniPlayer = () => {
     audio.src = audioSrc;
     audio.load();
     audio.play().catch(() => {});
-    // Log play event for trending analytics (fire-and-forget)
     if (nowPlayingId) {
       logPlay.mutate(nowPlayingId);
     }
@@ -93,17 +121,6 @@ const MiniPlayer = () => {
     }
   }, [isPlaying, hasNext, hasPrevious, playNext, playPrevious, togglePlay, skipForward15s, skipBackward15s, audioRef]);
 
-  const handleSeek = (value: number[]) => {
-    seekTo(value[0]);
-  };
-
-  const formatTime = (seconds: number) => {
-    if (!isFinite(seconds)) return "0:00";
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
-
   return (
     <>
       <audio ref={audioRef} preload="metadata" />
@@ -116,68 +133,76 @@ const MiniPlayer = () => {
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-3 right-3 z-50 rounded-3xl glass-dark shadow-float overflow-hidden border border-primary-foreground/5"
           >
-            <div className="flex items-center gap-3 px-3 py-2.5">
-              <div
-                className="relative flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setFullPlayerOpen(true)}
-              >
-                <div className="absolute inset-0 rounded-lg bg-accent/20 blur-md" />
-                <img src={displayImage} alt={trackTitle} className="relative h-11 w-11 rounded-lg object-cover" />
-              </div>
-
-              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                <p className="truncate font-fustat text-xs font-bold text-primary-foreground">{trackTitle}</p>
-                <div className="flex items-center gap-2">
-                  <Slider
-                    dir="rtl"
-                    value={[progress]}
-                    onValueChange={handleSeek}
-                    max={100}
-                    step={0.1}
-                    className="flex-1 h-5 [&>span:first-child]:h-1 [&>span:first-child]:rounded-full [&>span:first-child]:bg-primary-foreground/15 [&_[role=slider]]:h-3.5 [&_[role=slider]]:w-3.5 [&_[role=slider]]:bg-accent [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-glow-accent [&>span:first-child>span]:bg-accent [&>span:first-child>span]:rounded-full"
-                  />
-                  <span className="text-[10px] text-primary-foreground/40 tabular-nums min-w-[2.2rem] text-left font-fustat">
-                    {formatTime(currentTime)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-0.5">
-                <Button
-                  onClick={() => playPrevious()}
-                  disabled={!hasPrevious}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-primary-foreground/40 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform disabled:opacity-30"
-                >
-                  <RtlSkipBack className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              {/* Right (RTL): Play/Pause with circular progress */}
+              <div className="relative shrink-0 h-12 w-12">
+                <ProgressRing progress={progress} size={48} stroke={2.5} />
+                <button
                   onClick={togglePlay}
-                  className="h-10 w-10 rounded-full bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-md active:scale-90 transition-transform flex-shrink-0"
+                  className="absolute inset-[3px] flex items-center justify-center rounded-full bg-primary-foreground active:scale-90 transition-transform"
                 >
                   <AnimatePresence mode="wait">
                     {isPlaying ? (
                       <motion.div key="pause" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                        <Pause className="h-4 w-4" fill="currentColor" />
+                        <Pause className="h-5 w-5 text-primary" fill="currentColor" />
                       </motion.div>
                     ) : (
                       <motion.div key="play" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                        <RtlPlay className="h-4 w-4" fill="currentColor" />
+                        <RtlPlay className="h-5 w-5 text-primary" fill="currentColor" />
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </Button>
-                <Button
-                  onClick={() => playNext()}
-                  disabled={!hasNext}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-primary-foreground/40 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform disabled:opacity-30"
+                </button>
+              </div>
+
+              {/* Center: Title + Artist (taps to open full player) */}
+              <div
+                className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
+                onClick={() => setFullPlayerOpen(true)}
+              >
+                <p className="truncate font-fustat text-xs font-bold text-primary-foreground text-right">{trackTitle}</p>
+                <p className="truncate font-fustat text-[10px] text-primary-foreground/40 text-right">{artistName}</p>
+              </div>
+
+              {/* Left (RTL): Love + Share + Lyrics */}
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (nowPlayingId) toggleFavorite(nowPlayingId);
+                  }}
+                  className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
                 >
-                  <RtlSkipForward className="h-4 w-4" />
-                </Button>
+                  <Heart
+                    className={`h-5 w-5 transition-colors ${
+                      nowPlayingId && isFavorite(nowPlayingId)
+                        ? "text-red-500 fill-red-500"
+                        : "text-primary-foreground/40 hover:text-primary-foreground/70"
+                    }`}
+                  />
+                </button>
+                {nowPlayingId && (
+                  <ShareButton
+                    url={getTrackShareUrl(nowPlayingId)}
+                    title={`${trackTitle} | رنّة`}
+                    className="h-9 w-9 rounded-full text-primary-foreground/40 hover:text-primary-foreground/70"
+                  />
+                )}
+                {track?.lyrics && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFullPlayerOpen(true);
+                      // Small delay so the full player mounts first, then toggle lyrics
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent("ranna:show-lyrics"));
+                      }, 100);
+                    }}
+                    className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
+                  >
+                    <BookOpen className="h-4.5 w-4.5 text-primary-foreground/40 hover:text-primary-foreground/70" strokeWidth={1.5} />
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>
