@@ -1,4 +1,4 @@
-import { Heart } from "lucide-react";
+import { Heart, BookOpen } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
@@ -70,6 +70,9 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
           {track.madiheen?.name || track.madih || ""} · {track.ruwat?.name || track.writer || ""}
         </p>
       </div>
+      {track.lyrics && (
+        <BookOpen className="h-3 w-3 text-muted-foreground/30 flex-shrink-0" strokeWidth={1.5} />
+      )}
       {duration && (
         <span className="text-[11px] text-muted-foreground/50 flex-shrink-0 tabular-nums">{duration}</span>
       )}

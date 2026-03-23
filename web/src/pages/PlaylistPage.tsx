@@ -13,7 +13,7 @@ import { getPlaylistShareUrl } from "@/lib/share";
 const PlaylistPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { playTrack } = usePlayer();
+  const { playTrack, toggleShuffle, shuffleOn } = usePlayer();
 
   const { data: playlist, isLoading: loadingPlaylist } = useCollection(id);
   const { data: playlistTracks, isLoading: loadingTracks } = useCollectionItems(id);
@@ -76,7 +76,18 @@ const PlaylistPage = () => {
           <RtlPlay className="h-4 w-4" fill="currentColor" />
           تشغيل
         </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={shuffleOn ? "text-accent" : "text-muted-foreground hover:text-foreground"}
+          onClick={() => {
+            if (!shuffleOn) toggleShuffle();
+            if (queue.length > 0) {
+              const randomIndex = Math.floor(Math.random() * queue.length);
+              playTrack(queue[randomIndex], queue);
+            }
+          }}
+        >
           <Shuffle className="h-5 w-5" strokeWidth={1.5} />
         </Button>
         <ShareButton

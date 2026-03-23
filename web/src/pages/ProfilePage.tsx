@@ -14,7 +14,7 @@ import { usePlayer } from "@/context/PlayerContext";
 const ProfilePage = () => {
   const { type, id } = useParams<{ type: string; id: string }>();
   const navigate = useNavigate();
-  const { playTrack } = usePlayer();
+  const { playTrack, toggleShuffle, shuffleOn } = usePlayer();
 
   const isArtist = type === "artist";
   const { data: madih, isLoading: loadingMadih } = useMadih(isArtist ? id : undefined);
@@ -78,7 +78,18 @@ const ProfilePage = () => {
         <Button onClick={handlePlayAll} variant="secondary" size="icon" className="h-11 w-11 rounded-full hover:scale-105 active:scale-95 transition-transform">
           <RtlPlay className="h-5 w-5" fill="currentColor" />
         </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={shuffleOn ? "text-accent" : "text-muted-foreground hover:text-foreground"}
+          onClick={() => {
+            if (!shuffleOn) toggleShuffle();
+            if (queue.length > 0) {
+              const randomIndex = Math.floor(Math.random() * queue.length);
+              playTrack(queue[randomIndex], queue);
+            }
+          }}
+        >
           <Shuffle className="h-5 w-5" strokeWidth={1.5} />
         </Button>
         <ShareButton

@@ -30,9 +30,35 @@ interface PlayerContextType {
   favorites: Set<string>;
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
+
+  // Shuffle & Repeat
+  shuffleOn: boolean;
+  toggleShuffle: () => void;
+  repeatMode: "off" | "all" | "one";
+  cycleRepeat: () => void;
+
+  // Sleep Timer
+  sleepMinutes: number | null;
+  sleepEndTime: number | null;
+  setSleepTimer: (minutes: number | null) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
+
+// Fisher-Yates shuffle, keeping the item at `keepIndex` at position 0
+function shuffleArray(arr: string[], keepIndex: number): string[] {
+  const result = [...arr];
+  // Move the current track to position 0
+  if (keepIndex > 0 && keepIndex < result.length) {
+    [result[0], result[keepIndex]] = [result[keepIndex], result[0]];
+  }
+  // Shuffle everything after position 0
+  for (let i = result.length - 1; i > 1; i--) {
+    const j = 1 + Math.floor(Math.random() * i); // 1..i
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [queue, setQueue] = useState<string[]>([]);
@@ -54,6 +80,15 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   // Full player state
   const [isFullPlayerOpen, setFullPlayerOpen] = useState(false);
+
+  // Shuffle & Repeat
+  const [shuffleOn, setShuffleOn] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<"off" | "all" | "one">("off");
+  const originalQueueRef = useRef<string[]>([]);
+
+  // Sleep Timer
+  const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
+  const [sleepEndTime, setSleepEndTime] = useState<number | null>(null);
 
   const lastSaveRef = useRef<number>(0);
 
@@ -114,9 +149,17 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   // Queue controls
   const playTrack = useCallback((id: string, newQueue?: string[]) => {
     if (newQueue && newQueue.length > 0) {
-      setQueue(newQueue);
-      const index = newQueue.indexOf(id);
-      setCurrentIndex(index >= 0 ? index : 0);
+      originalQueueRef.current = newQueue;
+      if (shuffleOn) {
+        const idx = newQueue.indexOf(id);
+        const shuffled = shuffleArray(newQueue, idx >= 0 ? idx : 0);
+        setQueue(shuffled);
+        setCurrentIndex(0);
+      } else {
+        setQueue(newQueue);
+        const index = newQueue.indexOf(id);
+        setCurrentIndex(index >= 0 ? index : 0);
+      }
     } else {
       setQueue((prevQueue) => {
         const index = prevQueue.indexOf(id);
@@ -124,11 +167,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           setCurrentIndex(index);
           return prevQueue;
         }
+        originalQueueRef.current = [id];
         setCurrentIndex(0);
         return [id];
       });
     }
-  }, []);
+  }, [shuffleOn]);
 
   const playNext = useCallback(() => {
     setCurrentIndex((prev) => (prev < queue.length - 1 ? prev + 1 : prev));
@@ -142,6 +186,66 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const hasPrevious = queue.length > 0 && currentIndex > 0;
 
   const isFavorite = useCallback((id: string) => favorites.has(id), [favorites]);
+
+  // Shuffle toggle
+  const toggleShuffle = useCallback(() => {
+    setShuffleOn((prev) => {
+      const next = !prev;
+      if (next) {
+        // Turning shuffle ON — save original, shuffle queue keeping current track at 0
+        originalQueueRef.current = queue;
+        const shuffled = shuffleArray(queue, currentIndex);
+        setQueue(shuffled);
+        setCurrentIndex(0); // Current track is now at position 0
+      } else {
+        // Turning shuffle OFF — restore original queue, find current track's position
+        const currentId = queue[currentIndex];
+        const restored = originalQueueRef.current;
+        const restoredIndex = restored.indexOf(currentId);
+        setQueue(restored);
+        setCurrentIndex(restoredIndex >= 0 ? restoredIndex : 0);
+      }
+      return next;
+    });
+  }, [queue, currentIndex]);
+
+  // Repeat cycle: off → all → one → off
+  const cycleRepeat = useCallback(() => {
+    setRepeatMode((prev) => {
+      if (prev === "off") return "all";
+      if (prev === "all") return "one";
+      return "off";
+    });
+  }, []);
+
+  // Sleep timer
+  const setSleepTimer = useCallback((minutes: number | null) => {
+    if (minutes === null) {
+      setSleepMinutes(null);
+      setSleepEndTime(null);
+    } else {
+      setSleepMinutes(minutes);
+      setSleepEndTime(Date.now() + minutes * 60 * 1000);
+    }
+  }, []);
+
+  // Sleep timer countdown effect
+  useEffect(() => {
+    if (!sleepEndTime) return;
+    const interval = setInterval(() => {
+      if (Date.now() >= sleepEndTime) {
+        // Time's up — fade out and pause
+        const audio = audioRef.current;
+        if (audio) {
+          audio.pause();
+        }
+        setIsPlaying(false);
+        setSleepMinutes(null);
+        setSleepEndTime(null);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sleepEndTime]);
 
   // Audio event listeners — progress tracking, auto-advance
   useEffect(() => {
@@ -160,7 +264,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
             const raw = localStorage.getItem("ranna_continue_listening");
             let list = raw ? JSON.parse(raw) : [];
             list = list.filter((item: any) => item.trackId !== nowPlayingId);
-            
+
             // Only save if progress is < 95% to avoid keeping finished tracks
             if (currentProgress < 95) {
               list.unshift({
@@ -211,9 +315,19 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const onEnded = () => {
-      setIsPlaying(false);
+      if (repeatMode === "one") {
+        // Replay same track
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
       if (hasNext) {
         playNext();
+      } else if (repeatMode === "all" && queue.length > 0) {
+        // Loop back to start of queue
+        setCurrentIndex(0);
+      } else {
+        setIsPlaying(false);
       }
     };
 
@@ -233,7 +347,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
     };
-  }, [hasNext, playNext, nowPlayingId]);
+  }, [hasNext, playNext, nowPlayingId, repeatMode, queue.length]);
 
   return (
     <PlayerContext.Provider
@@ -259,7 +373,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         setFullPlayerOpen,
         favorites,
         toggleFavorite,
-        isFavorite
+        isFavorite,
+        shuffleOn,
+        toggleShuffle,
+        repeatMode,
+        cycleRepeat,
+        sleepMinutes,
+        sleepEndTime,
+        setSleepTimer,
       }}
     >
       {children}
