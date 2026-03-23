@@ -53,7 +53,7 @@ const ContinueListening = () => {
   return (
     <section className="pt-6 pb-2">
       <div className="flex flex-col gap-2 px-5 mb-4 md:px-12">
-        <h2 className="font-fustat text-xl font-bold">أكمل الاستماع</h2>
+        <h2 className="font-panorama text-xl font-bold">أكمل الاستماع</h2>
       </div>
 
       <div className="px-5 md:px-12 grid grid-cols-2 gap-3 md:grid-cols-4">

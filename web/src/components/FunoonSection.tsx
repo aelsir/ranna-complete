@@ -13,7 +13,7 @@ const FunoonSection = () => {
   return (
     <section className="py-10">
       <div className="flex items-center justify-between px-5 mb-5 md:px-12">
-        <h2 className="font-fustat text-xl font-bold">الفن</h2>
+        <h2 className="font-panorama text-xl font-bold">الفن</h2>
         <Badge
           variant="secondary"
           onClick={() => navigate("/funoon")}

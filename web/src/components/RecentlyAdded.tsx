@@ -14,7 +14,7 @@ const RecentlyAdded = () => {
     return (
       <section className="py-10">
         <div className="flex items-center justify-between px-5 mb-5 md:px-12">
-          <h2 className="font-fustat text-xl font-bold">أضيفت مؤخراً</h2>
+          <h2 className="font-panorama text-xl font-bold">أضيفت مؤخراً</h2>
         </div>
         <div className="px-5 md:px-12 text-center text-red-500 py-8">
           حدث خطأ أثناء تحميل المدائح: {error instanceof Error ? error.message : "خطأ غير معروف"}
@@ -27,7 +27,7 @@ const RecentlyAdded = () => {
     return (
       <section className="py-10">
         <div className="flex items-center justify-between px-5 mb-5 md:px-12">
-          <h2 className="font-fustat text-xl font-bold">أضيفت مؤخراً</h2>
+          <h2 className="font-panorama text-xl font-bold">أضيفت مؤخراً</h2>
         </div>
         <div className="px-5 md:px-12 text-center text-muted-foreground py-8">
           جاري التحميل...
@@ -43,7 +43,7 @@ const RecentlyAdded = () => {
   return (
     <section className="py-10">
       <div className="flex items-center justify-between px-5 mb-5 md:px-12">
-        <h2 className="font-fustat text-xl font-bold">أضيفت مؤخراً</h2>
+        <h2 className="font-panorama text-xl font-bold">أضيفت مؤخراً</h2>
       </div>
       <div className="px-5 md:px-12">
         <Card className="rounded-2xl shadow-card border-border/20 overflow-hidden">
