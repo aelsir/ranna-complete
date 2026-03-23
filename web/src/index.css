@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "NTPanorama Naskh";
+  src: url("./assets/fonts/NTPanoramaNaskh-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: 160 10% 97%;
@@ -47,6 +55,7 @@
 
     --font-fustat: "Fustat", sans-serif;
     --font-noto-naskh: "Noto Naskh Arabic", serif;
+    --font-panorama: "NTPanorama Naskh", "Noto Naskh Arabic", serif;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;

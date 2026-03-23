@@ -21,6 +21,8 @@ import DashboardPage from "./pages/DashboardPage";
 import MyAccountPage from "./pages/MyAccountPage";
 import ListeningHistoryPage from "./pages/ListeningHistoryPage";
 import ListeningStatsPage from "./pages/ListeningStatsPage";
+import TrackPage from "./pages/TrackPage";
+import FontTestPage from "./pages/FontTestPage";
 import NotFound from "./pages/NotFound";
 import BottomTabs from "./components/BottomTabs";
 import MiniPlayer from "./components/MiniPlayer";
@@ -45,6 +47,7 @@ const App = () => (
               <Route path="/search" element={<SearchPage />} />
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/profile/:type/:id" element={<ProfilePage />} />
+              <Route path="/track/:id" element={<TrackPage />} />
               <Route path="/playlist/:id" element={<PlaylistPage />} />
               <Route path="/artists" element={<AllArtistsPage />} />
               <Route path="/narrators" element={<AllNarratorsPage />} />
@@ -55,6 +58,7 @@ const App = () => (
               <Route path="/account" element={<MyAccountPage />} />
               <Route path="/listening-history" element={<ListeningHistoryPage />} />
               <Route path="/listening-stats" element={<ListeningStatsPage />} />
+              <Route path="/font-test" element={<FontTestPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ContentShell>

@@ -86,6 +86,9 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    fs: {
+      allow: [".."],
+    },
   },
   plugins: [
     react(),

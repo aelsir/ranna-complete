@@ -1,11 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowRight, Shuffle, MoreHorizontal } from "lucide-react";
+import { ArrowRight, Shuffle } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useMadih, useRawi, useMadhaatByMadih, useMadhaatByRawi } from "@/lib/api/hooks";
 import { getImageUrl } from "@/lib/format";
 import TrackRow from "@/components/TrackRow";
+import { ShareButton } from "@/components/ShareButton";
+import { getProfileShareUrl } from "@/lib/share";
 
 import { usePlayer } from "@/context/PlayerContext";
 
@@ -79,9 +81,10 @@ const ProfilePage = () => {
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
           <Shuffle className="h-5 w-5" strokeWidth={1.5} />
         </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <MoreHorizontal className="h-5 w-5" strokeWidth={1.5} />
-        </Button>
+        <ShareButton
+          url={getProfileShareUrl(isArtist ? "artist" : "narrator", id!)}
+          title={`${profile?.name} | رنّة`}
+        />
       </div>
 
       {/* Track list */}

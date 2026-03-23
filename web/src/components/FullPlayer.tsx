@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
 import { useMadha } from "@/lib/api/hooks";
 import { getImageUrl } from "@/lib/format";
+import { ShareButton } from "@/components/ShareButton";
+import { getTrackShareUrl } from "@/lib/share";
 
 const FullPlayer = () => {
   const {
@@ -249,6 +251,13 @@ const FullPlayer = () => {
                 </motion.div>
               </AnimatePresence>
             </Button>
+            {nowPlayingId && (
+              <ShareButton
+                url={getTrackShareUrl(nowPlayingId)}
+                title={`${track?.title || ""} | رنّة`}
+                className="h-10 w-10 rounded-full hover:bg-primary-foreground/5 text-primary-foreground/30 hover:text-primary-foreground/60"
+              />
+            )}
           </motion.div>
         </motion.div>
       )}

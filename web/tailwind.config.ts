@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         fustat: ["Fustat", "sans-serif"],
         naskh: ["Noto Naskh Arabic", "serif"],
+        panorama: ["NTPanorama Naskh", "Noto Naskh Arabic", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",

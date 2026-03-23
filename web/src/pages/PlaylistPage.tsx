@@ -1,12 +1,14 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlayer } from "@/context/PlayerContext";
-import { ArrowRight, MoreHorizontal, Shuffle } from "lucide-react";
+import { ArrowRight, Shuffle } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useCollection, useCollectionItems } from "@/lib/api/hooks";
 import { getImageUrl } from "@/lib/format";
 import TrackRow from "@/components/TrackRow";
+import { ShareButton } from "@/components/ShareButton";
+import { getPlaylistShareUrl } from "@/lib/share";
 
 const PlaylistPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -77,9 +79,10 @@ const PlaylistPage = () => {
         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
           <Shuffle className="h-5 w-5" strokeWidth={1.5} />
         </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <MoreHorizontal className="h-5 w-5" strokeWidth={1.5} />
-        </Button>
+        <ShareButton
+          url={getPlaylistShareUrl(id!)}
+          title={`${playlist?.name} | رنّة`}
+        />
       </div>
 
       {/* Track list */}
