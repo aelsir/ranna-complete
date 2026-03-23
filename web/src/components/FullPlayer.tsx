@@ -32,9 +32,11 @@ const FullPlayer = () => {
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
 
-  const coverImage = track ? getImageUrl(track.image_url) : "";
-  const artistImage = track?.madiheen ? getImageUrl(track.madiheen.image_url) : "";
-  const displayImage = coverImage || artistImage;
+  // Image fallback chain: track → madih → rawi → Ranna logo
+  const trackImg = track?.image_url ? getImageUrl(track.image_url) : "";
+  const madihImg = track?.madiheen?.image_url ? getImageUrl(track.madiheen.image_url) : "";
+  const rawiImg = track?.ruwat?.image_url ? getImageUrl(track.ruwat.image_url) : "";
+  const displayImage = trackImg || madihImg || rawiImg || "/ranna-white-background.png";
   const trackTitle = track?.title || "";
   const artistName = track?.madiheen?.name || track?.madih || "";
   const narratorName = track?.ruwat?.name || track?.writer || "";
@@ -59,7 +61,7 @@ const FullPlayer = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 60, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          className="fixed left-3 right-3 top-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[55] rounded-3xl glass-dark shadow-float overflow-hidden border border-primary-foreground/5 flex flex-col"
+          className="fixed left-3 right-3 top-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[55] rounded-3xl glass-dark shadow-float overflow-hidden border border-primary-foreground/5 flex flex-col overflow-y-auto"
         >
           {/* Header */}
           <motion.div
@@ -81,29 +83,21 @@ const FullPlayer = () => {
           </motion.div>
 
           {/* Cover Art */}
-          <div className="flex-1 flex items-center justify-center px-8 py-4 min-h-0">
+          <div className="flex-1 flex items-center justify-center px-8 py-3 min-h-0">
             <motion.div
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.6, opacity: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.05 }}
-              className="relative w-full max-w-[280px] aspect-square"
+              className="relative w-full max-w-[280px] max-h-[min(280px,35vh)] aspect-square"
             >
               {/* Glow behind cover */}
               <div className="absolute inset-0 rounded-2xl bg-accent/15 blur-2xl scale-110" />
-              {displayImage ? (
-                <img
-                  src={displayImage}
-                  alt={trackTitle}
-                  className="relative w-full h-full rounded-2xl object-cover shadow-lg ring-1 ring-primary-foreground/10"
-                />
-              ) : (
-                <div className="relative w-full h-full rounded-2xl bg-gradient-to-br from-accent/20 via-primary/30 to-secondary/10 flex items-center justify-center shadow-lg ring-1 ring-primary-foreground/10">
-                  <span className="font-fustat text-6xl font-bold text-primary-foreground/20">
-                    {trackTitle?.[0]}
-                  </span>
-                </div>
-              )}
+              <img
+                src={displayImage}
+                alt={trackTitle}
+                className="relative w-full h-full rounded-2xl object-cover shadow-lg ring-1 ring-primary-foreground/10"
+              />
             </motion.div>
           </div>
 
@@ -128,7 +122,7 @@ const FullPlayer = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.15 }}
-            className="px-8 pt-6 pb-2 space-y-2"
+            className="px-8 pt-4 pb-2 space-y-2"
           >
             <Slider
               dir="rtl"
