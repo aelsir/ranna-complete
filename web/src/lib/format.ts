@@ -30,6 +30,22 @@ export function getImageUrl(
   return `${R2_PUBLIC_URL}/${url}`;
 }
 
+/**
+ * Get the best display image for a track with full fallback chain:
+ * track image → madih image → rawi image → Ranna logo
+ */
+export function getTrackDisplayImage(track: {
+  image_url?: string | null;
+  madiheen?: { image_url?: string | null } | null;
+  ruwat?: { image_url?: string | null } | null;
+} | null | undefined): string {
+  if (!track) return "/ranna-white-background.png";
+  const trackImg = track.image_url ? getImageUrl(track.image_url) : "";
+  const madihImg = track.madiheen?.image_url ? getImageUrl(track.madiheen.image_url) : "";
+  const rawiImg = track.ruwat?.image_url ? getImageUrl(track.ruwat.image_url) : "";
+  return trackImg || madihImg || rawiImg || "/ranna-white-background.png";
+}
+
 /** Get full R2 audio URL */
 export function getAudioUrl(url: string | null | undefined): string {
   if (!url) return "";

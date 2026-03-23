@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
 import { useMadha } from "@/lib/api/hooks";
-import { getImageUrl } from "@/lib/format";
+import { getTrackDisplayImage } from "@/lib/format";
 import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
 
@@ -32,11 +32,7 @@ const FullPlayer = () => {
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
 
-  // Image fallback chain: track → madih → rawi → Ranna logo
-  const trackImg = track?.image_url ? getImageUrl(track.image_url) : "";
-  const madihImg = track?.madiheen?.image_url ? getImageUrl(track.madiheen.image_url) : "";
-  const rawiImg = track?.ruwat?.image_url ? getImageUrl(track.ruwat.image_url) : "";
-  const displayImage = trackImg || madihImg || rawiImg || "/ranna-white-background.png";
+  const displayImage = getTrackDisplayImage(track);
   const trackTitle = track?.title || "";
   const artistName = track?.madiheen?.name || track?.madih || "";
   const narratorName = track?.ruwat?.name || track?.writer || "";

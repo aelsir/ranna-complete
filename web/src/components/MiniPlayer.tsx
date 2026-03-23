@@ -6,7 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
 import { useMadha, useLogPlayEvent } from "@/lib/api/hooks";
-import { getAudioUrl, getImageUrl } from "@/lib/format";
+import { getAudioUrl, getTrackDisplayImage } from "@/lib/format";
 
 const MiniPlayer = () => {
   const {
@@ -32,7 +32,7 @@ const MiniPlayer = () => {
   const logPlay = useLogPlayEvent();
 
   const audioSrc = track ? getAudioUrl(track.audio_url) : "";
-  const coverImage = track ? getImageUrl(track.image_url) : "";
+  const displayImage = getTrackDisplayImage(track);
   const trackTitle = track?.title || "";
   const artistName = track?.madiheen?.name || track?.madih || "";
 
@@ -44,12 +44,12 @@ const MiniPlayer = () => {
         artist: artistName,
         album: "رنّة - للمدائح النبوية",
         artwork: [
-          { src: coverImage || "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
-          { src: coverImage || "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: displayImage, sizes: "512x512", type: "image/png" },
+          { src: displayImage, sizes: "192x192", type: "image/png" },
         ],
       });
     }
-  }, [track, trackTitle, artistName, coverImage]);
+  }, [track, trackTitle, artistName, displayImage]);
 
   // Load new audio when track changes
   useEffect(() => {
@@ -122,13 +122,7 @@ const MiniPlayer = () => {
                 onClick={() => setFullPlayerOpen(true)}
               >
                 <div className="absolute inset-0 rounded-lg bg-accent/20 blur-md" />
-                {coverImage ? (
-                  <img src={coverImage} alt={trackTitle} className="relative h-11 w-11 rounded-lg object-cover" />
-                ) : (
-                  <div className="relative h-11 w-11 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <RtlPlay className="h-4 w-4 text-primary-foreground/60" />
-                  </div>
-                )}
+                <img src={displayImage} alt={trackTitle} className="relative h-11 w-11 rounded-lg object-cover" />
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col gap-1.5">
