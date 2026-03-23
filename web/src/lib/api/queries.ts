@@ -300,10 +300,10 @@ export async function searchMadhaat(query: string): Promise<Madha[]> {
     )
     .eq("status", "approved")
     .or(
-      `title.ilike.%${normalized}%,madih.ilike.%${normalized}%,writer.ilike.%${normalized}%,title.ilike.%${query}%,madih.ilike.%${query}%,writer.ilike.%${query}%`
+      `title.ilike.%${normalized}%,madih.ilike.%${normalized}%,writer.ilike.%${normalized}%,lyrics.ilike.%${normalized}%,title.ilike.%${query}%,madih.ilike.%${query}%,writer.ilike.%${query}%,lyrics.ilike.%${query}%`
     )
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(30);
 
   if (error) throw error;
   return data || [];

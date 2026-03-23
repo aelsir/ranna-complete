@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { usePlayer } from "@/context/PlayerContext";
 import { ArrowRight, Shuffle } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
@@ -49,6 +50,10 @@ const PlaylistPage = () => {
       transition={{ duration: 0.3 }}
       className=""
     >
+      <Helmet>
+        <title>{`${playlist?.name || "قائمة تشغيل"} | رنّة`}</title>
+        <meta name="description" content={playlist?.description || `قائمة تشغيل على رنّة — ${(playlistTracks || []).length} مدحة`} />
+      </Helmet>
       {/* Header */}
       <div className="relative">
         <div className="h-72 w-full overflow-hidden md:h-80">

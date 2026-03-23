@@ -1,4 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ArrowRight, Clock, Loader2 } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
@@ -44,6 +45,8 @@ export default function TrackPage() {
 
   const imageUrl = getImageUrl(track.image_url || track.madiheen?.image_url);
   const artistName = track.madiheen?.name || track.madih || "غير معروف";
+  const pageTitle = `${track.title} — ${artistName} | رنّة`;
+  const pageDesc = `استمع إلى "${track.title}" للمادح ${artistName} على رنّة`;
   const narratorName = track.ruwat?.name || track.writer;
   const tariqaName = track.turuq?.name;
   const fanName = track.funun?.name;
@@ -58,6 +61,10 @@ export default function TrackPage() {
 
   return (
     <div dir="rtl">
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+      </Helmet>
       {/* Hero / Header */}
       <div className="relative">
         <div className="h-72 w-full overflow-hidden md:h-80">

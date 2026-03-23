@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Search, BookOpen } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -10,10 +10,10 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useSearch, useMadiheen, useRuwat } from "@/lib/api/hooks";
 import { getImageUrl } from "@/lib/format";
-import { arabicIncludes } from "@/lib/arabic";
+import { arabicIncludes, normalizeArabic } from "@/lib/arabic";
 import { usePlayer } from "@/context/PlayerContext";
 
-type ResultType = "مدحة" | "مادح" | "راوي";
+type ResultType = "مدحة" | "مادح" | "راوي" | "كلمات";
 
 interface SearchResult {
   id: string;
@@ -22,6 +22,30 @@ interface SearchResult {
   type: ResultType;
   image?: string;
   linkTo?: string;
+  lyricsSnippet?: string;
+}
+
+/**
+ * Extract a short snippet around the first match of `query` in `lyrics`.
+ * Returns ~60 chars of context around the match, or null if no match.
+ */
+function extractLyricsSnippet(lyrics: string, query: string): string | null {
+  if (!lyrics || !query.trim()) return null;
+
+  const normalizedLyrics = normalizeArabic(lyrics);
+  const normalizedQuery = normalizeArabic(query);
+  const idx = normalizedLyrics.indexOf(normalizedQuery);
+  if (idx === -1) return null;
+
+  const contextChars = 40;
+  const start = Math.max(0, idx - contextChars);
+  const end = Math.min(lyrics.length, idx + query.length + contextChars);
+
+  let snippet = lyrics.slice(start, end).replace(/\n/g, " ").trim();
+  if (start > 0) snippet = "..." + snippet;
+  if (end < lyrics.length) snippet = snippet + "...";
+
+  return snippet;
 }
 
 const SearchPage = () => {
@@ -30,9 +54,9 @@ const SearchPage = () => {
   const navigate = useNavigate();
   const { playTrack } = usePlayer();
 
-  const filters: (ResultType | "الكل")[] = ["الكل", "مدحة", "مادح", "راوي"];
+  const filters: (ResultType | "الكل")[] = ["الكل", "مدحة", "كلمات", "مادح", "راوي"];
 
-  // Supabase search for tracks (debounced via React Query — only fires when query has content)
+  // Supabase search for tracks — searches title, madih, writer AND lyrics
   const { data: searchResults = [] } = useSearch(query);
 
   // Full lists for client-side name filtering
@@ -42,16 +66,44 @@ const SearchPage = () => {
   const allData: SearchResult[] = useMemo(() => {
     if (!query.trim()) return [];
 
-    const trackResults: SearchResult[] = searchResults.map((m) => ({
-      id: m.id,
-      title: m.title,
-      subtitle:
-        ((m as any).madiheen?.name || m.madih) +
-        " · " +
-        ((m as any).ruwat?.name || m.writer),
-      type: "مدحة" as ResultType,
-      image: getImageUrl((m as any).image_url || (m as any).madiheen?.image_url),
-    }));
+    // Separate results into title/metadata matches and lyrics-only matches
+    const trackResults: SearchResult[] = [];
+    const lyricsResults: SearchResult[] = [];
+
+    searchResults.forEach((m) => {
+      const titleMatch = arabicIncludes(m.title || "", query)
+        || arabicIncludes(m.madih || "", query)
+        || arabicIncludes(m.writer || "", query);
+
+      const lyrics = (m as any).lyrics || "";
+      const lyricsSnippet = extractLyricsSnippet(lyrics, query);
+
+      if (titleMatch) {
+        trackResults.push({
+          id: m.id,
+          title: m.title,
+          subtitle:
+            ((m as any).madiheen?.name || m.madih) +
+            " · " +
+            ((m as any).ruwat?.name || m.writer),
+          type: "مدحة" as ResultType,
+          image: getImageUrl((m as any).image_url || (m as any).madiheen?.image_url),
+          lyricsSnippet: lyricsSnippet || undefined,
+        });
+      } else if (lyricsSnippet) {
+        lyricsResults.push({
+          id: m.id,
+          title: m.title,
+          subtitle:
+            ((m as any).madiheen?.name || m.madih) +
+            " · " +
+            ((m as any).ruwat?.name || m.writer),
+          type: "كلمات" as ResultType,
+          image: getImageUrl((m as any).image_url || (m as any).madiheen?.image_url),
+          lyricsSnippet,
+        });
+      }
+    });
 
     const artistResults: SearchResult[] = madiheen
       .filter((a) => arabicIncludes(a.name, query))
@@ -75,7 +127,7 @@ const SearchPage = () => {
         linkTo: "/profile/narrator/" + n.id,
       }));
 
-    return [...trackResults, ...artistResults, ...narratorResults];
+    return [...trackResults, ...lyricsResults, ...artistResults, ...narratorResults];
   }, [query, searchResults, madiheen, ruwat]);
 
   const results = useMemo(() => {
@@ -93,15 +145,32 @@ const SearchPage = () => {
     return groups;
   }, [results]);
 
+  // Count per type for filter badges
+  const typeCounts = useMemo(() => {
+    const counts: Partial<Record<ResultType, number>> = {};
+    allData.forEach((r) => {
+      counts[r.type] = (counts[r.type] || 0) + 1;
+    });
+    return counts;
+  }, [allData]);
+
   const handleResultClick = (item: SearchResult) => {
-    if (item.type === "مدحة") {
-      // Play the track — build a queue from all track results
+    if (item.type === "مدحة" || item.type === "كلمات") {
       const trackIds = results
-        .filter((r) => r.type === "مدحة")
+        .filter((r) => r.type === "مدحة" || r.type === "كلمات")
         .map((r) => r.id);
       playTrack(item.id, trackIds);
     } else if (item.linkTo) {
       navigate(item.linkTo);
+    }
+  };
+
+  const groupLabel = (type: ResultType) => {
+    switch (type) {
+      case "مدحة": return "المدائح";
+      case "كلمات": return "نتائج من الكلمات";
+      case "مادح": return "المادحون";
+      case "راوي": return "الراوون";
     }
   };
 
@@ -114,23 +183,30 @@ const SearchPage = () => {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="ابحث عن مدحة، مادح أو راوي..."
+          placeholder="ابحث عن مدحة، مادح، راوي أو كلمات..."
           className="flex-1 border-0 bg-transparent font-naskh text-base shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
         />
       </div>
 
-      <div className="mt-3 flex gap-2.5">
-        {filters.map((f) => (
-          <Button
-            key={f}
-            variant={activeFilter === f ? "default" : "secondary"}
-            size="sm"
-            onClick={() => setActiveFilter(f)}
-            className={`rounded-full font-fustat text-xs font-bold ${activeFilter === f ? "shadow-sm" : ""}`}
-          >
-            {f}
-          </Button>
-        ))}
+      <div className="mt-3 flex gap-2.5 overflow-x-auto">
+        {filters.map((f) => {
+          const count = f === "الكل" ? allData.length : (typeCounts[f as ResultType] || 0);
+          const hasResults = count > 0;
+          return (
+            <Button
+              key={f}
+              variant={activeFilter === f ? "default" : "secondary"}
+              size="sm"
+              onClick={() => setActiveFilter(f)}
+              className={`rounded-full font-fustat text-xs font-bold whitespace-nowrap ${activeFilter === f ? "shadow-sm" : ""} ${!hasResults && query.trim() ? "opacity-50" : ""}`}
+            >
+              {f}
+              {query.trim() && hasResults && (
+                <span className="mr-1 text-[10px] opacity-70">({count})</span>
+              )}
+            </Button>
+          );
+        })}
       </div>
 
       <div className="mt-5">
@@ -142,7 +218,7 @@ const SearchPage = () => {
 
         {!query.trim() && (
           <p className="py-16 text-center text-sm text-muted-foreground font-naskh">
-            ابدأ بالكتابة للبحث...
+            ابدأ بالكتابة للبحث في المدائح والكلمات...
           </p>
         )}
 
@@ -153,13 +229,14 @@ const SearchPage = () => {
                 ([type, items], groupIdx) => (
                   <div key={type} className="mb-2">
                     {groupIdx > 0 && <Separator className="mb-3 mt-1" />}
-                    <h3 className="mb-2 px-2 font-fustat text-xs font-bold text-muted-foreground">
-                      {type === "مدحة" ? "المدائح" : type === "مادح" ? "المادحون" : "الراوون"}
+                    <h3 className="mb-2 px-2 font-fustat text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                      {type === "كلمات" && <BookOpen className="h-3 w-3" />}
+                      {groupLabel(type)}
                     </h3>
                     <div className="space-y-0.5">
                       {items.map((item, i) => (
                         <motion.div
-                          key={item.id}
+                          key={item.id + "-" + type}
                           initial={{ opacity: 0, x: 8 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.15, delay: i * 0.02 }}
@@ -167,18 +244,27 @@ const SearchPage = () => {
                           className="flex items-center gap-3 rounded-xl px-2 py-2.5 cursor-pointer hover:bg-muted/60 active:scale-[0.98] transition-all"
                         >
                           {item.image ? (
-                            <Avatar className={`h-10 w-10 ${item.type === "مادح" ? "rounded-full" : "rounded-xl"}`}>
+                            <Avatar className={`h-10 w-10 ${item.type === "مادح" ? "rounded-full" : "rounded-xl"} flex-shrink-0`}>
                               <AvatarImage src={item.image} alt={item.title} className="object-cover" />
                               <AvatarFallback>{item.title[0]}</AvatarFallback>
                             </Avatar>
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted flex-shrink-0 text-accent">
-                              <RtlPlay className="h-3.5 w-3.5" fill="currentColor" />
+                              {type === "كلمات" ? (
+                                <BookOpen className="h-3.5 w-3.5" />
+                              ) : (
+                                <RtlPlay className="h-3.5 w-3.5" fill="currentColor" />
+                              )}
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="font-fustat text-sm font-bold truncate">{item.title}</p>
                             <p className="text-[11px] text-muted-foreground truncate">{item.subtitle}</p>
+                            {item.lyricsSnippet && (
+                              <p className="mt-0.5 text-[11px] text-muted-foreground/70 font-naskh line-clamp-2 leading-relaxed" dir="rtl">
+                                «{item.lyricsSnippet}»
+                              </p>
+                            )}
                           </div>
                         </motion.div>
                       ))}

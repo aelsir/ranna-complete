@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ArrowRight, Shuffle } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
@@ -50,8 +51,16 @@ const ProfilePage = () => {
     }
   };
 
+  const profileLabel = isArtist ? "مادح" : "راوي";
+  const pageTitle = `${profile.name} | ${profileLabel} — رنّة`;
+  const pageDesc = `${profileLabel}: ${profile.name} — ${profileTracks.length} مدحة على رنّة`;
+
   return (
     <div>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+      </Helmet>
       {/* Header */}
       <div className="relative">
         <div className="h-64 w-full overflow-hidden md:h-80">
