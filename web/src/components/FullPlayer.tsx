@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Heart, Pause, RotateCcw, RotateCw, Shuffle, Repeat, Repeat1, Timer, BookOpen } from "lucide-react";
+import { ChevronDown, Heart, Pause, Shuffle, Repeat, Repeat1, Timer, BookOpen } from "lucide-react";
 import { RtlPlay, RtlSkipBack, RtlSkipForward } from "@/components/icons/rtl-icons";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -23,6 +23,23 @@ const SLEEP_OPTIONS = [
   { label: "٦٠ دقيقة", minutes: 60 },
 ];
 
+/* ── Custom 15-second skip icons with the "15" label ── */
+const Skip15Back = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9.5 4 5 8l4.5 4" />
+    <path d="M5 8h8a5 5 0 0 1 0 10h-1" />
+    <text x="8.5" y="17.5" fontSize="7.5" fontWeight="700" fill="currentColor" stroke="none" textAnchor="middle" fontFamily="sans-serif">15</text>
+  </svg>
+);
+
+const Skip15Forward = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} style={{ transform: "scaleX(-1)" }}>
+    <path d="M9.5 4 5 8l4.5 4" />
+    <path d="M5 8h8a5 5 0 0 1 0 10h-1" />
+    <text x="8.5" y="17.5" fontSize="7.5" fontWeight="700" fill="currentColor" stroke="none" textAnchor="middle" fontFamily="sans-serif" style={{ transform: "scaleX(-1)", transformOrigin: "8.5px 14px" }}>15</text>
+  </svg>
+);
+
 const FullPlayer = () => {
   const {
     nowPlayingId,
@@ -42,8 +59,6 @@ const FullPlayer = () => {
     setFullPlayerOpen,
     isFavorite,
     toggleFavorite,
-    shuffleOn,
-    toggleShuffle,
     repeatMode,
     cycleRepeat,
     sleepMinutes,
@@ -60,12 +75,9 @@ const FullPlayer = () => {
   const narratorName = track?.ruwat?.name || track?.writer || "";
   const hasLyrics = !!track?.lyrics;
 
-  // Compute remaining sleep time for badge
   const sleepRemaining = sleepEndTime ? Math.max(0, Math.ceil((sleepEndTime - Date.now()) / 60000)) : null;
 
-  const handleSeek = (value: number[]) => {
-    seekTo(value[0]);
-  };
+  const handleSeek = (value: number[]) => seekTo(value[0]);
 
   const formatTime = (seconds: number) => {
     if (!isFinite(seconds)) return "0:00";
@@ -74,7 +86,6 @@ const FullPlayer = () => {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Repeat icon based on mode
   const RepeatIcon = repeatMode === "one" ? Repeat1 : Repeat;
   const repeatActive = repeatMode !== "off";
 
@@ -89,7 +100,7 @@ const FullPlayer = () => {
           transition={{ type: "spring", stiffness: 300, damping: 28 }}
           className="fixed left-3 right-3 top-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[55] rounded-3xl glass-dark shadow-float overflow-hidden border border-primary-foreground/5 flex flex-col"
         >
-          {/* Header */}
+          {/* ── Header ── */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -100,15 +111,15 @@ const FullPlayer = () => {
               variant="ghost"
               size="icon"
               onClick={() => setFullPlayerOpen(false)}
-              className="h-10 w-10 rounded-full text-primary-foreground/60 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform"
+              className="h-10 w-10 rounded-full bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25 active:scale-90 transition-transform backdrop-blur-sm"
             >
               <ChevronDown className="h-6 w-6" />
             </Button>
             <span className="font-fustat text-xs font-bold text-primary-foreground/50">الآن يُستمع</span>
-            <div className="w-10" /> {/* Spacer for centering */}
+            <div className="w-10" />
           </motion.div>
 
-          {/* Cover Art / Lyrics area */}
+          {/* ── Cover Art / Lyrics ── */}
           <div className="flex-1 flex items-center justify-center px-8 py-3 min-h-0 overflow-hidden">
             <AnimatePresence mode="wait">
               {showLyrics && hasLyrics ? (
@@ -134,7 +145,6 @@ const FullPlayer = () => {
                   transition={{ type: "spring", stiffness: 260, damping: 22 }}
                   className="relative w-full max-w-[280px] max-h-[min(280px,35vh)] aspect-square"
                 >
-                  {/* Glow behind cover */}
                   <div className="absolute inset-0 rounded-2xl bg-accent/15 blur-2xl scale-110" />
                   <img
                     src={displayImage}
@@ -146,7 +156,7 @@ const FullPlayer = () => {
             </AnimatePresence>
           </div>
 
-          {/* Track Info */}
+          {/* ── Track Info ── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -162,132 +172,23 @@ const FullPlayer = () => {
             </p>
           </motion.div>
 
-          {/* Progress */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.15 }}
-            className="px-8 pt-4 pb-2 space-y-2 shrink-0"
-          >
-            <Slider
-              dir="rtl"
-              value={[progress]}
-              onValueChange={handleSeek}
-              max={100}
-              step={0.1}
-              className="h-6 [&>span:first-child]:h-1.5 [&>span:first-child]:rounded-full [&>span:first-child]:bg-primary-foreground/15 [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:bg-accent [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-glow-accent [&>span:first-child>span]:bg-accent [&>span:first-child>span]:rounded-full"
-            />
-            <div className="flex justify-between">
-              <span className="text-[11px] text-primary-foreground/40 tabular-nums font-fustat">
-                {formatTime(duration)}
-              </span>
-              <span className="text-[11px] text-primary-foreground/40 tabular-nums font-fustat">
-                {formatTime(currentTime)}
-              </span>
-            </div>
-          </motion.div>
-
-          {/* Main Controls */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="flex items-center justify-center gap-3 px-8 pb-2 shrink-0"
-          >
-            <Button
-              onClick={skipBackward15s}
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 text-primary-foreground/40 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform"
-            >
-              <RotateCcw className="h-5 w-5" />
-            </Button>
-            <Button
-              onClick={() => playPrevious()}
-              disabled={!hasPrevious}
-              variant="ghost"
-              size="icon"
-              className="h-12 w-12 text-primary-foreground/60 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform disabled:opacity-30"
-            >
-              <RtlSkipBack className="h-6 w-6" />
-            </Button>
-            <Button
-              size="icon"
-              onClick={togglePlay}
-              className="h-16 w-16 rounded-full bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-glow-accent active:scale-90 transition-transform flex-shrink-0"
-            >
-              <AnimatePresence mode="wait">
-                {isPlaying ? (
-                  <motion.div
-                    key="pause"
-                    initial={{ scale: 0.7, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0 }}
-                    transition={{ duration: 0.12 }}
-                  >
-                    <Pause className="h-7 w-7" fill="currentColor" />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="play"
-                    initial={{ scale: 0.7, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.7, opacity: 0 }}
-                    transition={{ duration: 0.12 }}
-                  >
-                    <RtlPlay className="h-7 w-7" fill="currentColor" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Button>
-            <Button
-              onClick={() => playNext()}
-              disabled={!hasNext}
-              variant="ghost"
-              size="icon"
-              className="h-12 w-12 text-primary-foreground/60 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform disabled:opacity-30"
-            >
-              <RtlSkipForward className="h-6 w-6" />
-            </Button>
-            <Button
-              onClick={skipForward15s}
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 text-primary-foreground/40 hover:text-primary-foreground hover:bg-primary-foreground/5 active:scale-90 transition-transform"
-            >
-              <RotateCw className="h-5 w-5" />
-            </Button>
-          </motion.div>
-
-          {/* Secondary Controls: Shuffle, Repeat, Favorite, Share, Timer, Lyrics */}
+          {/* ── Action Buttons (Repeat, Favorite, Share, Lyrics, Timer) ── */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.25 }}
-            className="flex items-center justify-center gap-1 pb-6 pt-2 shrink-0"
+            transition={{ duration: 0.3, delay: 0.15 }}
+            className="flex items-center justify-center gap-2 pt-4 pb-2 shrink-0"
           >
-            {/* Shuffle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleShuffle}
-              className={`h-10 w-10 rounded-full hover:bg-primary-foreground/5 active:scale-90 transition-transform ${
-                shuffleOn ? "text-accent" : "text-primary-foreground/30 hover:text-primary-foreground/60"
-              }`}
-            >
-              <Shuffle className="h-4.5 w-4.5" strokeWidth={1.5} />
-            </Button>
-
             {/* Repeat */}
             <Button
               variant="ghost"
               size="icon"
               onClick={cycleRepeat}
-              className={`h-10 w-10 rounded-full hover:bg-primary-foreground/5 active:scale-90 transition-transform ${
-                repeatActive ? "text-accent" : "text-primary-foreground/30 hover:text-primary-foreground/60"
+              className={`h-11 w-11 rounded-full hover:bg-primary-foreground/10 active:scale-90 transition-transform ${
+                repeatActive ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
               }`}
             >
-              <RepeatIcon className="h-4.5 w-4.5" strokeWidth={1.5} />
+              <RepeatIcon className="h-5.5 w-5.5" strokeWidth={2} />
             </Button>
 
             {/* Favorite */}
@@ -295,7 +196,7 @@ const FullPlayer = () => {
               variant="ghost"
               size="icon"
               onClick={() => nowPlayingId && toggleFavorite(nowPlayingId)}
-              className="h-10 w-10 rounded-full hover:bg-primary-foreground/5 active:scale-90 transition-transform"
+              className="h-11 w-11 rounded-full hover:bg-primary-foreground/10 active:scale-90 transition-transform"
             >
               <AnimatePresence mode="wait">
                 <motion.div
@@ -306,10 +207,10 @@ const FullPlayer = () => {
                   transition={{ type: "spring", stiffness: 500, damping: 15 }}
                 >
                   <Heart
-                    className={`h-5 w-5 transition-colors ${
+                    className={`h-6 w-6 transition-colors ${
                       nowPlayingId && isFavorite(nowPlayingId)
                         ? "text-red-500 fill-red-500"
-                        : "text-primary-foreground/30 hover:text-primary-foreground/60"
+                        : "text-primary-foreground/50 hover:text-primary-foreground/80"
                     }`}
                   />
                 </motion.div>
@@ -321,21 +222,21 @@ const FullPlayer = () => {
               <ShareButton
                 url={getTrackShareUrl(nowPlayingId)}
                 title={`${track?.title || ""} | رنّة`}
-                className="h-10 w-10 rounded-full hover:bg-primary-foreground/5 text-primary-foreground/30 hover:text-primary-foreground/60"
+                className="h-11 w-11 rounded-full hover:bg-primary-foreground/10 text-primary-foreground/50 hover:text-primary-foreground/80"
               />
             )}
 
-            {/* Lyrics toggle */}
+            {/* Lyrics */}
             {hasLyrics && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowLyrics(!showLyrics)}
-                className={`h-10 w-10 rounded-full hover:bg-primary-foreground/5 active:scale-90 transition-transform ${
-                  showLyrics ? "text-accent" : "text-primary-foreground/30 hover:text-primary-foreground/60"
+                className={`h-11 w-11 rounded-full hover:bg-primary-foreground/10 active:scale-90 transition-transform ${
+                  showLyrics ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                 }`}
               >
-                <BookOpen className="h-4.5 w-4.5" strokeWidth={1.5} />
+                <BookOpen className="h-5.5 w-5.5" strokeWidth={2} />
               </Button>
             )}
 
@@ -345,11 +246,11 @@ const FullPlayer = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`relative h-10 w-10 rounded-full hover:bg-primary-foreground/5 active:scale-90 transition-transform ${
-                    sleepMinutes ? "text-accent" : "text-primary-foreground/30 hover:text-primary-foreground/60"
+                  className={`relative h-11 w-11 rounded-full hover:bg-primary-foreground/10 active:scale-90 transition-transform ${
+                    sleepMinutes ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                   }`}
                 >
-                  <Timer className="h-4.5 w-4.5" strokeWidth={1.5} />
+                  <Timer className="h-5.5 w-5.5" strokeWidth={2} />
                   {sleepRemaining !== null && sleepRemaining > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 bg-accent text-primary text-[8px] font-fustat font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                       {sleepRemaining}
@@ -359,24 +260,103 @@ const FullPlayer = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="font-fustat text-sm min-w-[140px]" dir="rtl">
                 {SLEEP_OPTIONS.map((opt) => (
-                  <DropdownMenuItem
-                    key={opt.minutes}
-                    onClick={() => setSleepTimer(opt.minutes)}
-                    className="cursor-pointer justify-center"
-                  >
+                  <DropdownMenuItem key={opt.minutes} onClick={() => setSleepTimer(opt.minutes)} className="cursor-pointer justify-center">
                     {opt.label}
                   </DropdownMenuItem>
                 ))}
                 {sleepMinutes && (
-                  <DropdownMenuItem
-                    onClick={() => setSleepTimer(null)}
-                    className="cursor-pointer justify-center text-destructive"
-                  >
+                  <DropdownMenuItem onClick={() => setSleepTimer(null)} className="cursor-pointer justify-center text-destructive">
                     إيقاف المؤقت
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+          </motion.div>
+
+          {/* ── Progress Bar ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+            className="px-8 pt-2 pb-2 space-y-2 shrink-0"
+          >
+            <Slider
+              dir="rtl"
+              value={[progress]}
+              onValueChange={handleSeek}
+              max={100}
+              step={0.1}
+              className="h-6 [&>span:first-child]:h-1.5 [&>span:first-child]:rounded-full [&>span:first-child]:bg-primary-foreground/15 [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:bg-accent [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-glow-accent [&>span:first-child>span]:bg-accent [&>span:first-child>span]:rounded-full"
+            />
+            <div className="flex justify-between">
+              <span className="text-[11px] text-primary-foreground/40 tabular-nums font-fustat">
+                {formatTime(currentTime)}
+              </span>
+              <span className="text-[11px] text-primary-foreground/40 tabular-nums font-fustat">
+                {formatTime(duration)}
+              </span>
+            </div>
+          </motion.div>
+
+          {/* ── Main Playback Controls ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.25 }}
+            className="flex items-center justify-center gap-4 px-8 pb-6 shrink-0"
+          >
+            {/* Skip back 15s */}
+            <button
+              onClick={skipBackward15s}
+              className="h-12 w-12 flex items-center justify-center text-primary-foreground/60 hover:text-primary-foreground active:scale-90 transition-all"
+            >
+              <Skip15Back className="h-7 w-7" />
+            </button>
+
+            {/* Previous */}
+            <button
+              onClick={() => playPrevious()}
+              disabled={!hasPrevious}
+              className="h-12 w-12 flex items-center justify-center text-primary-foreground/80 hover:text-primary-foreground active:scale-90 transition-all disabled:opacity-30"
+            >
+              <RtlSkipBack className="h-7 w-7" />
+            </button>
+
+            {/* Play/Pause */}
+            <Button
+              size="icon"
+              onClick={togglePlay}
+              className="h-[68px] w-[68px] rounded-full bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-glow-accent active:scale-90 transition-transform flex-shrink-0"
+            >
+              <AnimatePresence mode="wait">
+                {isPlaying ? (
+                  <motion.div key="pause" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
+                    <Pause className="h-8 w-8" fill="currentColor" />
+                  </motion.div>
+                ) : (
+                  <motion.div key="play" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
+                    <RtlPlay className="h-8 w-8" fill="currentColor" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Button>
+
+            {/* Next */}
+            <button
+              onClick={() => playNext()}
+              disabled={!hasNext}
+              className="h-12 w-12 flex items-center justify-center text-primary-foreground/80 hover:text-primary-foreground active:scale-90 transition-all disabled:opacity-30"
+            >
+              <RtlSkipForward className="h-7 w-7" />
+            </button>
+
+            {/* Skip forward 15s */}
+            <button
+              onClick={skipForward15s}
+              className="h-12 w-12 flex items-center justify-center text-primary-foreground/60 hover:text-primary-foreground active:scale-90 transition-all"
+            >
+              <Skip15Forward className="h-7 w-7" />
+            </button>
           </motion.div>
         </motion.div>
       )}
