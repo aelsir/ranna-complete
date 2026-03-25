@@ -169,7 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       pinned: true,
       floating: false,
       backgroundColor: isScrolled
-          ? RannaTheme.card.withValues(alpha: 0.95)
+          ? RannaTheme.card
           : Colors.transparent,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
@@ -491,7 +491,7 @@ class _HeroBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Live badge pill
-                _LiveBadge()
+                _LiveBadge(totalTracks: data.totalTracks)
                     .animate()
                     .fadeIn(duration: 600.ms)
                     .slideY(begin: 0.3, duration: 600.ms, curve: Curves.easeOut),
@@ -586,6 +586,9 @@ class _HeroBanner extends StatelessWidget {
 // =============================================================================
 
 class _LiveBadge extends StatelessWidget {
+  final int totalTracks;
+  const _LiveBadge({this.totalTracks = 0});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -632,9 +635,9 @@ class _LiveBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          const Text(
-            'استمع الآن لأكثر من ٦٠٥ مدحة',
-            style: TextStyle(
+          Text(
+            'استمع الآن لأكثر من $totalTracks مدحة',
+            style: const TextStyle(
               fontFamily: RannaTheme.fontFustat,
               color: Colors.white70,
               fontSize: 12,

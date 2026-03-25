@@ -2,13 +2,14 @@ import { useCallback } from "react";
 import { motion } from "framer-motion";
 import { Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMadhaat, useMadhaatCount } from "@/lib/api/hooks";
+import { useMadhaat, useHomePageData } from "@/lib/api/hooks";
 import { usePlayer } from "@/context/PlayerContext";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const HeroSection = () => {
   const { data: madhaat } = useMadhaat();
-  const { data: count } = useMadhaatCount();
+  const { data: homeData } = useHomePageData();
+  const count = homeData?.totalTracks;
   const { playTrack } = usePlayer();
 
   const handlePickForYou = useCallback(() => {

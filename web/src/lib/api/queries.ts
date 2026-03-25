@@ -708,42 +708,43 @@ export async function recordPlay(params: {
 // ============================================
 
 export interface HomePageData {
+  totalTracks: number;
   recentMadhaat: MadhaWithRelations[];
   popularMadhaat: MadhaWithRelations[];
-  madiheen: Madih[];
-  ruwat: Rawi[];
+  madiheen: (Madih & { track_count: number })[];
+  ruwat: (Rawi & { track_count: number })[];
   turuq: Tariqa[];
   funun: Fan[];
-  collections: (Collection & { collection_items: { madha_id: string }[] })[];
+  collections: Collection[];
 }
 
 export async function getHomePageData(): Promise<HomePageData> {
-  const [
-    recentMadhaat,
-    popularMadhaat,
-    madiheen,
-    ruwat,
-    turuq,
-    funun,
-    collections,
-  ] = await Promise.all([
-    getApprovedMadhaat({ limit: 20, orderBy: "created_at" }),
-    getTrendingTracks(7, 20),
-    getApprovedMadiheen(),
-    getApprovedRuwat(),
-    getTuruq(),
-    getFunun(),
-    getActiveCollections(),
-  ]);
+  // Single RPC call for the core home page data
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_home_data", {
+    p_limit: 20,
+  });
+
+  if (rpcError) {
+    console.error("[get_home_data] RPC error:", rpcError);
+    throw rpcError;
+  }
+
+  console.log("[get_home_data] RPC response keys:", rpcData ? Object.keys(rpcData as any) : "null", "total_tracks:", (rpcData as any)?.total_tracks);
+
+  // Turuq and funun aren't in the RPC — fetch in parallel (simple, rarely changes)
+  const [turuq, funun] = await Promise.all([getTuruq(), getFunun()]);
+
+  const homeData = rpcData as any;
 
   return {
-    recentMadhaat,
-    popularMadhaat,
-    madiheen,
-    ruwat,
+    totalTracks: homeData?.total_tracks || 0,
+    recentMadhaat: (homeData?.recent || []) as MadhaWithRelations[],
+    popularMadhaat: (homeData?.trending || []) as MadhaWithRelations[],
+    madiheen: (homeData?.artists || []) as (Madih & { track_count: number })[],
+    ruwat: (homeData?.narrators || []) as (Rawi & { track_count: number })[],
     turuq,
     funun,
-    collections,
+    collections: (homeData?.collections || []) as Collection[],
   };
 }
 
