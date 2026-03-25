@@ -87,6 +87,15 @@ pnpm stripe:listen              # Forward webhooks to local Supabase function
 pnpm stripe:fixtures            # Load test products/prices from fixtures/stripe-fixtures.json
 ```
 
+### Shared Asset Management
+
+```bash
+# From project root
+make sync        # Sync shared/icons to app/ and web/src/assets/
+make dev-web     # Sync + start web dev server
+make dev-app     # Sync + start Flutter app
+```
+
 ## Architecture
 
 ### Authentication Flow

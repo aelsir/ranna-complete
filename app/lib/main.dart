@@ -29,9 +29,19 @@ void main() async {
   // Pre-warm SharedPreferences cache so FavoritesNotifier._load() is instant
   await SharedPreferences.getInstance();
 
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    throw Exception(
+      'MISSING SUPABASE CREDENTIALS. '
+      'Please run the app with: flutter run --dart-define-from-file=env.json',
+    );
+  }
+
   await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
   );
 
   // Initialize native audio controls (lock screen, notification)

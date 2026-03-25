@@ -460,23 +460,46 @@ export function BulkUploadDialog({
 
   const handleClose = useCallback(
     (value: boolean) => {
-      if (!value && !isUploading) {
+      if (!value) {
+        // During active upload — block close entirely
+        if (isUploading) return;
+
+        // If files are queued in selection phase — confirm before closing
+        if (phase === "selection" && files.length > 0) {
+          const confirmed = window.confirm(
+            "لديك ملفات جاهزة للرفع. هل أنت متأكد من إغلاق النافذة؟ سيتم فقدان الملفات المحددة."
+          );
+          if (!confirmed) return;
+        }
+
         stopPreview();
         reset();
         onOpenChange(false);
-      } else if (!value && isUploading) {
-        // Don't close during upload
       } else {
         onOpenChange(value);
       }
     },
-    [isUploading, reset, stopPreview, onOpenChange]
+    [isUploading, phase, files.length, reset, stopPreview, onOpenChange]
   );
 
   const handleUploadMore = useCallback(() => {
     stopPreview();
     reset();
   }, [reset, stopPreview]);
+
+  // Warn before browser close/refresh when files are queued or uploading
+  useEffect(() => {
+    const hasWork = (open && files.length > 0) || isUploading;
+    if (!hasWork) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Modern browsers show a generic message; the string is ignored but required for some
+      e.returnValue = "لديك ملفات جاهزة للرفع. هل أنت متأكد؟";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [open, files.length, isUploading]);
 
   const progressPercent = totalCount > 0 ? Math.round(((completedCount + failedCount) / totalCount) * 100) : 0;
   const hasAnyOverrides = files.some((f) => Object.keys(f.overrides).length > 0);

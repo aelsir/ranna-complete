@@ -372,7 +372,48 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     order: fetchedPlaylists?.find(fp => fp.id === p.id)?.display_order ?? i,
   }));
 
-  const [newTrack, setNewTrack] = useState<Partial<ExtendedTrack>>({});
+  // ── Draft persistence for Add Track form ──
+  const DRAFT_KEY = "ranna_draft_track";
+  const DRAFT_DIALOG_KEY = "ranna_draft_dialog_open";
+
+  const [newTrack, setNewTrackRaw] = useState<Partial<ExtendedTrack>>(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Auto-open dialog if draft exists
+        setTimeout(() => {
+          setIsAddDialogOpen(true);
+          toast({ title: "تم استعادة المسودة", description: "تم استعادة بيانات المدحة السابقة تلقائيًا" });
+        }, 500);
+        return parsed;
+      }
+    } catch { /* ignore */ }
+    return {};
+  });
+
+  const setNewTrack = useCallback((value: Partial<ExtendedTrack> | ((prev: Partial<ExtendedTrack>) => Partial<ExtendedTrack>)) => {
+    setNewTrackRaw((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      // Persist to localStorage
+      try {
+        if (Object.keys(next).length > 0) {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+        } else {
+          localStorage.removeItem(DRAFT_KEY);
+        }
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const clearDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(DRAFT_DIALOG_KEY);
+    } catch { /* ignore */ }
+  }, []);
+
   const [newPlaylist, setNewPlaylist] = useState<Partial<Playlist & { selectedTrackIds: string[] }>>({});
   const [playlistTrackSearch, setPlaylistTrackSearch] = useState("");
   const [playlistArtistFilter, setPlaylistArtistFilter] = useState("");
@@ -500,6 +541,18 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
+  // Warn before browser close/refresh when Add Track form has data
+  useEffect(() => {
+    const hasData = isAddDialogOpen && Object.keys(newTrack).length > 0;
+    if (!hasData) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isAddDialogOpen, newTrack]);
+
   const activeFilterCount = [filterArtist, filterNarrator, filterTariqa, filterDateRange, filterPlayCount].filter(Boolean).length;
 
   const filteredMadhatServerSide = madhat;
@@ -593,6 +646,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         onSuccess: (madhaId) => {
           const title = newTrack.title;
           setNewTrack({});
+          clearDraft();
           setIsAddDialogOpen(false);
           toast({ title: "تمت الإضافة", description: `تمت إضافة "${title}" بنجاح — ID: ${madhaId.slice(0, 8)}` });
         },
@@ -1927,7 +1981,13 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       </Dialog>
 
       {/* Add Track Dialog — inspired by uploaded design */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        if (!open && Object.keys(newTrack).length > 0) {
+          const confirmed = window.confirm("لديك بيانات غير محفوظة. هل تريد إغلاق النافذة؟ سيتم الاحتفاظ بالمسودة.");
+          if (!confirmed) return;
+        }
+        setIsAddDialogOpen(open);
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-fustat text-xl text-center">رفع مدحة جديدة</DialogTitle>
@@ -2142,7 +2202,13 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           </div>
 
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={createMadhaMutation.isPending}>إلغاء</Button>
+            <Button variant="outline" onClick={() => {
+              if (Object.keys(newTrack).length > 0) {
+                const confirmed = window.confirm("لديك بيانات غير محفوظة. هل تريد إغلاق النافذة؟ سيتم الاحتفاظ بالمسودة.");
+                if (!confirmed) return;
+              }
+              setIsAddDialogOpen(false);
+            }} disabled={createMadhaMutation.isPending}>إلغاء</Button>
             <Button onClick={handleAddTrack} disabled={createMadhaMutation.isPending} className="gap-1.5 w-full sm:w-auto">
               <Upload className="h-3.5 w-3.5" />
               {createMadhaMutation.isPending ? "جاري الإضافة..." : "رفع المدحة"}

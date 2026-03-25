@@ -67,6 +67,8 @@ type Action =
   | { type: "RETRY_FAILED" }
   | { type: "RESET" };
 
+const STORAGE_KEY = "ranna_bulk_upload_metadata";
+
 const initialMetadata: SharedMetadata = {
   madihId: "",
   madihName: "",
@@ -77,9 +79,29 @@ const initialMetadata: SharedMetadata = {
   lyrics: "",
 };
 
+function loadSavedMetadata(): SharedMetadata {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return { ...initialMetadata, ...JSON.parse(saved) };
+  } catch { /* ignore */ }
+  return initialMetadata;
+}
+
+function saveMetadata(metadata: SharedMetadata) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(metadata));
+  } catch { /* ignore */ }
+}
+
+function clearSavedMetadata() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch { /* ignore */ }
+}
+
 const initialState: BulkUploadState = {
   files: [],
-  metadata: initialMetadata,
+  metadata: loadSavedMetadata(),
   phase: "selection",
   cancelled: false,
 };
@@ -102,8 +124,11 @@ function reducer(state: BulkUploadState, action: Action): BulkUploadState {
         ),
       };
 
-    case "SET_METADATA":
-      return { ...state, metadata: { ...state.metadata, ...action.metadata } };
+    case "SET_METADATA": {
+      const newMetadata = { ...state.metadata, ...action.metadata };
+      saveMetadata(newMetadata);
+      return { ...state, metadata: newMetadata };
+    }
 
     case "SET_FILE_OVERRIDE": {
       return {
@@ -186,7 +211,8 @@ function reducer(state: BulkUploadState, action: Action): BulkUploadState {
       };
 
     case "RESET":
-      return initialState;
+      clearSavedMetadata();
+      return { ...initialState, metadata: initialMetadata };
 
     default:
       return state;
