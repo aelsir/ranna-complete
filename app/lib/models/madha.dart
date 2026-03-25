@@ -18,6 +18,7 @@ class Madha {
   final String? tariqaId;
   final String? fanId;
   final int playCount;
+  final String? lyrics;
   final int? durationSeconds;
   final bool isFeatured;
   final String createdAt;
@@ -38,6 +39,7 @@ class Madha {
     this.tariqaId,
     this.fanId,
     required this.playCount,
+    this.lyrics,
     this.durationSeconds,
     required this.isFeatured,
     required this.createdAt,
@@ -47,8 +49,8 @@ class Madha {
   factory Madha.fromJson(Map<String, dynamic> json) {
     return Madha(
       id: json['id'] as String,
-      title: json['title'] as String,
-      madih: json['madih'] as String,
+      title: json['title'] as String? ?? '',
+      madih: json['madih'] as String? ?? '',
       writer: json['writer'] as String?,
       madihId: json['madih_id'] as String?,
       rawiId: json['rawi_id'] as String?,
@@ -60,10 +62,11 @@ class Madha {
       tariqaId: json['tariqa_id'] as String?,
       fanId: json['fan_id'] as String?,
       playCount: json['play_count'] as int? ?? 0,
+      lyrics: json['lyrics'] as String?,
       durationSeconds: json['duration_seconds'] as int?,
       isFeatured: json['is_featured'] as bool? ?? false,
-      createdAt: json['created_at'] as String,
-      updatedAt: json['updated_at'] as String,
+      createdAt: json['created_at'] as String? ?? '',
+      updatedAt: json['updated_at'] as String? ?? '',
     );
   }
 }
@@ -89,6 +92,7 @@ class MadhaWithRelations extends Madha {
     super.tariqaId,
     super.fanId,
     required super.playCount,
+    super.lyrics,
     super.durationSeconds,
     required super.isFeatured,
     required super.createdAt,
@@ -102,8 +106,8 @@ class MadhaWithRelations extends Madha {
   factory MadhaWithRelations.fromJson(Map<String, dynamic> json) {
     return MadhaWithRelations(
       id: json['id'] as String,
-      title: json['title'] as String,
-      madih: json['madih'] as String,
+      title: json['title'] as String? ?? '',
+      madih: json['madih'] as String? ?? '',
       writer: json['writer'] as String?,
       madihId: json['madih_id'] as String?,
       rawiId: json['rawi_id'] as String?,
@@ -115,10 +119,11 @@ class MadhaWithRelations extends Madha {
       tariqaId: json['tariqa_id'] as String?,
       fanId: json['fan_id'] as String?,
       playCount: json['play_count'] as int? ?? 0,
+      lyrics: json['lyrics'] as String?,
       durationSeconds: json['duration_seconds'] as int?,
       isFeatured: json['is_featured'] as bool? ?? false,
-      createdAt: json['created_at'] as String,
-      updatedAt: json['updated_at'] as String,
+      createdAt: json['created_at'] as String? ?? '',
+      updatedAt: json['updated_at'] as String? ?? '',
       madihDetails: json['madiheen'] != null
           ? Madih.fromJson(json['madiheen'] as Map<String, dynamic>)
           : null,

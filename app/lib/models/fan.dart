@@ -14,9 +14,9 @@ class Fan {
   factory Fan.fromJson(Map<String, dynamic> json) {
     return Fan(
       id: json['id'] as String,
-      name: json['name'] as String,
+      name: json['name'] as String? ?? '',
       description: json['description'] as String?,
-      createdAt: json['created_at'] as String,
+      createdAt: json['created_at'] as String? ?? '',
     );
   }
 }

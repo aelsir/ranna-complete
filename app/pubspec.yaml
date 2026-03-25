@@ -26,6 +26,9 @@ dependencies:
   # Storage
   shared_preferences: ^2.5.4
 
+  # Sharing
+  share_plus: ^10.0.0
+
   # UI
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0

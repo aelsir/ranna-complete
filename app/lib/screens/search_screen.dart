@@ -93,7 +93,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   color: RannaTheme.foreground,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'ابحث عن مدحة، مادح أو راوي...',
+                  hintText: 'ابحث عن مدحة، مادح، راوي أو كلمات...',
                   hintStyle: TextStyle(
                     fontFamily: RannaTheme.fontNotoNaskh,
                     fontSize: 16,
@@ -147,6 +147,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 _buildFilterChip('الكل', SearchFilter.all, activeFilter),
                 const SizedBox(width: 8),
                 _buildFilterChip('مدحة', SearchFilter.madha, activeFilter),
+                const SizedBox(width: 8),
+                _buildFilterChip('كلمات', SearchFilter.kalimat, activeFilter),
                 const SizedBox(width: 8),
                 _buildFilterChip('مادح', SearchFilter.madih, activeFilter),
                 const SizedBox(width: 8),
@@ -278,9 +280,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildResultsList(List<SearchResult> results) {
-    // Collect all track results for queue building
+    // Collect all track results (including lyrics matches) for queue building
     final trackResults = results
-        .where((r) => r.type == SearchResultType.madha && r.track != null)
+        .where((r) => (r.type == SearchResultType.madha || r.type == SearchResultType.kalimat) && r.track != null)
         .map((r) => r.track!)
         .toList();
 
@@ -294,6 +296,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         switch (result.type) {
           case SearchResultType.madha:
             row = _TrackSearchRow(
+              result: result,
+              index: index,
+              trackQueue: trackResults,
+            );
+          case SearchResultType.kalimat:
+            row = _LyricsSearchRow(
               result: result,
               index: index,
               trackQueue: trackResults,
@@ -350,6 +358,64 @@ class _TrackSearchRow extends ConsumerWidget {
       track: result.track!,
       index: index,
       queue: trackQueue,
+    );
+  }
+}
+
+// =============================================================================
+// Lyrics search result row (track matched by lyrics content)
+// =============================================================================
+
+class _LyricsSearchRow extends ConsumerWidget {
+  final SearchResult result;
+  final int index;
+  final List<MadhaWithRelations> trackQueue;
+
+  const _LyricsSearchRow({
+    required this.result,
+    required this.index,
+    required this.trackQueue,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (result.track == null) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TrackRow(
+          track: result.track!,
+          index: index,
+          queue: trackQueue,
+        ),
+        if (result.lyricsSnippet != null)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(42, 0, 12, 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.menu_book_rounded,
+                  size: 12,
+                  color: RannaTheme.mutedForeground.withValues(alpha: 0.4),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '«${result.lyricsSnippet}»',
+                    style: TextStyle(
+                      fontFamily: RannaTheme.fontNotoNaskh,
+                      fontSize: 11,
+                      color: RannaTheme.mutedForeground.withValues(alpha: 0.6),
+                      height: 1.6,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

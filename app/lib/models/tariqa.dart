@@ -14,9 +14,9 @@ class Tariqa {
   factory Tariqa.fromJson(Map<String, dynamic> json) {
     return Tariqa(
       id: json['id'] as String,
-      name: json['name'] as String,
+      name: json['name'] as String? ?? '',
       description: json['description'] as String?,
-      createdAt: json['created_at'] as String,
+      createdAt: json['created_at'] as String? ?? '',
     );
   }
 }

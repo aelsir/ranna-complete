@@ -8,6 +8,7 @@ import 'package:ranna/models/tariqa.dart';
 import 'package:ranna/models/fan.dart';
 import 'package:ranna/models/collection.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/utils/lyrics.dart';
 
 final supabaseProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -162,7 +163,7 @@ class HomeData {
 // Search
 // ============================================
 
-enum SearchFilter { all, madha, madih, rawi }
+enum SearchFilter { all, madha, kalimat, madih, rawi }
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
 final searchFilterProvider = StateProvider<SearchFilter>((ref) => SearchFilter.all);
@@ -176,6 +177,8 @@ class SearchResult {
   final String? imageUrl;
   // Only set for track results
   final MadhaWithRelations? track;
+  // Only set for lyrics matches
+  final String? lyricsSnippet;
 
   const SearchResult({
     required this.type,
@@ -184,10 +187,11 @@ class SearchResult {
     this.subtitle,
     this.imageUrl,
     this.track,
+    this.lyricsSnippet,
   });
 }
 
-enum SearchResultType { madha, madih, rawi }
+enum SearchResultType { madha, kalimat, madih, rawi }
 
 final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
   final query = ref.watch(searchQueryProvider);
@@ -286,6 +290,34 @@ final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
             subtitle: track.madih,
             imageUrl: track.imageUrl,
             track: track,
+          ));
+        }
+      }
+    }
+
+    // Search tracks by lyrics content
+    if (filter == SearchFilter.all || filter == SearchFilter.kalimat) {
+      final dynamic lyricsRaw = await supabase
+          .from('madha')
+          .select()
+          .eq('status', 'approved')
+          .ilike('lyrics', '%$query%')
+          .order('play_count', ascending: false)
+          .limit(30);
+      final lyricsList = _asList(lyricsRaw);
+      final existingIds = results.map((r) => r.id).toSet();
+      for (final t in lyricsList) {
+        final track = MadhaWithRelations.fromJson(t);
+        if (!existingIds.contains(track.id)) {
+          final snippet = extractLyricsSnippet(track.lyrics, query);
+          results.add(SearchResult(
+            type: SearchResultType.kalimat,
+            id: track.id,
+            name: track.title,
+            subtitle: track.madih,
+            imageUrl: track.imageUrl,
+            track: track,
+            lyricsSnippet: snippet,
           ));
         }
       }

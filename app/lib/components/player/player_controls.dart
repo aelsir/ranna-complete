@@ -56,8 +56,8 @@ class PlayerControls extends ConsumerWidget {
         GestureDetector(
           onTap: () => notifier.togglePlay(),
           child: Container(
-            width: 64,
-            height: 64,
+            width: 70,
+            height: 70,
             decoration: BoxDecoration(
               color: RannaTheme.primaryForeground,
               shape: BoxShape.circle,
@@ -67,7 +67,7 @@ class PlayerControls extends ConsumerWidget {
               child: Icon(
                 isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 color: RannaTheme.primary,
-                size: 36,
+                size: 40,
               ),
             ),
           ),

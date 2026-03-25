@@ -22,13 +22,13 @@ class MusicCollection {
   factory MusicCollection.fromJson(Map<String, dynamic> json) {
     return MusicCollection(
       id: json['id'] as String,
-      name: json['name'] as String,
+      name: json['name'] as String? ?? '',
       nameEn: json['name_en'] as String?,
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
       isActive: json['is_active'] as bool? ?? true,
       displayOrder: json['display_order'] as int? ?? 0,
-      createdAt: json['created_at'] as String,
+      createdAt: json['created_at'] as String? ?? '',
     );
   }
 }

@@ -22,13 +22,13 @@ class Rawi {
   factory Rawi.fromJson(Map<String, dynamic> json) {
     return Rawi(
       id: json['id'] as String,
-      name: json['name'] as String,
-      status: json['status'] as String,
+      name: json['name'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
       bio: json['bio'] as String?,
       imageUrl: json['image_url'] as String?,
       birthYear: json['birth_year'] as int?,
       deathYear: json['death_year'] as int?,
-      createdAt: json['created_at'] as String,
+      createdAt: json['created_at'] as String? ?? '',
     );
   }
 }

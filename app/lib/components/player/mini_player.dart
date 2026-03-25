@@ -1,17 +1,19 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:ranna/components/common/ranna_image.dart';
+import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
-import 'package:ranna/utils/format.dart';
+import 'package:ranna/utils/share.dart';
 
-/// A floating mini player bar with glass-dark styling.
+/// Redesigned mini player bar:
 ///
-/// Positioned by its parent (no [Positioned] here). Shows the current track
-/// with cover art, title, seek slider, and prev/play/next controls.
+///   [Love] [Share] [Lyrics?]  |  Title / Artist  |  [Play/Pause with circular progress]
 ///
-/// Renders [SizedBox.shrink] when no track is loaded.
+/// No cover art, no slider, no skip buttons.
+/// Circular progress ring around play/pause shows track progress.
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
 
@@ -22,11 +24,10 @@ class MiniPlayer extends ConsumerWidget {
     if (track == null) return const SizedBox.shrink();
 
     final isPlaying = ref.watch(isPlayingProvider);
-    final position = ref.watch(audioPlayerProvider.select((s) => s.position));
-    final duration = ref.watch(audioPlayerProvider.select((s) => s.duration));
-    final hasPrevious = ref.watch(audioPlayerProvider.select((s) => s.hasPrevious));
-    final hasNext = ref.watch(audioPlayerProvider.select((s) => s.hasNext));
+    final progress = ref.watch(audioPlayerProvider.select((s) => s.progress));
     final notifier = ref.read(audioPlayerProvider.notifier);
+    final isFav = ref.watch(favoritesProvider.select((s) => s.contains(track.id)));
+    final hasLyrics = track.lyrics != null && track.lyrics!.isNotEmpty;
 
     return GestureDetector(
       onTap: () => notifier.openFullPlayer(),
@@ -41,220 +42,194 @@ class MiniPlayer extends ConsumerWidget {
           boxShadow: RannaTheme.shadowFloat,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                // --- Cover art with coral glow ---
-                GestureDetector(
-                  onTap: () => notifier.openFullPlayer(),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Coral glow behind
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
-                            boxShadow: [
-                              BoxShadow(
-                                color: RannaTheme.accent.withValues(alpha: 0.20),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              // --- Left: Action buttons (love, share, lyrics) ---
+              _MiniActionButton(
+                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isFav
+                    ? RannaTheme.accent
+                    : RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                onTap: () {
+                  ref.read(favoritesProvider.notifier).toggle(track.id);
+                },
+              ),
+              _MiniActionButton(
+                icon: Icons.ios_share_rounded,
+                color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                onTap: () {
+                  shareTrack(
+                    trackId: track.id,
+                    title: track.title,
+                    artistName: track.madihDetails?.name ?? track.madih,
+                  );
+                },
+              ),
+              if (hasLyrics)
+                _MiniActionButton(
+                  icon: Icons.menu_book_rounded,
+                  color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                  onTap: () {
+                    // Open full player and request lyrics view
+                    notifier.openFullPlayer();
+                  },
+                ),
+
+              const SizedBox(width: 8),
+
+              // --- Center: Track title + artist ---
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      track.title,
+                      style: const TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                      // Cover image
-                      RannaImage(
-                        url: track.imageUrl ?? track.madihDetails?.imageUrl,
-                        width: 44,
-                        height: 44,
-                        borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
-                        fallbackWidget: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topRight,
-                              end: Alignment.bottomLeft,
-                              colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.music_note_rounded,
-                            color: Colors.white54,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      track.madihDetails?.name ?? track.madih,
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.50),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // --- Right: Play/Pause with circular progress ---
+              GestureDetector(
+                onTap: () => notifier.togglePlay(),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CustomPaint(
+                    painter: _CircularProgressPainter(
+                      progress: progress,
+                      progressColor: RannaTheme.accent,
+                      trackColor: RannaTheme.primaryForeground.withValues(alpha: 0.10),
+                      strokeWidth: 2.5,
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            color: RannaTheme.primary,
                             size: 22,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                // --- Center section: title + slider + time ---
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Title
-                      Text(
-                        track.title,
-                        style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      // Seek slider
-                      SizedBox(
-                        height: 14,
-                        child: SliderTheme(
-                          data: SliderThemeData(
-                            trackHeight: 4,
-                            trackShape: const RoundedRectSliderTrackShape(),
-                            activeTrackColor: RannaTheme.accent,
-                            inactiveTrackColor:
-                                RannaTheme.primaryForeground.withValues(alpha: 0.15),
-                            thumbColor: RannaTheme.accent,
-                            thumbShape:
-                                const RoundSliderThumbShape(enabledThumbRadius: 7),
-                            overlayShape:
-                                const RoundSliderOverlayShape(overlayRadius: 14),
-                            overlayColor: RannaTheme.accent.withValues(alpha: 0.12),
-                          ),
-                          child: Slider(
-                            value: position.inSeconds
-                                .toDouble()
-                                .clamp(
-                                  0,
-                                  duration.inSeconds
-                                      .toDouble()
-                                      .clamp(0, double.infinity),
-                                ),
-                            min: 0,
-                            max: duration.inSeconds > 0
-                                ? duration.inSeconds.toDouble()
-                                : 1,
-                            onChanged: (value) {
-                              notifier.seekTo(Duration(seconds: value.toInt()));
-                            },
-                          ),
-                        ),
-                      ),
-
-                      // Current time
-                      Text(
-                        formatDuration(position.inSeconds),
-                        style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                          fontSize: 10,
-                          color:
-                              RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                // --- Controls (RTL-aware: next on right, prev on left) ---
-                // Next
-                _MiniControlButton(
-                  icon: Icons.skip_next_rounded,
-                  size: 32,
-                  iconColor:
-                      RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: hasNext
-                      ? () => notifier.playNext()
-                      : null,
-                  flipHorizontally: true,
-                ),
-
-                // Play/Pause
-                GestureDetector(
-                  onTap: () => notifier.togglePlay(),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: RannaTheme.primaryForeground,
-                      shape: BoxShape.circle,
-                      boxShadow: RannaTheme.shadowMd,
-                    ),
-                    child: Icon(
-                      isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      color: RannaTheme.primary,
-                      size: 24,
                     ),
                   ),
                 ),
-
-                // Previous
-                _MiniControlButton(
-                  icon: Icons.skip_previous_rounded,
-                  size: 32,
-                  iconColor:
-                      RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: hasPrevious
-                      ? () => notifier.playPrevious()
-                      : null,
-                  flipHorizontally: true,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }
 
-/// Ghost-style icon button used in the mini player controls.
-class _MiniControlButton extends StatelessWidget {
+/// Small action button (love, share, lyrics) in the mini player.
+class _MiniActionButton extends StatelessWidget {
   final IconData icon;
-  final double size;
-  final Color iconColor;
-  final VoidCallback? onTap;
-  final bool flipHorizontally;
+  final Color color;
+  final VoidCallback onTap;
 
-  const _MiniControlButton({
+  const _MiniActionButton({
     required this.icon,
-    required this.size,
-    required this.iconColor,
-    this.onTap,
-    this.flipHorizontally = false,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget iconWidget = Icon(
-      icon,
-      size: size * 0.65,
-      color: onTap != null
-          ? iconColor
-          : iconColor.withValues(alpha: 0.25),
-    );
-
-    if (flipHorizontally) {
-      iconWidget = Transform.flip(flipX: true, child: iconWidget);
-    }
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: size,
-        height: size,
-        child: Center(child: iconWidget),
+        width: 36,
+        height: 36,
+        child: Center(
+          child: Icon(icon, size: 22, color: color),
+        ),
       ),
     );
+  }
+}
+
+/// Paints a circular progress arc around the play/pause button.
+class _CircularProgressPainter extends CustomPainter {
+  final double progress; // 0.0 to 1.0
+  final Color progressColor;
+  final Color trackColor;
+  final double strokeWidth;
+
+  _CircularProgressPainter({
+    required this.progress,
+    required this.progressColor,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (math.min(size.width, size.height) / 2) - strokeWidth;
+
+    // Background track
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, trackPaint);
+
+    // Progress arc
+    if (progress > 0) {
+      final progressPaint = Paint()
+        ..color = progressColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2, // Start from top
+        2 * math.pi * progress,
+        false,
+        progressPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CircularProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

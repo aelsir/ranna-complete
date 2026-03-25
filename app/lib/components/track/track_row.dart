@@ -143,9 +143,20 @@ class TrackRow extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
 
-                // 4. Duration
+                // 4. Lyrics indicator
+                if (track.lyrics != null && track.lyrics!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 4),
+                    child: Icon(
+                      Icons.menu_book_rounded,
+                      size: 13,
+                      color: RannaTheme.mutedForeground.withValues(alpha: 0.3),
+                    ),
+                  ),
+
+                // 5. Duration
                 Text(
                   formatDuration(track.durationSeconds),
                   style: TextStyle(
