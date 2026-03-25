@@ -1,19 +1,37 @@
-SHARED_ICONS := shared/icons
-APP_ICONS    := app/assets/icons
-WEB_ICONS    := web/src/assets/icons
+SHARED_DIR := $(CURDIR)/shared
+APP_ASSETS := $(CURDIR)/app/assets
+WEB_ASSETS := $(CURDIR)/web/src/assets
+
+# List of asset directories to link
+ASSET_DIRS := icons images fonts
 
 .PHONY: sync dev-web dev-app
 
-## Sync shared icons to app and web
+## Ensure symlinks for shared assets exist in app and web
 sync:
-	@mkdir -p $(APP_ICONS) $(WEB_ICONS)
-	@[ "$$(ls -A $(SHARED_ICONS) 2>/dev/null)" ] && cp -R $(SHARED_ICONS)/. $(APP_ICONS)/ && cp -R $(SHARED_ICONS)/. $(WEB_ICONS)/ || true
-	@echo "✅ Icons synced"
+	@for dir in $(ASSET_DIRS); do \
+		mkdir -p $(SHARED_DIR)/$$dir; \
+		if [ -d $(APP_ASSETS)/$$dir ] && [ ! -L $(APP_ASSETS)/$$dir ]; then \
+			rm -rf $(APP_ASSETS)/$$dir; \
+		fi; \
+		if [ ! -L $(APP_ASSETS)/$$dir ]; then \
+			ln -s $(SHARED_DIR)/$$dir $(APP_ASSETS)/$$dir; \
+			echo "🔗 Linked $(APP_ASSETS)/$$dir"; \
+		fi; \
+		if [ -d $(WEB_ASSETS)/$$dir ] && [ ! -L $(WEB_ASSETS)/$$dir ]; then \
+			rm -rf $(WEB_ASSETS)/$$dir; \
+		fi; \
+		if [ ! -L $(WEB_ASSETS)/$$dir ]; then \
+			ln -s $(SHARED_DIR)/$$dir $(WEB_ASSETS)/$$dir; \
+			echo "🔗 Linked $(WEB_ASSETS)/$$dir"; \
+		fi; \
+	done
+	@echo "✅ Assets are automatically synced via symlinks"
 
-## Start the web app (syncs icons first)
+## Start the web app (ensures links first)
 dev-web: sync
 	cd web && npm run dev
 
-## Start the Flutter app (syncs icons first)
+## Start the Flutter app (ensures links first)
 dev-app: sync
 	cd app && flutter run --dart-define-from-file=env.json
