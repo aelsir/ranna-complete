@@ -9,6 +9,7 @@ class Madih {
   final bool isVerified;
   final String? tariqaId;
   final String createdAt;
+  final int trackCount;
 
   const Madih({
     required this.id,
@@ -21,6 +22,7 @@ class Madih {
     required this.isVerified,
     this.tariqaId,
     required this.createdAt,
+    this.trackCount = 0,
   });
 
   factory Madih.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class Madih {
       isVerified: json['is_verified'] as bool? ?? false,
       tariqaId: json['tariqa_id'] as String?,
       createdAt: json['created_at'] as String? ?? '',
+      trackCount: json['track_count'] as int? ?? 0,
     );
   }
 }

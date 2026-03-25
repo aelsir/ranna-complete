@@ -321,14 +321,30 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     }
   }
 
-  /// Logs a play event to Supabase for trending calculations.
+  /// Logs a play event to Supabase for trending calculations,
+  /// increments play_count, and records listening history.
   void _logPlayEvent(String trackId) {
     try {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
+
+      // 1. Log play event (trending analytics)
       final data = <String, dynamic>{'madha_id': trackId};
       if (userId != null) data['user_id'] = userId;
       supabase.from('play_events').insert(data).then((_) {}).catchError((_) {});
+
+      // 2. Increment play_count on the track
+      supabase.rpc('increment_play_count', params: {'p_madha_id': trackId})
+          .then((_) {}).catchError((_) {});
+
+      // 3. Record listening history (if authenticated)
+      if (userId != null) {
+        supabase.from('listening_history').upsert({
+          'user_id': userId,
+          'madha_id': trackId,
+          'listened_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'user_id,madha_id').then((_) {}).catchError((_) {});
+      }
     } catch (_) {
       // Non-critical — don't interrupt playback
     }

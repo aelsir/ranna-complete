@@ -40,17 +40,8 @@ export async function getApprovedMadhaat(options?: {
   } = options || {};
 
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*),
-      turuq:tariqa_id (*),
-      funun:fan_id (*)
-    `
-    )
-    .eq("status", "approved")
+    .from("v_tracks")
+    .select("*")
     .order(orderBy, { ascending })
     .range(offset, offset + limit - 1);
 
@@ -60,9 +51,8 @@ export async function getApprovedMadhaat(options?: {
 
 export async function getApprovedMadhaatCount(): Promise<number> {
   const { count, error } = await supabase
-    .from("madha")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "approved");
+    .from("v_tracks")
+    .select("*", { count: "exact", head: true });
 
   if (error) throw error;
   return count || 0;
@@ -117,17 +107,8 @@ export async function getAdminMadhaat(options?: {
   const offset = (page - 1) * limit;
 
   let query = supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*),
-      turuq:tariqa_id (*),
-      funun:fan_id (*)
-    `,
-      { count: "exact" }
-    );
+    .from("v_tracks_admin")
+    .select("*", { count: "exact" });
 
   if (statusMode === "approved") {
     query = query.eq("status", "approved");
@@ -163,16 +144,8 @@ export async function getMadhaById(
   id: string
 ): Promise<MadhaWithRelations | null> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*),
-      turuq:tariqa_id (*),
-      funun:fan_id (*)
-    `
-    )
+    .from("v_tracks")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -186,18 +159,9 @@ export async function getMadhaatByIds(
   if (!ids.length) return [];
 
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*),
-      turuq:tariqa_id (*),
-      funun:fan_id (*)
-    `
-    )
-    .in("id", ids)
-    .eq("status", "approved");
+    .from("v_tracks")
+    .select("*")
+    .in("id", ids);
 
   if (error) throw error;
   return (data as unknown as MadhaWithRelations[]) || [];
@@ -207,16 +171,9 @@ export async function getMadhaatByMadih(
   madihId: string
 ): Promise<MadhaWithRelations[]> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
+    .from("v_tracks")
+    .select("*")
     .eq("madih_id", madihId)
-    .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -227,16 +184,9 @@ export async function getMadhaatByRawi(
   rawiId: string
 ): Promise<MadhaWithRelations[]> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
+    .from("v_tracks")
+    .select("*")
     .eq("rawi_id", rawiId)
-    .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -247,16 +197,9 @@ export async function getMadhaatByTariqa(
   tariqaId: string
 ): Promise<MadhaWithRelations[]> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
+    .from("v_tracks")
+    .select("*")
     .eq("tariqa_id", tariqaId)
-    .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -267,16 +210,9 @@ export async function getMadhaatByFan(
   fanId: string
 ): Promise<MadhaWithRelations[]> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
+    .from("v_tracks")
+    .select("*")
     .eq("fan_id", fanId)
-    .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -286,19 +222,12 @@ export async function getMadhaatByFan(
 export async function searchMadhaat(query: string): Promise<Madha[]> {
   if (!query.trim()) return [];
 
-  // Normalise Arabic for loose matching (أ/إ/آ→ا, ة→ه, etc.)
+  // Use v_tracks view for search with pre-joined data
   const normalized = normalizeArabic(query);
 
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
-    .eq("status", "approved")
+    .from("v_tracks")
+    .select("*")
     .or(
       `title.ilike.%${normalized}%,madih.ilike.%${normalized}%,writer.ilike.%${normalized}%,lyrics.ilike.%${normalized}%,title.ilike.%${query}%,madih.ilike.%${query}%,writer.ilike.%${query}%,lyrics.ilike.%${query}%`
     )
@@ -311,15 +240,8 @@ export async function searchMadhaat(query: string): Promise<Madha[]> {
 
 export async function getFeaturedMadhaat(): Promise<MadhaWithRelations[]> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
-    .eq("status", "approved")
+    .from("v_tracks")
+    .select("*")
     .eq("is_featured", true)
     .order("created_at", { ascending: false });
 
@@ -331,15 +253,8 @@ export async function getPopularMadhaat(
   limit = 20
 ): Promise<MadhaWithRelations[]> {
   const { data, error } = await supabase
-    .from("madha")
-    .select(
-      `
-      *,
-      madiheen:madih_id (*),
-      ruwat:rawi_id (*)
-    `
-    )
-    .eq("status", "approved")
+    .from("v_tracks")
+    .select("*")
     .order("play_count", { ascending: false })
     .limit(limit);
 
@@ -362,16 +277,16 @@ export async function getTrendingTracks(
 
   if (error) throw error;
 
-  // The RPC returns raw madha rows — enrich with relations
+  // The RPC returns raw madha rows — enrich via v_tracks view
   if (data && data.length > 0) {
     const ids = (data as { id: string }[]).map((r) => r.id);
     const { data: enriched, error: enrichErr } = await supabase
-      .from("madha")
-      .select(`*, madiheen:madih_id (*), ruwat:rawi_id (*)`)
+      .from("v_tracks")
+      .select("*")
       .in("id", ids);
     if (!enrichErr && enriched) {
       // Preserve the trending order from the RPC
-      const byId = new Map(enriched.map((r) => [r.id, r]));
+      const byId = new Map(enriched.map((r: any) => [r.id, r]));
       return ids
         .map((id) => byId.get(id))
         .filter(Boolean) as unknown as MadhaWithRelations[];
@@ -400,77 +315,36 @@ export async function logPlayEvent(madhaId: string): Promise<void> {
 
 export async function getApprovedMadiheen(): Promise<(Madih & { track_count: number })[]> {
   const { data, error } = await supabase
-    .from("madiheen")
-    .select(`
-      *,
-      madha:madha!madih_id(count)
-    `)
-    .eq("status", "approved")
-    .eq("madha.status", "approved")
+    .from("v_artists")
+    .select("*")
     .order("name");
 
   if (error) throw error;
-  return (data as any[]).map(d => ({
-    ...d,
-    track_count: d.madha?.[0]?.count || 0
-  }));
+  return (data as unknown as (Madih & { track_count: number })[]) || [];
 }
 
-/** Get only madiheen who have at least one approved madha, sorted by total play count */
+/** Get only madiheen who have at least one approved madha, sorted by track count */
 export async function getMadiheenWithMadhaat(limit = 10): Promise<Madih[]> {
-  // Get madih_id + play_count from approved madhaat
-  const { data: madhat, error: madhatError } = await supabase
-    .from("madha")
-    .select("madih_id, play_count")
-    .eq("status", "approved")
-    .not("madih_id", "is", null);
-
-  if (madhatError) throw madhatError;
-
-  // Aggregate total play_count per madih
-  const playCountMap = new Map<string, number>();
-  for (const m of madhat || []) {
-    if (!m.madih_id) continue;
-    playCountMap.set(m.madih_id, (playCountMap.get(m.madih_id) || 0) + (m.play_count || 0));
-  }
-
-  // Sort by total play count descending
-  const sortedIds = [...playCountMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([id]) => id);
-
-  if (sortedIds.length === 0) return [];
-
-  // Prevent URI Too Long error by limiting the array
-  const safeIds = sortedIds.slice(0, 50);
-
   const { data, error } = await supabase
-    .from("madiheen")
+    .from("v_artists")
     .select("*")
-    .eq("status", "approved")
-    .in("id", safeIds);
+    .gt("track_count", 0)
+    .order("track_count", { ascending: false })
+    .limit(limit);
 
   if (error) throw error;
-
-  // Reorder by popularity (Supabase .in() doesn't preserve order)
-  const byId = new Map((data || []).map((d) => [d.id, d]));
-  const ordered = safeIds
-    .filter((id) => byId.has(id))
-    .map((id) => byId.get(id)!)
-    .slice(0, limit);
-
-  return ordered;
+  return (data as unknown as Madih[]) || [];
 }
 
-export async function getMadihById(id: string): Promise<Madih | null> {
+export async function getMadihById(id: string): Promise<(Madih & { track_count: number }) | null> {
   const { data, error } = await supabase
-    .from("madiheen")
+    .from("v_artists")
     .select("*")
     .eq("id", id)
     .single();
 
   if (error) throw error;
-  return data;
+  return data as unknown as (Madih & { track_count: number });
 }
 
 // ============================================
@@ -479,77 +353,36 @@ export async function getMadihById(id: string): Promise<Madih | null> {
 
 export async function getApprovedRuwat(): Promise<(Rawi & { track_count: number })[]> {
   const { data, error } = await supabase
-    .from("ruwat")
-    .select(`
-      *,
-      madha:madha!rawi_id(count)
-    `)
-    .eq("status", "approved")
-    .eq("madha.status", "approved")
+    .from("v_narrators")
+    .select("*")
     .order("name");
 
   if (error) throw error;
-  return (data as any[]).map(d => ({
-    ...d,
-    track_count: d.madha?.[0]?.count || 0
-  }));
+  return (data as unknown as (Rawi & { track_count: number })[]) || [];
 }
 
-/** Get only ruwat who have at least one approved madha, sorted by total play count */
+/** Get only ruwat who have at least one approved madha, sorted by track count */
 export async function getRuwatWithMadhaat(limit = 10): Promise<Rawi[]> {
-  // Get rawi_id + play_count from approved madhaat
-  const { data: madhat, error: madhatError } = await supabase
-    .from("madha")
-    .select("rawi_id, play_count")
-    .eq("status", "approved")
-    .not("rawi_id", "is", null);
-
-  if (madhatError) throw madhatError;
-
-  // Aggregate total play_count per rawi
-  const playCountMap = new Map<string, number>();
-  for (const m of madhat || []) {
-    if (!m.rawi_id) continue;
-    playCountMap.set(m.rawi_id, (playCountMap.get(m.rawi_id) || 0) + (m.play_count || 0));
-  }
-
-  // Sort by total play count descending
-  const sortedIds = [...playCountMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([id]) => id);
-
-  if (sortedIds.length === 0) return [];
-
-  // Prevent URI Too Long error by limiting the array
-  const safeIds = sortedIds.slice(0, 50);
-
   const { data, error } = await supabase
-    .from("ruwat")
+    .from("v_narrators")
     .select("*")
-    .eq("status", "approved")
-    .in("id", safeIds);
+    .gt("track_count", 0)
+    .order("track_count", { ascending: false })
+    .limit(limit);
 
   if (error) throw error;
-
-  // Reorder by popularity (Supabase .in() doesn't preserve order)
-  const byId = new Map((data || []).map((d) => [d.id, d]));
-  const ordered = safeIds
-    .filter((id) => byId.has(id))
-    .map((id) => byId.get(id)!)
-    .slice(0, limit);
-
-  return ordered;
+  return (data as unknown as Rawi[]) || [];
 }
 
-export async function getRawiById(id: string): Promise<Rawi | null> {
+export async function getRawiById(id: string): Promise<(Rawi & { track_count: number }) | null> {
   const { data, error } = await supabase
-    .from("ruwat")
+    .from("v_narrators")
     .select("*")
     .eq("id", id)
     .single();
 
   if (error) throw error;
-  return data;
+  return data as unknown as (Rawi & { track_count: number });
 }
 
 export async function createMadih(
@@ -678,7 +511,9 @@ export async function getFanById(id: string): Promise<Fan | null> {
 // Collections (playlists)
 // ============================================
 
-export async function getActiveCollections(): Promise<(Collection & { collection_items: { madha_id: string }[] })[]> {
+export async function getActiveCollections(): Promise<(Collection & { item_count: number; collection_items: { madha_id: string }[] })[]> {
+  // Use v_collections for the item_count, but still fetch collection_items for the madha_ids
+  // (admin pages and home page need the track IDs for display)
   const { data, error } = await supabase
     .from("collections")
     .select("*, collection_items(madha_id)")
@@ -686,7 +521,7 @@ export async function getActiveCollections(): Promise<(Collection & { collection
     .order("display_order");
 
   if (error) throw error;
-  return (data as unknown as (Collection & { collection_items: { madha_id: string }[] })[]) || [];
+  return (data as unknown as (Collection & { item_count: number; collection_items: { madha_id: string }[] })[]) || [];
 }
 
 export async function getAdminCollections(): Promise<(Collection & { collection_items: { madha_id: string }[] })[]> {
@@ -715,27 +550,12 @@ export async function getCollectionById(
 export async function getCollectionItems(
   collectionId: string
 ): Promise<MadhaWithRelations[]> {
-  const { data, error } = await supabase
-    .from("collection_items")
-    .select(
-      `
-      position,
-      madha:madha_id (
-        *,
-        madiheen:madih_id (*),
-        ruwat:rawi_id (*)
-      )
-    `
-    )
-    .eq("collection_id", collectionId)
-    .order("position");
+  const { data, error } = await supabase.rpc("get_collection_tracks", {
+    p_collection_id: collectionId,
+  });
 
   if (error) throw error;
-  return (
-    (data
-      ?.map((item) => item.madha)
-      .filter(Boolean) as unknown as MadhaWithRelations[]) || []
-  );
+  return (data as unknown as MadhaWithRelations[]) || [];
 }
 
 // ============================================
@@ -757,26 +577,22 @@ export async function getUserFavoriteIds(
 export async function getUserFavorites(
   userId: string
 ): Promise<MadhaWithRelations[]> {
+  // Get favorite track IDs first, then fetch from v_tracks
+  const ids = await getUserFavoriteIds(userId);
+  if (!ids.length) return [];
+
   const { data, error } = await supabase
-    .from("user_favorites")
-    .select(
-      `
-      madha:madha_id (
-        *,
-        madiheen:madih_id (*),
-        ruwat:rawi_id (*)
-      )
-    `
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .from("v_tracks")
+    .select("*")
+    .in("id", ids);
 
   if (error) throw error;
-  return (
-    (data
-      ?.map((f) => f.madha)
-      .filter(Boolean) as unknown as MadhaWithRelations[]) || []
-  );
+
+  // Preserve favorites order (most recent first)
+  const byId = new Map((data || []).map((d: any) => [d.id, d]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean) as unknown as MadhaWithRelations[];
 }
 
 export async function toggleFavorite(
@@ -816,28 +632,30 @@ const MAX_HISTORY_ITEMS = 10;
 export async function getListeningHistory(
   userId: string
 ): Promise<MadhaWithRelations[]> {
-  const { data, error } = await supabase
+  // Get history IDs in order, then fetch from v_tracks
+  const { data: historyData, error: historyError } = await supabase
     .from("listening_history")
-    .select(
-      `
-      listened_at,
-      madha:madha_id (
-        *,
-        madiheen:madih_id (*),
-        ruwat:rawi_id (*)
-      )
-    `
-    )
+    .select("madha_id")
     .eq("user_id", userId)
     .order("listened_at", { ascending: false })
     .limit(MAX_HISTORY_ITEMS);
 
+  if (historyError) throw historyError;
+  const ids = historyData?.map((h) => h.madha_id) || [];
+  if (!ids.length) return [];
+
+  const { data, error } = await supabase
+    .from("v_tracks")
+    .select("*")
+    .in("id", ids);
+
   if (error) throw error;
-  return (
-    (data
-      ?.map((item) => item.madha)
-      .filter(Boolean) as unknown as MadhaWithRelations[]) || []
-  );
+
+  // Preserve history order
+  const byId = new Map((data || []).map((d: any) => [d.id, d]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean) as unknown as MadhaWithRelations[];
 }
 
 export async function addToListeningHistory(
@@ -878,10 +696,10 @@ export async function recordPlay(params: {
   if (error) throw error;
 
   // Increment play_count on madha
-  await supabase.rpc("increment_play_count" as never, {
-    madha_id: params.madhaId,
-  } as never).then(() => {
-    // If RPC doesn't exist yet, silently ignore
+  await supabase.rpc("increment_play_count", {
+    p_madha_id: params.madhaId,
+  } as any).catch(() => {
+    // Silently ignore if RPC fails
   });
 }
 

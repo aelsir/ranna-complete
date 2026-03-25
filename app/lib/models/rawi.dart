@@ -7,6 +7,7 @@ class Rawi {
   final int? birthYear;
   final int? deathYear;
   final String createdAt;
+  final int trackCount;
 
   const Rawi({
     required this.id,
@@ -17,6 +18,7 @@ class Rawi {
     this.birthYear,
     this.deathYear,
     required this.createdAt,
+    this.trackCount = 0,
   });
 
   factory Rawi.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Rawi {
       birthYear: json['birth_year'] as int?,
       deathYear: json['death_year'] as int?,
       createdAt: json['created_at'] as String? ?? '',
+      trackCount: json['track_count'] as int? ?? 0,
     );
   }
 }
