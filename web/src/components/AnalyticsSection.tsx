@@ -6,7 +6,7 @@ import {
 import { 
   BarChart3, Users, Music, CheckCircle2, AlertCircle, 
   ArrowUpRight, ArrowDownRight, Headphones, Activity,
-  Globe, Layout, Share2, Clock
+  Globe, Layout, Share, Clock
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -216,7 +216,7 @@ const AnalyticsSection = () => {
         
         <Card className="border-border/40 shadow-sm border-dashed bg-muted/5">
           <CardContent className="h-40 flex flex-col items-center justify-center text-center p-6">
-            <Share2 className="h-8 w-8 text-muted-foreground mb-3 opacity-20" />
+            <Share className="h-8 w-8 text-muted-foreground mb-3 opacity-20" />
             <h4 className="text-sm font-fustat font-bold text-muted-foreground/40 text-center">الإحالات ومصادر الزيارات</h4>
             <p className="text-[10px] text-muted-foreground/30 mt-1 uppercase tracking-widest font-fustat">Coming Soon in V3</p>
           </CardContent>

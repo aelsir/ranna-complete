@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, Heart, Pause, Shuffle, Repeat, Repeat1, Timer, BookOpen } from "lucide-react";
+import { ChevronDown, Heart, Pause, Shuffle, Repeat, Repeat1, Timer, BookOpenText } from "lucide-react";
 import { RtlPlay, RtlSkipBack, RtlSkipForward } from "@/components/icons/rtl-icons";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -214,7 +214,7 @@ const FullPlayer = () => {
                   transition={{ type: "spring", stiffness: 500, damping: 15 }}
                 >
                   <Heart
-                    className={`h-6 w-6 transition-colors ${
+                    className={`h-5.5 w-5.5 transition-colors ${
                       nowPlayingId && isFavorite(nowPlayingId)
                         ? "text-red-500 fill-red-500"
                         : "text-primary-foreground/50 hover:text-primary-foreground/80"
@@ -243,7 +243,7 @@ const FullPlayer = () => {
                   showLyrics ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                 }`}
               >
-                <BookOpen className="h-5.5 w-5.5" strokeWidth={2} />
+                <BookOpenText className="h-5.5 w-5.5" strokeWidth={2} />
               </Button>
             )}
 

@@ -1,4 +1,4 @@
-import { Heart, BookOpen } from "lucide-react";
+import { Heart, BookOpenText } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
@@ -71,7 +71,7 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
         </p>
       </div>
       {track.lyrics && (
-        <BookOpen className="h-3 w-3 text-muted-foreground/30 flex-shrink-0" strokeWidth={1.5} />
+        <BookOpenText className="h-3.5 w-3.5 text-muted-foreground/30 flex-shrink-0" strokeWidth={1.5} />
       )}
       {duration && (
         <span className="text-[11px] text-muted-foreground/50 flex-shrink-0 tabular-nums">{duration}</span>
@@ -93,7 +93,7 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
             transition={{ type: "spring", stiffness: 500, damping: 15 }}
           >
             <Heart
-              className={`h-4 w-4 transition-colors ${
+              className={`h-3.5 w-3.5 transition-colors ${
                 isFavorite(track.id)
                   ? "text-red-500 fill-red-500"
                   : "text-muted-foreground/30 group-hover:text-muted-foreground/60"

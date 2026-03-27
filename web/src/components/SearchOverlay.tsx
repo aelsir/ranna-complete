@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, X, Mic, BookOpen } from "lucide-react";
+import { Search, X, Mic, BookOpenText } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,7 @@ const allData: SearchResult[] = [
 const typeIcon: Record<ResultType, React.ReactNode> = {
   مدحة: <RtlPlay className="h-3 w-3" />,
   مادح: <Mic className="h-3 w-3" />,
-  راوي: <BookOpen className="h-3 w-3" />,
+  راوي: <BookOpenText className="h-3 w-3" />,
 };
 
 interface SearchOverlayProps {

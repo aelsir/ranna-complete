@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Heart, Pause, BookOpen } from "lucide-react";
+import { Heart, Pause, BookOpenText } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
@@ -201,7 +201,7 @@ const MiniPlayer = () => {
                     }}
                     className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
                   >
-                    <BookOpen className="h-4.5 w-4.5 text-primary-foreground/40 hover:text-primary-foreground/70" strokeWidth={1.5} />
+                    <BookOpenText className="h-5 w-5 text-primary-foreground/40 hover:text-primary-foreground/70" strokeWidth={1.5} />
                   </button>
                 )}
               </div>

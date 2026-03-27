@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, BookOpen } from "lucide-react";
+import { Search, BookOpenText } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -216,7 +216,7 @@ const SearchPage = () => {
                   <div key={type} className="mb-2">
                     {groupIdx > 0 && <Separator className="mb-3 mt-1" />}
                     <h3 className="mb-2 px-2 font-fustat text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                      {type === "كلمات" && <BookOpen className="h-3 w-3" />}
+                      {type === "كلمات" && <BookOpenText className="h-3 w-3" />}
                       {groupLabel(type)}
                     </h3>
                     <div className="space-y-0.5">
@@ -237,7 +237,7 @@ const SearchPage = () => {
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted flex-shrink-0 text-accent">
                               {type === "كلمات" ? (
-                                <BookOpen className="h-3.5 w-3.5" />
+                                <BookOpenText className="h-3.5 w-3.5" />
                               ) : (
                                 <RtlPlay className="h-3.5 w-3.5" fill="currentColor" />
                               )}
