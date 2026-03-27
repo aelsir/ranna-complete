@@ -17,6 +17,7 @@ import {
   getMadhaatByTariqa,
   getMadhaatByFan,
   searchMadhaat,
+  searchAll,
   getFeaturedMadhaat,
   getPopularMadhaat,
   getTrendingTracks,
@@ -204,6 +205,14 @@ export function useSearch(query: string) {
   return useQuery({
     queryKey: queryKeys.search(query),
     queryFn: () => searchMadhaat(query),
+    enabled: query.trim().length > 0,
+  });
+}
+
+export function useSearchAll(query: string) {
+  return useQuery({
+    queryKey: [...queryKeys.search(query), "all"],
+    queryFn: () => searchAll(query),
     enabled: query.trim().length > 0,
   });
 }

@@ -10,7 +10,7 @@ import 'package:ranna/utils/share.dart';
 
 /// Redesigned mini player bar:
 ///
-///   [Love] [Share] [Lyrics?]  |  Title / Artist  |  [Play/Pause with circular progress]
+///   [Play/Pause]  |  Title / Artist  |  [Lyrics?] [Share] [Love]
 ///
 /// No cover art, no slider, no skip buttons.
 /// Circular progress ring around play/pause shows track progress.
@@ -46,38 +46,41 @@ class MiniPlayer extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              // --- Left: Action buttons (love, share, lyrics) ---
-              _MiniActionButton(
-                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFav
-                    ? RannaTheme.accent
-                    : RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                onTap: () {
-                  ref.read(favoritesProvider.notifier).toggle(track.id);
-                },
-              ),
-              _MiniActionButton(
-                icon: Icons.ios_share_rounded,
-                color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                onTap: () {
-                  shareTrack(
-                    trackId: track.id,
-                    title: track.title,
-                    artistName: track.madihDetails?.name ?? track.madih,
-                  );
-                },
-              ),
-              if (hasLyrics)
-                _MiniActionButton(
-                  icon: Icons.menu_book_rounded,
-                  color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: () {
-                    // Open full player and request lyrics view
-                    notifier.openFullPlayer();
-                  },
+              // --- Right: Play/Pause with circular progress (at start/right in RTL) ---
+              GestureDetector(
+                onTap: () => notifier.togglePlay(),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CustomPaint(
+                    painter: _CircularProgressPainter(
+                      progress: progress,
+                      progressColor: RannaTheme.accent,
+                      trackColor: RannaTheme.primaryForeground.withValues(alpha: 0.10),
+                      strokeWidth: 2.5,
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            color: RannaTheme.primary,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
+              ),
 
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
 
               // --- Center: Track title + artist ---
               Expanded(
@@ -113,38 +116,34 @@ class MiniPlayer extends ConsumerWidget {
 
               const SizedBox(width: 8),
 
-              // --- Right: Play/Pause with circular progress ---
-              GestureDetector(
-                onTap: () => notifier.togglePlay(),
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: CustomPaint(
-                    painter: _CircularProgressPainter(
-                      progress: progress,
-                      progressColor: RannaTheme.accent,
-                      trackColor: RannaTheme.primaryForeground.withValues(alpha: 0.10),
-                      strokeWidth: 2.5,
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            color: RannaTheme.primary,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+              // --- Left: Action buttons (lyrics, share, love) in RTL order ---
+              if (hasLyrics)
+                _MiniActionButton(
+                  icon: Icons.menu_book_rounded,
+                  color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                  onTap: () {
+                    notifier.openFullPlayer();
+                  },
                 ),
+              _MiniActionButton(
+                icon: Icons.ios_share_rounded,
+                color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                onTap: () {
+                  shareTrack(
+                    trackId: track.id,
+                    title: track.title,
+                    artistName: track.madihDetails?.name ?? track.madih,
+                  );
+                },
+              ),
+              _MiniActionButton(
+                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isFav
+                    ? RannaTheme.accent
+                    : RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                onTap: () {
+                  ref.read(favoritesProvider.notifier).toggle(track.id);
+                },
               ),
             ],
           ),

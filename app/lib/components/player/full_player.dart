@@ -436,7 +436,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
               borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
               child: track != null
                   ? RannaImage(
-                      url: track.imageUrl ?? track.madihDetails?.imageUrl,
+                      url: track.resolvedImageUrl,
                       width: coverSize,
                       height: coverSize,
                       fit: BoxFit.cover,
@@ -508,18 +508,18 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
 
   Widget _buildFallbackCover() {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-        ),
-      ),
-      child: const Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          color: Colors.white54,
-          size: 64,
+      color: Colors.white,
+      child: Center(
+        child: Image.asset(
+          'assets/images/logo-ranna.png',
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.music_note_rounded,
+            color: RannaTheme.primary,
+            size: 64,
+          ),
         ),
       ),
     );

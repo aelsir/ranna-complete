@@ -83,30 +83,9 @@ class TrackRow extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
                   child: RannaImage(
-                    url: track.imageUrl,
+                    url: track.resolvedImageUrl,
                     width: 40,
                     height: 40,
-                    fallbackWidget: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          track.title.isNotEmpty ? track.title[0] : '',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 10),

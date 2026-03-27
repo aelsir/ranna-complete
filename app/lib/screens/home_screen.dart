@@ -203,6 +203,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildContent(BuildContext context, HomeData data) {
+    // Reverse the lists to ensure the first items in the collection
+    // appear at the rightmost position in RTL layout.
+    final reversedCollections = data.collections.reversed.toList();
+    final reversedArtists = data.artists.reversed.toList();
+    final reversedNarrators = data.narrators.reversed.toList();
+
     return CustomScrollView(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
@@ -295,7 +301,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.collections.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
-                  final collection = data.collections[index];
+                  final collection = reversedCollections[index];
                   return CollectionCard(
                     collection: collection,
                     onTap: () => context.push('/playlist/${collection.id}'),
@@ -323,7 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.artists.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final artist = data.artists[index];
+                  final artist = reversedArtists[index];
                   return _PopularArtistAvatar(
                     artist: artist,
                     onTap: () =>
@@ -352,7 +358,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.narrators.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final narrator = data.narrators[index];
+                  final narrator = reversedNarrators[index];
                   return _NarratorCard(
                     narrator: narrator,
                     onTap: () => context
@@ -720,11 +726,11 @@ class _ContinueCard extends ConsumerWidget {
           fit: StackFit.expand,
           children: [
             // Background image at 60% opacity
-            if (track.imageUrl != null)
+            if (track.resolvedImageUrl != null)
               Opacity(
                 opacity: 0.6,
                 child: RannaImage(
-                  url: track.imageUrl,
+                  url: track.resolvedImageUrl,
                   width: double.infinity,
                   height: 80,
                   fit: BoxFit.cover,
@@ -915,31 +921,9 @@ class _TrendingTrackRow extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
                 child: RannaImage(
-                  url: track.imageUrl,
+                  url: track.resolvedImageUrl,
                   width: 40,
                   height: 40,
-                  fallbackWidget: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        track.title.isNotEmpty ? track.title[0] : '',
-                        style: const TextStyle(
-                          fontFamily: RannaTheme.fontFustat,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(width: 12),

@@ -356,9 +356,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   Uri? _resolveArtworkUri(MadhaWithRelations? track) {
     if (track == null) return null;
 
-    final imagePath = track.imageUrl ??
-        track.madihDetails?.imageUrl ??
-        track.rawi?.imageUrl;
+    final imagePath = track.resolvedImageUrl;
     if (imagePath == null) return null;
 
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {

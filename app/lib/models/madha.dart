@@ -103,6 +103,17 @@ class MadhaWithRelations extends Madha {
     this.fan,
   });
 
+  /// Resolved image URL following the fallback chain:
+  /// track image → madih image → rawi image → null
+  /// UI should show the Ranna logo when this returns null.
+  String? get resolvedImageUrl =>
+      _nonEmpty(imageUrl) ??
+      _nonEmpty(madihDetails?.imageUrl) ??
+      _nonEmpty(rawi?.imageUrl);
+
+  static String? _nonEmpty(String? s) =>
+      (s != null && s.isNotEmpty) ? s : null;
+
   factory MadhaWithRelations.fromJson(Map<String, dynamic> json) {
     return MadhaWithRelations(
       id: json['id'] as String,

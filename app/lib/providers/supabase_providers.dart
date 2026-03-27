@@ -145,9 +145,12 @@ class SearchResult {
 
 enum SearchResultType { madha, kalimat, madih, rawi }
 
+/// Always returns ALL categories so the UI can compute counts per type.
+/// Filtering by SearchFilter happens in the UI layer, not here.
 final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
   final query = ref.watch(searchQueryProvider);
-  final filter = ref.watch(searchFilterProvider);
+  // Note: we deliberately ignore searchFilterProvider here — always fetch all categories.
+  // The UI filters and counts from the full list.
   if (query.trim().isEmpty) return [];
 
   final supabase = ref.read(supabaseProvider);
@@ -163,70 +166,62 @@ final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
     if (data == null) return [];
 
     // Track results (title/madih/writer match)
-    if (filter == SearchFilter.all || filter == SearchFilter.madha) {
-      final tracks = _asList(data['tracks']);
-      for (final t in tracks) {
-        final track = MadhaWithRelations.fromJson(t);
-        results.add(SearchResult(
-          type: SearchResultType.madha,
-          id: track.id,
-          name: track.title,
-          subtitle: track.madihDetails?.name ?? track.madih,
-          imageUrl: track.imageUrl ?? track.madihDetails?.imageUrl,
-          track: track,
-        ));
-      }
+    final tracks = _asList(data['tracks']);
+    for (final t in tracks) {
+      final track = MadhaWithRelations.fromJson(t);
+      results.add(SearchResult(
+        type: SearchResultType.madha,
+        id: track.id,
+        name: track.title,
+        subtitle: track.madihDetails?.name ?? track.madih,
+        imageUrl: track.resolvedImageUrl,
+        track: track,
+      ));
     }
 
     // Lyrics-only results
-    if (filter == SearchFilter.all || filter == SearchFilter.kalimat) {
-      final lyrics = _asList(data['lyrics']);
-      for (final t in lyrics) {
-        final track = MadhaWithRelations.fromJson(t);
-        final snippet = extractLyricsSnippet(track.lyrics, query);
-        results.add(SearchResult(
-          type: SearchResultType.kalimat,
-          id: track.id,
-          name: track.title,
-          subtitle: track.madihDetails?.name ?? track.madih,
-          imageUrl: track.imageUrl ?? track.madihDetails?.imageUrl,
-          track: track,
-          lyricsSnippet: snippet,
-        ));
-      }
+    final lyrics = _asList(data['lyrics']);
+    for (final t in lyrics) {
+      final track = MadhaWithRelations.fromJson(t);
+      final snippet = extractLyricsSnippet(track.lyrics, query);
+      results.add(SearchResult(
+        type: SearchResultType.kalimat,
+        id: track.id,
+        name: track.title,
+        subtitle: track.madihDetails?.name ?? track.madih,
+        imageUrl: track.resolvedImageUrl,
+        track: track,
+        lyricsSnippet: snippet,
+      ));
     }
 
     // Artist results
-    if (filter == SearchFilter.all || filter == SearchFilter.madih) {
-      final artists = _asList(data['artists']);
-      for (final a in artists) {
-        final artist = Madih.fromJson(a);
-        results.add(SearchResult(
-          type: SearchResultType.madih,
-          id: artist.id,
-          name: artist.name,
-          subtitle: 'مادح · ${artist.trackCount} مدحة',
-          imageUrl: artist.imageUrl,
-        ));
-      }
+    final artists = _asList(data['artists']);
+    for (final a in artists) {
+      final artist = Madih.fromJson(a);
+      results.add(SearchResult(
+        type: SearchResultType.madih,
+        id: artist.id,
+        name: artist.name,
+        subtitle: 'مادح · ${artist.trackCount} مدحة',
+        imageUrl: artist.imageUrl,
+      ));
     }
 
     // Narrator results
-    if (filter == SearchFilter.all || filter == SearchFilter.rawi) {
-      final narrators = _asList(data['narrators']);
-      for (final n in narrators) {
-        final narrator = Rawi.fromJson(n);
-        results.add(SearchResult(
-          type: SearchResultType.rawi,
-          id: narrator.id,
-          name: narrator.name,
-          subtitle: 'راوي · ${narrator.trackCount} مدحة',
-          imageUrl: narrator.imageUrl,
-        ));
-      }
+    final narrators = _asList(data['narrators']);
+    for (final n in narrators) {
+      final narrator = Rawi.fromJson(n);
+      results.add(SearchResult(
+        type: SearchResultType.rawi,
+        id: narrator.id,
+        name: narrator.name,
+        subtitle: 'راوي · ${narrator.trackCount} مدحة',
+        imageUrl: narrator.imageUrl,
+      ));
     }
 
-    debugPrint('🔍 search: ${results.length} results for "$query" (filter: $filter)');
+    debugPrint('🔍 search: ${results.length} results for "$query"');
     return results;
   } catch (e, st) {
     debugPrint('⛔ searchResultsProvider error: $e');

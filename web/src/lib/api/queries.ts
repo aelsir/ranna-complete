@@ -4,7 +4,6 @@
  */
 
 import { supabase } from "@/lib/supabase";
-import { normalizeArabic } from "@/lib/arabic";
 import type {
   Madha,
   MadhaInsert,
@@ -219,23 +218,39 @@ export async function getMadhaatByFan(
   return (data as unknown as MadhaWithRelations[]) || [];
 }
 
-export async function searchMadhaat(query: string): Promise<Madha[]> {
-  if (!query.trim()) return [];
+/** Unified search via RPC — Arabic normalization happens server-side */
+export interface SearchAllResult {
+  tracks: MadhaWithRelations[];
+  lyrics: MadhaWithRelations[];
+  artists: (Madih & { track_count: number })[];
+  narrators: (Rawi & { track_count: number })[];
+}
 
-  // Use v_tracks view for search with pre-joined data
-  const normalized = normalizeArabic(query);
+export async function searchAll(query: string): Promise<SearchAllResult> {
+  const empty: SearchAllResult = { tracks: [], lyrics: [], artists: [], narrators: [] };
+  if (!query.trim()) return empty;
 
-  const { data, error } = await supabase
-    .from("v_tracks")
-    .select("*")
-    .or(
-      `title.ilike.%${normalized}%,madih.ilike.%${normalized}%,writer.ilike.%${normalized}%,lyrics.ilike.%${normalized}%,title.ilike.%${query}%,madih.ilike.%${query}%,writer.ilike.%${query}%,lyrics.ilike.%${query}%`
-    )
-    .order("created_at", { ascending: false })
-    .limit(30);
+  const { data, error } = await supabase.rpc("search_all", {
+    p_query: query,
+    p_limit: 30,
+  });
 
   if (error) throw error;
-  return data || [];
+  if (!data) return empty;
+
+  const result = data as any;
+  return {
+    tracks: (result.tracks || []) as MadhaWithRelations[],
+    lyrics: (result.lyrics || []) as MadhaWithRelations[],
+    artists: (result.artists || []) as (Madih & { track_count: number })[],
+    narrators: (result.narrators || []) as (Rawi & { track_count: number })[],
+  };
+}
+
+/** Legacy wrapper — returns all matching tracks (title + lyrics combined) */
+export async function searchMadhaat(query: string): Promise<Madha[]> {
+  const result = await searchAll(query);
+  return [...result.tracks, ...result.lyrics];
 }
 
 export async function getFeaturedMadhaat(): Promise<MadhaWithRelations[]> {
@@ -724,12 +739,7 @@ export async function getHomePageData(): Promise<HomePageData> {
     p_limit: 20,
   });
 
-  if (rpcError) {
-    console.error("[get_home_data] RPC error:", rpcError);
-    throw rpcError;
-  }
-
-  console.log("[get_home_data] RPC response keys:", rpcData ? Object.keys(rpcData as any) : "null", "total_tracks:", (rpcData as any)?.total_tracks);
+  if (rpcError) throw rpcError;
 
   // Turuq and funun aren't in the RPC — fetch in parallel (simple, rarely changes)
   const [turuq, funun] = await Promise.all([getTuruq(), getFunun()]);

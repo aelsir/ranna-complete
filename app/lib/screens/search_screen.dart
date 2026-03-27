@@ -137,23 +137,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
 
-          // Filter chips
+          // Filter chips with counts
           SizedBox(
             height: 36,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
-              children: [
-                _buildFilterChip('الكل', SearchFilter.all, activeFilter),
-                const SizedBox(width: 8),
-                _buildFilterChip('مدحة', SearchFilter.madha, activeFilter),
-                const SizedBox(width: 8),
-                _buildFilterChip('كلمات', SearchFilter.kalimat, activeFilter),
-                const SizedBox(width: 8),
-                _buildFilterChip('مادح', SearchFilter.madih, activeFilter),
-                const SizedBox(width: 8),
-                _buildFilterChip('راوي', SearchFilter.rawi, activeFilter),
-              ],
+            child: searchResults.when(
+              loading: () => _buildFilterChips(activeFilter, query, []),
+              error: (_, __) => _buildFilterChips(activeFilter, query, []),
+              data: (results) => _buildFilterChips(activeFilter, query, results),
             ),
           ),
 
@@ -166,9 +156,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 : searchResults.when(
                     loading: () => _buildLoadingState(),
                     error: (_, __) => _buildErrorState(),
-                    data: (results) => results.isEmpty
-                        ? _buildNoResultsState()
-                        : _buildResultsList(results),
+                    data: (allResults) {
+                      // Filter results based on active filter
+                      final results = activeFilter == SearchFilter.all
+                          ? allResults
+                          : allResults.where((r) {
+                              switch (activeFilter) {
+                                case SearchFilter.madha: return r.type == SearchResultType.madha;
+                                case SearchFilter.kalimat: return r.type == SearchResultType.kalimat;
+                                case SearchFilter.madih: return r.type == SearchResultType.madih;
+                                case SearchFilter.rawi: return r.type == SearchResultType.rawi;
+                                case SearchFilter.all: return true;
+                              }
+                            }).toList();
+                      return results.isEmpty
+                          ? _buildNoResultsState()
+                          : _buildResultsList(results);
+                    },
                   ),
           ),
         ],
@@ -176,24 +180,71 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, SearchFilter filter, SearchFilter active) {
+  Widget _buildFilterChips(SearchFilter activeFilter, String query, List<SearchResult> results) {
+    // Count per type from all results (ignoring current filter)
+    final counts = <SearchResultType, int>{};
+    for (final r in results) {
+      counts[r.type] = (counts[r.type] ?? 0) + 1;
+    }
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
+      children: [
+        _buildFilterChip('الكل', SearchFilter.all, activeFilter, query.isNotEmpty ? results.length : null, query),
+        const SizedBox(width: 8),
+        _buildFilterChip('مدحة', SearchFilter.madha, activeFilter, query.isNotEmpty ? (counts[SearchResultType.madha] ?? 0) : null, query),
+        const SizedBox(width: 8),
+        _buildFilterChip('كلمات', SearchFilter.kalimat, activeFilter, query.isNotEmpty ? (counts[SearchResultType.kalimat] ?? 0) : null, query),
+        const SizedBox(width: 8),
+        _buildFilterChip('مادح', SearchFilter.madih, activeFilter, query.isNotEmpty ? (counts[SearchResultType.madih] ?? 0) : null, query),
+        const SizedBox(width: 8),
+        _buildFilterChip('راوي', SearchFilter.rawi, activeFilter, query.isNotEmpty ? (counts[SearchResultType.rawi] ?? 0) : null, query),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, SearchFilter filter, SearchFilter active, int? count, String query) {
     final isActive = active == filter;
+    final hasResults = count == null || count > 0;
+    final isDim = query.isNotEmpty && !hasResults && !isActive;
+
     return GestureDetector(
       onTap: () => _setFilter(filter),
       child: AnimatedContainer(
         duration: 200.ms,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? RannaTheme.primary : RannaTheme.muted,
+          color: isActive ? RannaTheme.primary : RannaTheme.secondary,
           borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: RannaTheme.fontFustat,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isActive ? RannaTheme.primaryForeground : RannaTheme.foreground,
+        child: AnimatedOpacity(
+          duration: 200.ms,
+          opacity: isDim ? 0.4 : 1.0,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isActive ? RannaTheme.primaryForeground : RannaTheme.foreground,
+                ),
+              ),
+              if (count != null && count > 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '($count)',
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: (isActive ? RannaTheme.primaryForeground : RannaTheme.foreground).withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),

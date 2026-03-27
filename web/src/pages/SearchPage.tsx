@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { useSearch, useMadiheen, useRuwat } from "@/lib/api/hooks";
+import { useSearchAll } from "@/lib/api/hooks";
 import { getImageUrl } from "@/lib/format";
-import { arabicIncludes, normalizeArabic } from "@/lib/arabic";
+import { normalizeArabic } from "@/lib/arabic";
 import { usePlayer } from "@/context/PlayerContext";
 
 type ResultType = "مدحة" | "مادح" | "راوي" | "كلمات";
@@ -27,9 +27,8 @@ interface SearchResult {
 
 /**
  * Extract a short snippet around the first match of `query` in `lyrics`.
- * Returns ~60 chars of context around the match, or null if no match.
  */
-function extractLyricsSnippet(lyrics: string, query: string): string | null {
+function extractLyricsSnippet(lyrics: string | undefined | null, query: string): string | null {
   if (!lyrics || !query.trim()) return null;
 
   const normalizedLyrics = normalizeArabic(lyrics);
@@ -56,79 +55,55 @@ const SearchPage = () => {
 
   const filters: (ResultType | "الكل")[] = ["الكل", "مدحة", "كلمات", "مادح", "راوي"];
 
-  // Supabase search for tracks — searches title, madih, writer AND lyrics
-  const { data: searchResults = [] } = useSearch(query);
-
-  // Full lists for client-side name filtering
-  const { data: madiheen = [] } = useMadiheen();
-  const { data: ruwat = [] } = useRuwat();
+  // Single RPC call — Arabic normalization happens server-side
+  const { data: searchData } = useSearchAll(query);
 
   const allData: SearchResult[] = useMemo(() => {
-    if (!query.trim()) return [];
+    if (!query.trim() || !searchData) return [];
 
-    // Separate results into title/metadata matches and lyrics-only matches
-    const trackResults: SearchResult[] = [];
-    const lyricsResults: SearchResult[] = [];
+    const trackResults: SearchResult[] = (searchData.tracks || []).map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      subtitle:
+        (m.madiheen?.name || m.madih || "") +
+        " · " +
+        (m.ruwat?.name || m.writer || ""),
+      type: "مدحة" as ResultType,
+      image: getImageUrl(m.image_url || m.madiheen?.image_url),
+    }));
 
-    searchResults.forEach((m) => {
-      const titleMatch = arabicIncludes(m.title || "", query)
-        || arabicIncludes(m.madih || "", query)
-        || arabicIncludes(m.writer || "", query);
+    const lyricsResults: SearchResult[] = (searchData.lyrics || []).map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      subtitle:
+        (m.madiheen?.name || m.madih || "") +
+        " · " +
+        (m.ruwat?.name || m.writer || ""),
+      type: "كلمات" as ResultType,
+      image: getImageUrl(m.image_url || m.madiheen?.image_url),
+      lyricsSnippet: extractLyricsSnippet(m.lyrics, query),
+    }));
 
-      const lyrics = (m as any).lyrics || "";
-      const lyricsSnippet = extractLyricsSnippet(lyrics, query);
+    const artistResults: SearchResult[] = (searchData.artists || []).map((a: any) => ({
+      id: a.id,
+      title: a.name,
+      subtitle: `مادح · ${a.track_count || 0} مدحة`,
+      type: "مادح" as ResultType,
+      image: getImageUrl(a.image_url),
+      linkTo: "/profile/artist/" + a.id,
+    }));
 
-      if (titleMatch) {
-        trackResults.push({
-          id: m.id,
-          title: m.title,
-          subtitle:
-            ((m as any).madiheen?.name || m.madih) +
-            " · " +
-            ((m as any).ruwat?.name || m.writer),
-          type: "مدحة" as ResultType,
-          image: getImageUrl((m as any).image_url || (m as any).madiheen?.image_url),
-          lyricsSnippet: lyricsSnippet || undefined,
-        });
-      } else if (lyricsSnippet) {
-        lyricsResults.push({
-          id: m.id,
-          title: m.title,
-          subtitle:
-            ((m as any).madiheen?.name || m.madih) +
-            " · " +
-            ((m as any).ruwat?.name || m.writer),
-          type: "كلمات" as ResultType,
-          image: getImageUrl((m as any).image_url || (m as any).madiheen?.image_url),
-          lyricsSnippet,
-        });
-      }
-    });
-
-    const artistResults: SearchResult[] = madiheen
-      .filter((a) => arabicIncludes(a.name, query))
-      .map((a) => ({
-        id: a.id,
-        title: a.name,
-        subtitle: "مادح",
-        type: "مادح" as ResultType,
-        image: getImageUrl(a.image_url),
-        linkTo: "/profile/artist/" + a.id,
-      }));
-
-    const narratorResults: SearchResult[] = ruwat
-      .filter((n) => arabicIncludes(n.name, query))
-      .map((n) => ({
-        id: n.id,
-        title: n.name,
-        subtitle: "راوي",
-        type: "راوي" as ResultType,
-        image: getImageUrl(n.image_url),
-        linkTo: "/profile/narrator/" + n.id,
-      }));
+    const narratorResults: SearchResult[] = (searchData.narrators || []).map((n: any) => ({
+      id: n.id,
+      title: n.name,
+      subtitle: `راوي · ${n.track_count || 0} مدحة`,
+      type: "راوي" as ResultType,
+      image: getImageUrl(n.image_url),
+      linkTo: "/profile/narrator/" + n.id,
+    }));
 
     return [...trackResults, ...lyricsResults, ...artistResults, ...narratorResults];
-  }, [query, searchResults, madiheen, ruwat]);
+  }, [query, searchData]);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
@@ -145,7 +120,6 @@ const SearchPage = () => {
     return groups;
   }, [results]);
 
-  // Count per type for filter badges
   const typeCounts = useMemo(() => {
     const counts: Partial<Record<ResultType, number>> = {};
     allData.forEach((r) => {

@@ -104,18 +104,24 @@ class RannaImage extends StatelessWidget {
   }
 
   Widget _defaultFallback() {
+    // Ranna logo on white background as the ultimate fallback
+    final logoSize = (width < height ? width : height) * 0.45;
     return Container(
       width: width,
       height: height,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [RannaTheme.primary, RannaTheme.primaryGlow],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      color: Colors.white,
+      child: Center(
+        child: Image.asset(
+          'assets/images/logo-ranna.png',
+          width: logoSize,
+          height: logoSize,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.music_note,
+            color: RannaTheme.primary.withValues(alpha: 0.3),
+            size: logoSize,
+          ),
         ),
-      ),
-      child: const Center(
-        child: Icon(Icons.music_note, color: Colors.white54, size: 24),
       ),
     );
   }
