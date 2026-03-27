@@ -1,13 +1,15 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { initAnalytics, trackPageView } from "@/lib/analytics";
 import Index from "./pages/Index";
 import SearchPage from "./pages/SearchPage";
 import FavoritesPage from "./pages/FavoritesPage";
@@ -31,7 +33,19 @@ import FullPlayer from "./components/FullPlayer";
 import ContentShell from "./components/ContentShell";
 import InstallPrompt from "./components/InstallPrompt";
 
+// Initialize PostHog on module load
+initAnalytics();
+
 const queryClient = new QueryClient();
+
+/** Tracks page views on route changes */
+function PageViewTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+  return null;
+}
 
 const App = () => (
   <HelmetProvider>
@@ -43,6 +57,7 @@ const App = () => (
           <Sonner />
           <InstallPrompt />
           <BrowserRouter>
+          <PageViewTracker />
           <ContentShell>
             <Routes>
               <Route path="/" element={<Index />} />

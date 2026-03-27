@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
+import { identifyUser, resetUser } from "@/lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -31,6 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Identify/reset PostHog user on auth change
+      if (session?.user) {
+        identifyUser(session.user.id, { email: session.user.email });
+      } else {
+        resetUser();
+      }
     });
 
     return () => subscription.unsubscribe();

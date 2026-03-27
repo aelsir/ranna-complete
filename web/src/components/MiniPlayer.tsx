@@ -3,10 +3,11 @@ import { Heart, Pause, BookOpen } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
-import { useMadha, useLogPlayEvent } from "@/lib/api/hooks";
+import { useMadha } from "@/lib/api/hooks";
 import { getAudioUrl, getTrackDisplayImage } from "@/lib/format";
 import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
+import { trackEvent } from "@/lib/analytics";
 
 /* ── Circular progress ring around the play button ── */
 const ProgressRing = ({ progress, size = 48, stroke = 3 }: { progress: number; size?: number; stroke?: number }) => {
@@ -58,7 +59,6 @@ const MiniPlayer = () => {
   } = usePlayer();
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
-  const logPlay = useLogPlayEvent();
 
   const audioSrc = track ? getAudioUrl(track.audio_url) : "";
   const displayImage = getTrackDisplayImage(track);
@@ -87,9 +87,7 @@ const MiniPlayer = () => {
     audio.src = audioSrc;
     audio.load();
     audio.play().catch(() => {});
-    if (nowPlayingId) {
-      logPlay.mutate(nowPlayingId);
-    }
+    // Play event logging now handled centrally in PlayerContext
   }, [audioSrc, audioRef, nowPlayingId]);
 
   // Register OS Media Session Handlers
@@ -158,7 +156,10 @@ const MiniPlayer = () => {
               {/* Center: Title + Artist (taps to open full player) */}
               <div
                 className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
-                onClick={() => setFullPlayerOpen(true)}
+                onClick={() => {
+                  setFullPlayerOpen(true);
+                  trackEvent("full_player_opened", { track_id: nowPlayingId });
+                }}
               >
                 <p className="truncate font-fustat text-xs font-bold text-primary-foreground text-right">{trackTitle}</p>
                 <p className="truncate font-fustat text-[10px] text-primary-foreground/40 text-right">{artistName}</p>
@@ -193,7 +194,7 @@ const MiniPlayer = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setFullPlayerOpen(true);
-                      // Small delay so the full player mounts first, then toggle lyrics
+                      trackEvent("lyrics_viewed", { track_id: nowPlayingId, source: "mini_player" });
                       setTimeout(() => {
                         window.dispatchEvent(new CustomEvent("ranna:show-lyrics"));
                       }, 100);

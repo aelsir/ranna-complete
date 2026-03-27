@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Search, BookOpen } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion } from "framer-motion";
@@ -12,6 +12,7 @@ import { useSearchAll } from "@/lib/api/hooks";
 import { getImageUrl } from "@/lib/format";
 import { normalizeArabic } from "@/lib/arabic";
 import { usePlayer } from "@/context/PlayerContext";
+import { trackEvent } from "@/lib/analytics";
 
 type ResultType = "مدحة" | "مادح" | "راوي" | "كلمات";
 
@@ -57,6 +58,17 @@ const SearchPage = () => {
 
   // Single RPC call — Arabic normalization happens server-side
   const { data: searchData } = useSearchAll(query);
+
+  // Track search events (debounced — only when results arrive)
+  const lastTrackedQuery = useRef("");
+  useEffect(() => {
+    if (searchData && query.trim() && query !== lastTrackedQuery.current) {
+      const totalResults = (searchData.tracks?.length || 0) + (searchData.lyrics?.length || 0)
+        + (searchData.artists?.length || 0) + (searchData.narrators?.length || 0);
+      trackEvent("search", { query, result_count: totalResults, filter: activeFilter });
+      lastTrackedQuery.current = query;
+    }
+  }, [searchData, query, activeFilter]);
 
   const allData: SearchResult[] = useMemo(() => {
     if (!query.trim() || !searchData) return [];

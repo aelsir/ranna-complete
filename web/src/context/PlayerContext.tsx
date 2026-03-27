@@ -1,4 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, ReactNode, useCallback, useMemo } from "react";
+import { trackEvent } from "@/lib/analytics";
+import { recordPlay, addToListeningHistory, logPlayEvent } from "@/lib/api/queries";
+import { supabase } from "@/lib/supabase";
 
 interface PlayerContextType {
   // Queue & track
@@ -91,6 +94,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [sleepEndTime, setSleepEndTime] = useState<number | null>(null);
 
   const lastSaveRef = useRef<number>(0);
+  const playStartRef = useRef<{ trackId: string; startTime: number; historyLogged: boolean } | null>(null);
 
   const nowPlayingId = useMemo(() => {
     if (currentIndex >= 0 && currentIndex < queue.length) {
@@ -133,8 +137,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const toggleFavorite = useCallback((id: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
+      const action = next.has(id) ? "remove" : "add";
+      if (action === "remove") next.delete(id);
       else next.add(id);
+
+      trackEvent("favorite_toggled", { track_id: id, action });
 
       try {
         localStorage.setItem("ranna_favorites", JSON.stringify(Array.from(next)));
@@ -247,6 +254,35 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, [sleepEndTime]);
 
+  // Track change — log play event, listening history, analytics
+  useEffect(() => {
+    if (!nowPlayingId) return;
+
+    // Record play start for duration tracking
+    playStartRef.current = { trackId: nowPlayingId, startTime: Date.now(), historyLogged: false };
+
+    // Fire-and-forget: log play event for trending
+    logPlayEvent(nowPlayingId).catch(() => {});
+
+    // PostHog event
+    trackEvent("track_played", { track_id: nowPlayingId });
+
+    // Log listening history after 5 seconds (avoid accidental taps)
+    const historyTimer = setTimeout(async () => {
+      if (playStartRef.current?.trackId === nowPlayingId && !playStartRef.current.historyLogged) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            addToListeningHistory(session.user.id, nowPlayingId).catch(() => {});
+            playStartRef.current.historyLogged = true;
+          }
+        } catch {}
+      }
+    }, 5000);
+
+    return () => clearTimeout(historyTimer);
+  }, [nowPlayingId]);
+
   // Audio event listeners — progress tracking, auto-advance
   useEffect(() => {
     const audio = audioRef.current;
@@ -315,8 +351,20 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const onEnded = () => {
+      // Record play analytics before advancing
+      if (playStartRef.current && nowPlayingId) {
+        const elapsed = Math.floor((Date.now() - playStartRef.current.startTime) / 1000);
+        recordPlay({
+          userId: supabase.auth.getSession().then(s => s.data.session?.user?.id).catch(() => undefined) as any,
+          madhaId: nowPlayingId,
+          durationSeconds: elapsed,
+          completed: true,
+          deviceType: "web",
+        }).catch(() => {});
+        trackEvent("track_completed", { track_id: nowPlayingId, duration_seconds: elapsed });
+      }
+
       if (repeatMode === "one") {
-        // Replay same track
         audio.currentTime = 0;
         audio.play().catch(() => {});
         return;
@@ -324,7 +372,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       if (hasNext) {
         playNext();
       } else if (repeatMode === "all" && queue.length > 0) {
-        // Loop back to start of queue
         setCurrentIndex(0);
       } else {
         setIsPlaying(false);
