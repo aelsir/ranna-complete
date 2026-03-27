@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, Heart, Pause, Shuffle, Repeat, Repeat1, Timer, BookOpen } from "lucide-react";
-import { RtlPlay, RtlSkipBack, RtlSkipForward } from "@/components/icons/rtl-icons";
+import { Repeat1 } from "lucide-react";
+import { RannaIcon } from "@/components/icons/RannaIcon";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -24,21 +24,7 @@ const SLEEP_OPTIONS = [
 ];
 
 /* ── Custom 15-second skip icons with the "15" label ── */
-const Skip15Back = ({ className = "" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M9.5 4 5 8l4.5 4" />
-    <path d="M5 8h8a5 5 0 0 1 0 10h-1" />
-    <text x="8.5" y="17.5" fontSize="7.5" fontWeight="700" fill="currentColor" stroke="none" textAnchor="middle" fontFamily="sans-serif">15</text>
-  </svg>
-);
-
-const Skip15Forward = ({ className = "" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className} style={{ transform: "scaleX(-1)" }}>
-    <path d="M9.5 4 5 8l4.5 4" />
-    <path d="M5 8h8a5 5 0 0 1 0 10h-1" />
-    <text x="8.5" y="17.5" fontSize="7.5" fontWeight="700" fill="currentColor" stroke="none" textAnchor="middle" fontFamily="sans-serif" style={{ transform: "scaleX(-1)", transformOrigin: "8.5px 14px" }}>15</text>
-  </svg>
-);
+// ±15s icons now use custom SVG assets via RannaIcon
 
 const FullPlayer = () => {
   const {
@@ -93,7 +79,6 @@ const FullPlayer = () => {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const RepeatIcon = repeatMode === "one" ? Repeat1 : Repeat;
   const repeatActive = repeatMode !== "off";
 
   return (
@@ -120,7 +105,7 @@ const FullPlayer = () => {
               onClick={() => setFullPlayerOpen(false)}
               className="h-10 w-10 rounded-full bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25 active:scale-90 transition-transform backdrop-blur-sm"
             >
-              <ChevronDown className="h-6 w-6" />
+              <RannaIcon name="chevron-down" size={24} className="text-white" />
             </Button>
             <span className="font-fustat text-xs font-bold text-primary-foreground/50">الآن يُستمع</span>
             <div className="w-10" />
@@ -139,7 +124,7 @@ const FullPlayer = () => {
                   className="w-full h-full overflow-y-auto rounded-2xl bg-primary-foreground/5 p-5 ring-1 ring-primary-foreground/10"
                   onClick={() => setShowLyrics(false)}
                 >
-                  <p className="font-panorama text-base leading-[2.2] whitespace-pre-line text-primary-foreground/80 text-center">
+                  <p className="font-naskh text-base leading-[2.2] whitespace-pre-line text-primary-foreground/80 text-center">
                     {track.lyrics}
                   </p>
                 </motion.div>
@@ -195,7 +180,10 @@ const FullPlayer = () => {
                 repeatActive ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
               }`}
             >
-              <RepeatIcon className="h-5.5 w-5.5" strokeWidth={2} />
+              {repeatMode === "one"
+                ? <Repeat1 className="h-5.5 w-5.5 text-white" strokeWidth={2} />
+                : <RannaIcon name="repeat" size={22} className="text-white" />
+              }
             </Button>
 
             {/* Favorite */}
@@ -213,11 +201,13 @@ const FullPlayer = () => {
                   exit={{ scale: 0.5, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 500, damping: 15 }}
                 >
-                  <Heart
-                    className={`h-6 w-6 transition-colors ${
+                  <RannaIcon
+                    name="love"
+                    size={24}
+                    className={`transition-colors ${
                       nowPlayingId && isFavorite(nowPlayingId)
-                        ? "text-red-500 fill-red-500"
-                        : "text-primary-foreground/50 hover:text-primary-foreground/80"
+                        ? "text-red-500"
+                        : "text-white/50 hover:text-white/80"
                     }`}
                   />
                 </motion.div>
@@ -243,7 +233,7 @@ const FullPlayer = () => {
                   showLyrics ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                 }`}
               >
-                <BookOpen className="h-5.5 w-5.5" strokeWidth={2} />
+                <RannaIcon name="lyrics" size={22} className="text-white" />
               </Button>
             )}
 
@@ -257,7 +247,7 @@ const FullPlayer = () => {
                     sleepMinutes ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                   }`}
                 >
-                  <Timer className="h-5.5 w-5.5" strokeWidth={2} />
+                  <RannaIcon name="timer" size={22} className="text-white" />
                   {sleepRemaining !== null && sleepRemaining > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 bg-accent text-primary text-[8px] font-fustat font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                       {sleepRemaining}
@@ -317,7 +307,7 @@ const FullPlayer = () => {
               onClick={skipBackward15s}
               className="h-12 w-12 flex items-center justify-center text-primary-foreground/60 hover:text-primary-foreground active:scale-90 transition-all"
             >
-              <Skip15Forward className="h-7 w-7" />
+              <RannaIcon name="forward-15" size={28} className="text-white" />
             </button>
 
             {/* Previous */}
@@ -326,7 +316,7 @@ const FullPlayer = () => {
               disabled={!hasPrevious}
               className="h-12 w-12 flex items-center justify-center text-primary-foreground/80 hover:text-primary-foreground active:scale-90 transition-all disabled:opacity-30"
             >
-              <RtlSkipBack className="h-7 w-7" />
+              <RannaIcon name="back-track" size={28} className="text-white" />
             </button>
 
             {/* Play/Pause */}
@@ -338,11 +328,11 @@ const FullPlayer = () => {
               <AnimatePresence mode="wait">
                 {isPlaying ? (
                   <motion.div key="pause" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                    <Pause className="h-10 w-10" fill="currentColor" />
+                    <RannaIcon name="pause" size={40} className="text-white" />
                   </motion.div>
                 ) : (
                   <motion.div key="play" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                    <RtlPlay className="h-10 w-10" fill="currentColor" />
+                    <RannaIcon name="play" size={40} className="text-white" />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -354,7 +344,7 @@ const FullPlayer = () => {
               disabled={!hasNext}
               className="h-12 w-12 flex items-center justify-center text-primary-foreground/80 hover:text-primary-foreground active:scale-90 transition-all disabled:opacity-30"
             >
-              <RtlSkipForward className="h-7 w-7" />
+              <RannaIcon name="forward-track" size={28} className="text-white" />
             </button>
 
             {/* Skip forward 15s (uses back-looking icon, flipped visually for RTL) */}
@@ -362,7 +352,7 @@ const FullPlayer = () => {
               onClick={skipForward15s}
               className="h-12 w-12 flex items-center justify-center text-primary-foreground/60 hover:text-primary-foreground active:scale-90 transition-all"
             >
-              <Skip15Back className="h-7 w-7" />
+              <RannaIcon name="backward-15" size={28} className="text-white" />
             </button>
           </motion.div>
         </motion.div>

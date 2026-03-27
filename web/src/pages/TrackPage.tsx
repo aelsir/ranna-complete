@@ -178,7 +178,7 @@ export default function TrackPage() {
           <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
             <h3 className="font-fustat text-sm font-bold text-primary">كلمات المدحة</h3>
             <div className="h-px bg-border" />
-            <p className="font-panorama text-base leading-[2.2] whitespace-pre-line text-foreground/80">
+            <p className="font-naskh text-base leading-[2.2] whitespace-pre-line text-foreground/80">
               {track.lyrics}
             </p>
           </div>

@@ -1,5 +1,4 @@
-import { Heart, BookOpen } from "lucide-react";
-import { RtlPlay } from "@/components/icons/rtl-icons";
+import { RannaIcon } from "@/components/icons/RannaIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
 import type { MadhaWithRelations } from "@/types/database";
@@ -43,7 +42,7 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
             {index + 1}
           </span>
           <span className="hidden group-hover:flex flex-shrink-0 w-5 items-center justify-center text-accent">
-            <RtlPlay className="h-3.5 w-3.5" fill="currentColor" />
+            <RannaIcon name="play" size={14} />
           </span>
         </>
       )}
@@ -71,7 +70,7 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
         </p>
       </div>
       {track.lyrics && (
-        <BookOpen className="h-3 w-3 text-muted-foreground/30 flex-shrink-0" strokeWidth={1.5} />
+        <RannaIcon name="lyrics" size={12} className="text-muted-foreground/30 flex-shrink-0" />
       )}
       {duration && (
         <span className="text-[11px] text-muted-foreground/50 flex-shrink-0 tabular-nums">{duration}</span>
@@ -92,10 +91,12 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
             exit={{ scale: 0.5, opacity: 0 }}
             transition={{ type: "spring", stiffness: 500, damping: 15 }}
           >
-            <Heart
-              className={`h-4 w-4 transition-colors ${
+            <RannaIcon
+              name="love"
+              size={16}
+              className={`transition-colors ${
                 isFavorite(track.id)
-                  ? "text-red-500 fill-red-500"
+                  ? "text-red-500"
                   : "text-muted-foreground/30 group-hover:text-muted-foreground/60"
               }`}
             />

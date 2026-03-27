@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Search, BookOpen } from "lucide-react";
-import { RtlPlay } from "@/components/icons/rtl-icons";
+import { RannaIcon } from "@/components/icons/RannaIcon";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -165,7 +164,7 @@ const SearchPage = () => {
       <h2 className="mb-4 font-fustat text-xl font-bold">البحث</h2>
 
       <div className="flex items-center gap-3 rounded-2xl bg-muted px-4 py-2 shadow-sm ring-1 ring-border/20 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-        <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <RannaIcon name="search" size={16} className="text-muted-foreground flex-shrink-0" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -216,7 +215,7 @@ const SearchPage = () => {
                   <div key={type} className="mb-2">
                     {groupIdx > 0 && <Separator className="mb-3 mt-1" />}
                     <h3 className="mb-2 px-2 font-fustat text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                      {type === "كلمات" && <BookOpen className="h-3 w-3" />}
+                      {type === "كلمات" && <RannaIcon name="lyrics" size={12} />}
                       {groupLabel(type)}
                     </h3>
                     <div className="space-y-0.5">
@@ -237,9 +236,9 @@ const SearchPage = () => {
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted flex-shrink-0 text-accent">
                               {type === "كلمات" ? (
-                                <BookOpen className="h-3.5 w-3.5" />
+                                <RannaIcon name="lyrics" size={14} />
                               ) : (
-                                <RtlPlay className="h-3.5 w-3.5" fill="currentColor" />
+                                <RannaIcon name="play" size={14} />
                               )}
                             </div>
                           )}

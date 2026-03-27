@@ -1,4 +1,5 @@
-import { Share2, Copy, Check, MessageCircle } from "lucide-react";
+import { Copy, Check, MessageCircle } from "lucide-react";
+import { RannaIcon } from "@/components/icons/RannaIcon";
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,7 +63,7 @@ export function ShareButton({
         className={`text-muted-foreground hover:text-foreground ${className}`}
         onClick={handleShare}
       >
-        <Share2 className="h-5 w-5" strokeWidth={1.5} />
+        <RannaIcon name="share" size={20} />
       </Button>
     );
   }
@@ -76,7 +77,7 @@ export function ShareButton({
           size={size}
           className={`text-muted-foreground hover:text-foreground ${className}`}
         >
-          <Share2 className="h-5 w-5" strokeWidth={1.5} />
+          <RannaIcon name="share" size={20} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="font-fustat text-sm min-w-[180px]" dir="rtl">
@@ -92,7 +93,7 @@ export function ShareButton({
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="gap-2 cursor-pointer">
           <a href={getTelegramShareUrl(shareText, url)} target="_blank" rel="noopener noreferrer">
-            <Share2 className="h-4 w-4" />
+            <RannaIcon name="share" size={16} />
             مشاركة عبر تيليجرام
           </a>
         </DropdownMenuItem>

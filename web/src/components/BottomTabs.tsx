@@ -1,12 +1,12 @@
-import { Home, Search, Heart, UserCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
+import { RannaIcon, type RannaIconName } from "@/components/icons/RannaIcon";
 
-const tabs = [
-  { label: "السَّاحة", icon: Home, path: "/" },
-  { label: "فتّش", icon: Search, path: "/search" },
-  { label: "مُختاراتي", icon: Heart, path: "/favorites" },
-  // { label: "زاويتي", icon: UserCircle, path: "/account" },
+const tabs: { label: string; icon: RannaIconName; path: string }[] = [
+  { label: "السَّاحة", icon: "home", path: "/" },
+  { label: "فتّش", icon: "search", path: "/search" },
+  { label: "مُختاراتي", icon: "love", path: "/favorites" },
+  // { label: "زاويتي", icon: "profile", path: "/account" },
 ];
 
 const BottomTabs = () => {
@@ -38,7 +38,9 @@ const BottomTabs = () => {
                   transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
                 />
               )}
-              <tab.icon className="relative z-10 h-5 w-5" strokeWidth={isActive ? 2.5 : 1.5} />
+              <span className="relative z-10">
+                <RannaIcon name={tab.icon} size={20} />
+              </span>
               <span className="relative z-10 font-fustat text-[10px] font-bold">{tab.label}</span>
             </motion.button>
           );

@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { Heart, Pause, BookOpen } from "lucide-react";
-import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
 import { useMadha } from "@/lib/api/hooks";
@@ -8,6 +6,7 @@ import { getAudioUrl, getTrackDisplayImage } from "@/lib/format";
 import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
 import { trackEvent } from "@/lib/analytics";
+import { RannaIcon } from "@/components/icons/RannaIcon";
 
 /* ── Circular progress ring around the play button ── */
 const ProgressRing = ({ progress, size = 48, stroke = 3 }: { progress: number; size?: number; stroke?: number }) => {
@@ -142,11 +141,11 @@ const MiniPlayer = () => {
                   <AnimatePresence mode="wait">
                     {isPlaying ? (
                       <motion.div key="pause" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                        <Pause className="h-5 w-5 text-primary" fill="currentColor" />
+                        <RannaIcon name="pause" size={20} className="text-white" />
                       </motion.div>
                     ) : (
                       <motion.div key="play" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                        <RtlPlay className="h-5 w-5 text-primary" fill="currentColor" />
+                        <RannaIcon name="play" size={20} className="text-white" />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -174,11 +173,13 @@ const MiniPlayer = () => {
                   }}
                   className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
                 >
-                  <Heart
-                    className={`h-5 w-5 transition-colors ${
+                  <RannaIcon
+                    name="love"
+                    size={22}
+                    className={`transition-colors ${
                       nowPlayingId && isFavorite(nowPlayingId)
-                        ? "text-red-500 fill-red-500"
-                        : "text-primary-foreground/40 hover:text-primary-foreground/70"
+                        ? "text-red-500"
+                        : "text-white/40 hover:text-white/70"
                     }`}
                   />
                 </button>
@@ -201,7 +202,7 @@ const MiniPlayer = () => {
                     }}
                     className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
                   >
-                    <BookOpen className="h-4.5 w-4.5 text-primary-foreground/40 hover:text-primary-foreground/70" strokeWidth={1.5} />
+                    <RannaIcon name="lyrics" size={22} className="text-white/40 hover:text-white/70" />
                   </button>
                 )}
               </div>
