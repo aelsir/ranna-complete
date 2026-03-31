@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ranna/app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ranna/services/audio_player_service.dart';
+import 'package:ranna/db/local_db.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,9 @@ void main() async {
   }
 
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+
+  // Initialize local SQLite database for offline downloads
+  await LocalDb.init();
 
   // Initialize native audio controls (lock screen, notification)
   audioHandler = await initAudioHandler();

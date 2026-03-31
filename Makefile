@@ -35,3 +35,7 @@ dev-web: sync
 ## Start the Flutter app (ensures links first)
 dev-app: sync
 	cd app && flutter run --dart-define-from-file=env.json
+
+## Install the Flutter app in release mode on a connected iPhone (works independently)
+release-app: sync
+	cd app && flutter run --release --dart-define-from-file=env.json

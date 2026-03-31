@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
+import 'package:ranna/db/local_db.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -288,12 +291,6 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   }
 
   Future<void> _loadAndPlay(String trackId) async {
-    final url = _resolveAudioUrl(trackId);
-    if (url == null) {
-      state = state.copyWith(isPlaying: false);
-      return;
-    }
-
     try {
       final track = _getCachedTrack(trackId);
 
@@ -309,6 +306,25 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
             : null,
       ));
 
+      // Check for offline download first (not on web)
+      if (!kIsWeb) {
+        final localPath = await LocalDb.getLocalPath(trackId);
+        if (localPath != null && await File(localPath).exists()) {
+          debugPrint('▶️ Playing offline: $localPath');
+          await _player.setAudioSource(ja.AudioSource.file(localPath));
+          await _player.play();
+          _logPlayEvent(trackId);
+          return;
+        }
+      }
+
+      // Stream from R2
+      final url = _resolveAudioUrl(trackId);
+      if (url == null) {
+        state = state.copyWith(isPlaying: false);
+        return;
+      }
+
       await _player.setAudioSource(
         ja.AudioSource.uri(Uri.parse(url)),
       );
@@ -317,6 +333,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       // Log play event for trending analytics (fire-and-forget)
       _logPlayEvent(trackId);
     } catch (e) {
+      debugPrint('⛔ _loadAndPlay error: $e');
       state = state.copyWith(isPlaying: false);
     }
   }

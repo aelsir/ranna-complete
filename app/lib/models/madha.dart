@@ -23,6 +23,9 @@ class Madha {
   final bool isFeatured;
   final String createdAt;
   final String updatedAt;
+  final int? fileSizeBytes;
+  final String? thumbnailUrl;
+  final String? contentType;
 
   const Madha({
     required this.id,
@@ -44,6 +47,9 @@ class Madha {
     required this.isFeatured,
     required this.createdAt,
     required this.updatedAt,
+    this.fileSizeBytes,
+    this.thumbnailUrl,
+    this.contentType,
   });
 
   factory Madha.fromJson(Map<String, dynamic> json) {
@@ -67,6 +73,9 @@ class Madha {
       isFeatured: json['is_featured'] as bool? ?? false,
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
+      fileSizeBytes: json['file_size_bytes'] as int?,
+      thumbnailUrl: json['thumbnail_url'] as String?,
+      contentType: json['content_type'] as String?,
     );
   }
 }
@@ -97,6 +106,9 @@ class MadhaWithRelations extends Madha {
     required super.isFeatured,
     required super.createdAt,
     required super.updatedAt,
+    super.fileSizeBytes,
+    super.thumbnailUrl,
+    super.contentType,
     this.madihDetails,
     this.rawi,
     this.tariqa,
@@ -135,6 +147,9 @@ class MadhaWithRelations extends Madha {
       isFeatured: json['is_featured'] as bool? ?? false,
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
+      fileSizeBytes: json['file_size_bytes'] as int?,
+      thumbnailUrl: json['thumbnail_url'] as String?,
+      contentType: json['content_type'] as String?,
       madihDetails: json['madiheen'] != null
           ? Madih.fromJson(json['madiheen'] as Map<String, dynamic>)
           : null,

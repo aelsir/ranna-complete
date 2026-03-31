@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/player/player_controls.dart';
+import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
@@ -310,6 +312,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                               ),
                             ),
                           ),
+                          // Download
+                          const SizedBox(width: 24),
+                          _FullPlayerDownloadButton(track: track),
                           // Lyrics toggle
                           if (hasLyrics) ...[
                             const SizedBox(width: 24),
@@ -548,6 +553,75 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
             Icons.music_note_rounded,
             color: RannaTheme.primary,
             size: 64,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Download button for the full player action row.
+class _FullPlayerDownloadButton extends ConsumerWidget {
+  final MadhaWithRelations? track;
+  const _FullPlayerDownloadButton({required this.track});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (track == null) return const SizedBox.shrink();
+
+    final isDownloaded = ref.watch(downloadedTrackIdsProvider).contains(track!.id);
+    final progress = ref.watch(activeDownloadsProvider)[track!.id];
+    final isDownloading = progress != null;
+
+    if (isDownloaded) {
+      return SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Icon(Icons.check_circle_rounded, size: 24, color: RannaTheme.accent),
+        ),
+      );
+    }
+
+    if (isDownloading) {
+      return GestureDetector(
+        onTap: () {
+          ref.read(downloadServiceProvider).cancelDownload(track!.id);
+          ref.read(activeDownloadsProvider.notifier).remove(track!.id);
+        },
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                value: progress > 0 ? progress : null,
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation(RannaTheme.accent),
+                backgroundColor: RannaTheme.primaryForeground.withValues(alpha: 0.1),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        try {
+          await startDownload(ref, track!);
+        } catch (_) {}
+      },
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Icon(
+            Icons.download_rounded,
+            size: 24,
+            color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
           ),
         ),
       ),

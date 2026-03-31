@@ -3,10 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
-import 'package:ranna/utils/share.dart';
 
 /// Redesigned mini player bar:
 ///
@@ -116,7 +117,7 @@ class MiniPlayer extends ConsumerWidget {
 
               const SizedBox(width: 8),
 
-              // --- Left: Action buttons (lyrics, share, love) in RTL order ---
+              // --- Left: Action buttons (lyrics, download, love) in RTL order ---
               if (hasLyrics)
                 _MiniActionButton(
                   icon: Icons.menu_book_rounded,
@@ -125,17 +126,7 @@ class MiniPlayer extends ConsumerWidget {
                     notifier.openFullPlayer();
                   },
                 ),
-              _MiniActionButton(
-                icon: Icons.ios_share_rounded,
-                color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                onTap: () {
-                  shareTrack(
-                    trackId: track.id,
-                    title: track.title,
-                    artistName: track.madihDetails?.name ?? track.madih,
-                  );
-                },
-              ),
+              _MiniDownloadButton(track: track),
               _MiniActionButton(
                 icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 color: isFav
@@ -175,6 +166,68 @@ class _MiniActionButton extends StatelessWidget {
         height: 36,
         child: Center(
           child: Icon(icon, size: 22, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// Download button for the mini player — shows icon/progress/checkmark.
+class _MiniDownloadButton extends ConsumerWidget {
+  final MadhaWithRelations track;
+  const _MiniDownloadButton({required this.track});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDownloaded = ref.watch(downloadedTrackIdsProvider).contains(track.id);
+    final progress = ref.watch(activeDownloadsProvider)[track.id];
+    final isDownloading = progress != null;
+
+    if (isDownloaded) {
+      return SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(
+          child: Icon(Icons.check_circle_rounded, size: 22, color: RannaTheme.accent),
+        ),
+      );
+    }
+
+    if (isDownloading) {
+      return SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              value: progress > 0 ? progress : null,
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation(RannaTheme.accent),
+              backgroundColor: RannaTheme.primaryForeground.withValues(alpha: 0.1),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        try {
+          await startDownload(ref, track);
+        } catch (_) {}
+      },
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: Center(
+          child: Icon(
+            Icons.download_rounded,
+            size: 22,
+            color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+          ),
         ),
       ),
     );
