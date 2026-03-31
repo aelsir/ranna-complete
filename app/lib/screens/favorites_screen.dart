@@ -39,10 +39,15 @@ class FavoritesScreen extends ConsumerWidget {
                 if (favoriteIds.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: RannaTheme.accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                      borderRadius: BorderRadius.circular(
+                        RannaTheme.radiusFull,
+                      ),
                     ),
                     child: Text(
                       '${favoriteIds.length}',
@@ -66,9 +71,12 @@ class FavoritesScreen extends ConsumerWidget {
                 : favoriteTracks.when(
                     loading: () => ListView(
                       padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 4, 0),
-                      children: List.generate(6, (_) => const ShimmerTrackRow()),
+                      children: List.generate(
+                        6,
+                        (_) => const ShimmerTrackRow(),
+                      ),
                     ),
-                    error: (_, __) => _buildErrorState(),
+                    error: (_, _) => _buildErrorState(),
                     data: (tracks) => tracks.isEmpty
                         ? _buildEmptyState()
                         : _buildTrackList(tracks),
@@ -83,17 +91,13 @@ class FavoritesScreen extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 8, 100),
       itemCount: tracks.length,
-      separatorBuilder: (_, __) => Divider(
+      separatorBuilder: (_, _) => Divider(
         height: 1,
         indent: 72,
         color: RannaTheme.border.withValues(alpha: 0.3),
       ),
       itemBuilder: (context, index) {
-        return TrackRow(
-          track: tracks[index],
-          index: index,
-          queue: tracks,
-        )
+        return TrackRow(track: tracks[index], index: index, queue: tracks)
             .animate()
             .fadeIn(
               duration: 250.ms,
@@ -119,13 +123,11 @@ class FavoritesScreen extends ConsumerWidget {
           children: [
             // Bobbing heart icon
             Icon(
-              Icons.favorite_rounded,
-              size: 72,
-              color: RannaTheme.accent.withValues(alpha: 0.3),
-            )
-                .animate(
-                  onPlay: (controller) => controller.repeat(),
+                  Icons.favorite_rounded,
+                  size: 72,
+                  color: RannaTheme.accent.withValues(alpha: 0.3),
                 )
+                .animate(onPlay: (controller) => controller.repeat())
                 .moveY(
                   begin: 0,
                   end: -8,

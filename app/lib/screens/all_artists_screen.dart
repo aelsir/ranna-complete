@@ -84,7 +84,7 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
       ),
       body: firstPageAsync.when(
         loading: () => _buildLoading(),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Text(
             'حدث خطأ',
             style: Theme.of(context).textTheme.titleMedium,
@@ -102,42 +102,35 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.75,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index >= _artists.length) return null;
-                    final artist = _artists[index];
-                    return GestureDetector(
-                      onTap: () =>
-                          context.push('/profile/artist/${artist.id}'),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ClipOval(
-                            child: RannaImage(
-                              url: artist.imageUrl,
-                              width: 80,
-                              height: 80,
-                              fallbackWidget:
-                                  _buildGradientFallback(artist.name),
-                            ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index >= _artists.length) return null;
+                  final artist = _artists[index];
+                  return GestureDetector(
+                    onTap: () => context.push('/profile/artist/${artist.id}'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipOval(
+                          child: RannaImage(
+                            url: artist.imageUrl,
+                            width: 80,
+                            height: 80,
+                            fallbackWidget: _buildGradientFallback(artist.name),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            artist.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  childCount: _artists.length,
-                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          artist.name,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }, childCount: _artists.length),
               ),
             ),
             // Loading indicator at bottom
@@ -154,9 +147,7 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
                   ),
                 ),
               ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 100),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -173,7 +164,7 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
         childAspectRatio: 0.75,
       ),
       itemCount: 9,
-      itemBuilder: (_, __) => const ShimmerArtistCard(),
+      itemBuilder: (_, _) => const ShimmerArtistCard(),
     );
   }
 

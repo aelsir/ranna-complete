@@ -15,7 +15,7 @@ void main() async {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('━━━ FLUTTER ERROR ━━━');
-    debugPrint('${details.exceptionAsString()}');
+    debugPrint(details.exceptionAsString());
     debugPrint('${details.stack}');
   };
 
@@ -39,10 +39,7 @@ void main() async {
     );
   }
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   // Initialize native audio controls (lock screen, notification)
   audioHandler = await initAudioHandler();

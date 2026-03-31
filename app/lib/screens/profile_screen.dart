@@ -18,11 +18,7 @@ class ProfileScreen extends ConsumerWidget {
   final String type;
   final String id;
 
-  const ProfileScreen({
-    super.key,
-    required this.type,
-    required this.id,
-  });
+  const ProfileScreen({super.key, required this.type, required this.id});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -43,7 +39,7 @@ class ProfileScreen extends ConsumerWidget {
       final artistAsync = ref.watch(artistDetailProvider(id));
       artistAsync.when(
         loading: () => isLoading = true,
-        error: (_, __) => hasError = true,
+        error: (_, _) => hasError = true,
         data: (artist) {
           if (artist != null) {
             name = artist.name;
@@ -57,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
       final narratorAsync = ref.watch(narratorDetailProvider(id));
       narratorAsync.when(
         loading: () => isLoading = true,
-        error: (_, __) => hasError = true,
+        error: (_, _) => hasError = true,
         data: (narrator) {
           if (narrator != null) {
             name = narrator.name;
@@ -70,9 +66,7 @@ class ProfileScreen extends ConsumerWidget {
     }
 
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (hasError || name == null) {
@@ -98,25 +92,20 @@ class ProfileScreen extends ConsumerWidget {
             _buildAppBar(context, resolvedName, resolvedImageUrl),
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (_, __) => const ShimmerTrackRow(),
+                (_, _) => const ShimmerTrackRow(),
                 childCount: 8,
               ),
             ),
           ],
         ),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Text(
             'حدث خطأ',
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        data: (tracks) => _buildBody(
-          context,
-          ref,
-          resolvedName,
-          resolvedImageUrl,
-          tracks,
-        ),
+        data: (tracks) =>
+            _buildBody(context, ref, resolvedName, resolvedImageUrl, tracks),
       ),
     );
   }
@@ -200,8 +189,8 @@ class ProfileScreen extends ConsumerWidget {
                 Text(
                   '${toArabicNum(tracks.length)} مدحة',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: RannaTheme.mutedForeground,
-                      ),
+                    color: RannaTheme.mutedForeground,
+                  ),
                 ),
               ],
             ),
@@ -211,19 +200,14 @@ class ProfileScreen extends ConsumerWidget {
         // Track list
         SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) => TrackRow(
-              track: tracks[index],
-              index: index,
-              queue: tracks,
-            ),
+            (context, index) =>
+                TrackRow(track: tracks[index], index: index, queue: tracks),
             childCount: tracks.length,
           ),
         ),
 
         // Bottom padding for mini player + nav bar
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 120),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
     );
   }
@@ -241,9 +225,8 @@ class ProfileScreen extends ConsumerWidget {
     ref.read(trackCacheProvider.notifier).state = cache;
 
     // Play the first track with the full queue
-    ref.read(audioPlayerProvider.notifier).playTrack(
-          tracks.first.id,
-          queue: tracks.map((t) => t.id).toList(),
-        );
+    ref
+        .read(audioPlayerProvider.notifier)
+        .playTrack(tracks.first.id, queue: tracks.map((t) => t.id).toList());
   }
 }

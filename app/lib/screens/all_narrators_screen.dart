@@ -81,7 +81,7 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
       ),
       body: firstPageAsync.when(
         loading: () => _buildLoading(),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Text(
             'حدث خطأ',
             style: Theme.of(context).textTheme.titleMedium,
@@ -99,42 +99,38 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.75,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index >= _narrators.length) return null;
-                    final narrator = _narrators[index];
-                    return GestureDetector(
-                      onTap: () =>
-                          context.push('/profile/narrator/${narrator.id}'),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ClipOval(
-                            child: RannaImage(
-                              url: narrator.imageUrl,
-                              width: 80,
-                              height: 80,
-                              fallbackWidget:
-                                  _buildGradientFallback(narrator.name),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index >= _narrators.length) return null;
+                  final narrator = _narrators[index];
+                  return GestureDetector(
+                    onTap: () =>
+                        context.push('/profile/narrator/${narrator.id}'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipOval(
+                          child: RannaImage(
+                            url: narrator.imageUrl,
+                            width: 80,
+                            height: 80,
+                            fallbackWidget: _buildGradientFallback(
+                              narrator.name,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            narrator.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  childCount: _narrators.length,
-                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          narrator.name,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }, childCount: _narrators.length),
               ),
             ),
             // Loading indicator at bottom
@@ -151,9 +147,7 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
                   ),
                 ),
               ),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 100),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -170,7 +164,7 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
         childAspectRatio: 0.75,
       ),
       itemCount: 9,
-      itemBuilder: (_, __) => const ShimmerArtistCard(),
+      itemBuilder: (_, _) => const ShimmerArtistCard(),
     );
   }
 

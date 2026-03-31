@@ -18,10 +18,7 @@ import 'package:ranna/utils/format.dart';
 class PlaylistScreen extends ConsumerWidget {
   final String id;
 
-  const PlaylistScreen({
-    super.key,
-    required this.id,
-  });
+  const PlaylistScreen({super.key, required this.id});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,10 +28,8 @@ class PlaylistScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: RannaTheme.card,
       body: detailAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (_, __) => Center(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => Center(
           child: Text(
             'حدث خطأ',
             style: Theme.of(context).textTheme.titleMedium,
@@ -58,13 +53,13 @@ class PlaylistScreen extends ConsumerWidget {
                 _buildAppBar(context, collection.name, imageUrl),
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (_, __) => const ShimmerTrackRow(),
+                    (_, _) => const ShimmerTrackRow(),
                     childCount: 8,
                   ),
                 ),
               ],
             ),
-            error: (_, __) => Center(
+            error: (_, _) => Center(
               child: Text(
                 'حدث خطأ',
                 style: Theme.of(context).textTheme.titleMedium,
@@ -194,8 +189,8 @@ class PlaylistScreen extends ConsumerWidget {
                     Text(
                       '${toArabicNum(tracks.length)} مدحة',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: RannaTheme.mutedForeground,
-                          ),
+                        color: RannaTheme.mutedForeground,
+                      ),
                     ),
                   ],
                 ),
@@ -204,8 +199,8 @@ class PlaylistScreen extends ConsumerWidget {
                   Text(
                     description,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: RannaTheme.mutedForeground,
-                        ),
+                      color: RannaTheme.mutedForeground,
+                    ),
                   ),
                 ],
               ],
@@ -216,19 +211,14 @@ class PlaylistScreen extends ConsumerWidget {
         // Track list
         SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, index) => TrackRow(
-              track: tracks[index],
-              index: index,
-              queue: tracks,
-            ),
+            (context, index) =>
+                TrackRow(track: tracks[index], index: index, queue: tracks),
             childCount: tracks.length,
           ),
         ),
 
         // Bottom padding for mini player + nav bar
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 120),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
     );
   }
@@ -246,9 +236,8 @@ class PlaylistScreen extends ConsumerWidget {
     ref.read(trackCacheProvider.notifier).state = cache;
 
     // Play the first track with the full queue
-    ref.read(audioPlayerProvider.notifier).playTrack(
-          tracks.first.id,
-          queue: tracks.map((t) => t.id).toList(),
-        );
+    ref
+        .read(audioPlayerProvider.notifier)
+        .playTrack(tracks.first.id, queue: tracks.map((t) => t.id).toList());
   }
 }

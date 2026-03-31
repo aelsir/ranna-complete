@@ -142,8 +142,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             height: 36,
             child: searchResults.when(
               loading: () => _buildFilterChips(activeFilter, query, []),
-              error: (_, __) => _buildFilterChips(activeFilter, query, []),
-              data: (results) => _buildFilterChips(activeFilter, query, results),
+              error: (_, _) => _buildFilterChips(activeFilter, query, []),
+              data: (results) =>
+                  _buildFilterChips(activeFilter, query, results),
             ),
           ),
 
@@ -155,18 +156,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ? _buildEmptyState()
                 : searchResults.when(
                     loading: () => _buildLoadingState(),
-                    error: (_, __) => _buildErrorState(),
+                    error: (_, _) => _buildErrorState(),
                     data: (allResults) {
                       // Filter results based on active filter
                       final results = activeFilter == SearchFilter.all
                           ? allResults
                           : allResults.where((r) {
                               switch (activeFilter) {
-                                case SearchFilter.madha: return r.type == SearchResultType.madha;
-                                case SearchFilter.kalimat: return r.type == SearchResultType.kalimat;
-                                case SearchFilter.madih: return r.type == SearchResultType.madih;
-                                case SearchFilter.rawi: return r.type == SearchResultType.rawi;
-                                case SearchFilter.all: return true;
+                                case SearchFilter.madha:
+                                  return r.type == SearchResultType.madha;
+                                case SearchFilter.kalimat:
+                                  return r.type == SearchResultType.kalimat;
+                                case SearchFilter.madih:
+                                  return r.type == SearchResultType.madih;
+                                case SearchFilter.rawi:
+                                  return r.type == SearchResultType.rawi;
+                                case SearchFilter.all:
+                                  return true;
                               }
                             }).toList();
                       return results.isEmpty
@@ -180,7 +186,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildFilterChips(SearchFilter activeFilter, String query, List<SearchResult> results) {
+  Widget _buildFilterChips(
+    SearchFilter activeFilter,
+    String query,
+    List<SearchResult> results,
+  ) {
     // Count per type from all results (ignoring current filter)
     final counts = <SearchResultType, int>{};
     for (final r in results) {
@@ -190,20 +200,56 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0),
       children: [
-        _buildFilterChip('الكل', SearchFilter.all, activeFilter, query.isNotEmpty ? results.length : null, query),
+        _buildFilterChip(
+          'الكل',
+          SearchFilter.all,
+          activeFilter,
+          query.isNotEmpty ? results.length : null,
+          query,
+        ),
         const SizedBox(width: 8),
-        _buildFilterChip('مدحة', SearchFilter.madha, activeFilter, query.isNotEmpty ? (counts[SearchResultType.madha] ?? 0) : null, query),
+        _buildFilterChip(
+          'مدحة',
+          SearchFilter.madha,
+          activeFilter,
+          query.isNotEmpty ? (counts[SearchResultType.madha] ?? 0) : null,
+          query,
+        ),
         const SizedBox(width: 8),
-        _buildFilterChip('كلمات', SearchFilter.kalimat, activeFilter, query.isNotEmpty ? (counts[SearchResultType.kalimat] ?? 0) : null, query),
+        _buildFilterChip(
+          'كلمات',
+          SearchFilter.kalimat,
+          activeFilter,
+          query.isNotEmpty ? (counts[SearchResultType.kalimat] ?? 0) : null,
+          query,
+        ),
         const SizedBox(width: 8),
-        _buildFilterChip('مادح', SearchFilter.madih, activeFilter, query.isNotEmpty ? (counts[SearchResultType.madih] ?? 0) : null, query),
+        _buildFilterChip(
+          'مادح',
+          SearchFilter.madih,
+          activeFilter,
+          query.isNotEmpty ? (counts[SearchResultType.madih] ?? 0) : null,
+          query,
+        ),
         const SizedBox(width: 8),
-        _buildFilterChip('راوي', SearchFilter.rawi, activeFilter, query.isNotEmpty ? (counts[SearchResultType.rawi] ?? 0) : null, query),
+        _buildFilterChip(
+          'راوي',
+          SearchFilter.rawi,
+          activeFilter,
+          query.isNotEmpty ? (counts[SearchResultType.rawi] ?? 0) : null,
+          query,
+        ),
       ],
     );
   }
 
-  Widget _buildFilterChip(String label, SearchFilter filter, SearchFilter active, int? count, String query) {
+  Widget _buildFilterChip(
+    String label,
+    SearchFilter filter,
+    SearchFilter active,
+    int? count,
+    String query,
+  ) {
     final isActive = active == filter;
     final hasResults = count == null || count > 0;
     final isDim = query.isNotEmpty && !hasResults && !isActive;
@@ -229,7 +275,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   fontFamily: RannaTheme.fontFustat,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: isActive ? RannaTheme.primaryForeground : RannaTheme.foreground,
+                  color: isActive
+                      ? RannaTheme.primaryForeground
+                      : RannaTheme.foreground,
                 ),
               ),
               if (count != null && count > 0) ...[
@@ -240,7 +288,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     fontFamily: RannaTheme.fontFustat,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: (isActive ? RannaTheme.primaryForeground : RannaTheme.foreground).withValues(alpha: 0.6),
+                    color:
+                        (isActive
+                                ? RannaTheme.primaryForeground
+                                : RannaTheme.foreground)
+                            .withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -333,7 +385,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildResultsList(List<SearchResult> results) {
     // Collect all track results (including lyrics matches) for queue building
     final trackResults = results
-        .where((r) => (r.type == SearchResultType.madha || r.type == SearchResultType.kalimat) && r.track != null)
+        .where(
+          (r) =>
+              (r.type == SearchResultType.madha ||
+                  r.type == SearchResultType.kalimat) &&
+              r.track != null,
+        )
         .map((r) => r.track!)
         .toList();
 
@@ -405,11 +462,7 @@ class _TrackSearchRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (result.track == null) return const SizedBox.shrink();
-    return TrackRow(
-      track: result.track!,
-      index: index,
-      queue: trackQueue,
-    );
+    return TrackRow(track: result.track!, index: index, queue: trackQueue);
   }
 }
 
@@ -434,11 +487,7 @@ class _LyricsSearchRow extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TrackRow(
-          track: result.track!,
-          index: index,
-          queue: trackQueue,
-        ),
+        TrackRow(track: result.track!, index: index, queue: trackQueue),
         if (result.lyricsSnippet != null)
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(42, 0, 12, 8),
@@ -479,10 +528,7 @@ class _PersonSearchRow extends StatelessWidget {
   final SearchResult result;
   final VoidCallback onTap;
 
-  const _PersonSearchRow({
-    required this.result,
-    required this.onTap,
-  });
+  const _PersonSearchRow({required this.result, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -514,7 +560,10 @@ class _PersonSearchRow extends StatelessWidget {
                         gradient: LinearGradient(
                           colors: isArtist
                               ? [RannaTheme.primary, RannaTheme.primaryGlow]
-                              : [RannaTheme.accent, RannaTheme.accent.withValues(alpha: 0.7)],
+                              : [
+                                  RannaTheme.accent,
+                                  RannaTheme.accent.withValues(alpha: 0.7),
+                                ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -561,7 +610,9 @@ class _PersonSearchRow extends StatelessWidget {
                           color: isArtist
                               ? RannaTheme.primary.withValues(alpha: 0.1)
                               : RannaTheme.accent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                          borderRadius: BorderRadius.circular(
+                            RannaTheme.radiusFull,
+                          ),
                         ),
                         child: Text(
                           result.subtitle ?? '',
@@ -569,7 +620,9 @@ class _PersonSearchRow extends StatelessWidget {
                             fontFamily: RannaTheme.fontFustat,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: isArtist ? RannaTheme.primary : RannaTheme.accent,
+                            color: isArtist
+                                ? RannaTheme.primary
+                                : RannaTheme.accent,
                           ),
                         ),
                       ),

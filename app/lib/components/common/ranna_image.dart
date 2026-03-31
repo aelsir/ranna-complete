@@ -57,7 +57,10 @@ class RannaImage extends StatelessWidget {
         cacheWidth: cacheW,
         cacheHeight: cacheH,
         errorBuilder: (context, error, stackTrace) {
-          assert(() { debugPrint('RannaImage: failed to load $resolvedUrl'); return true; }());
+          assert(() {
+            debugPrint('RannaImage: failed to load $resolvedUrl');
+            return true;
+          }());
           return SizedBox(
             width: width,
             height: height,
@@ -87,7 +90,10 @@ class RannaImage extends StatelessWidget {
         memCacheWidth: cacheW,
         memCacheHeight: cacheH,
         errorWidget: (context, url, error) {
-          assert(() { debugPrint('RannaImage: failed to load $url'); return true; }());
+          assert(() {
+            debugPrint('RannaImage: failed to load $url');
+            return true;
+          }());
           return SizedBox(
             width: width,
             height: height,
@@ -116,7 +122,7 @@ class RannaImage extends StatelessWidget {
           width: logoSize,
           height: logoSize,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(
+          errorBuilder: (_, _, _) => Icon(
             Icons.music_note,
             color: RannaTheme.primary.withValues(alpha: 0.3),
             size: logoSize,

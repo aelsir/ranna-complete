@@ -22,7 +22,11 @@ class AllFunoonScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: RannaTheme.mutedForeground),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: RannaTheme.mutedForeground,
+              ),
               const SizedBox(height: 12),
               Text('حدث خطأ', style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 8),
@@ -39,8 +43,8 @@ class AllFunoonScreen extends ConsumerWidget {
               child: Text(
                 'لا توجد فنون',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: RannaTheme.mutedForeground,
-                    ),
+                  color: RannaTheme.mutedForeground,
+                ),
               ),
             );
           }
@@ -48,29 +52,42 @@ class AllFunoonScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.only(top: 8, bottom: 120),
             itemCount: funun.length,
-            separatorBuilder: (_, __) => const Divider(indent: 72, endIndent: 16),
+            separatorBuilder: (_, _) =>
+                const Divider(indent: 72, endIndent: 16),
             itemBuilder: (context, index) {
               final fan = funun[index];
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: RannaTheme.primary.withValues(alpha: 0.1),
-                  child: const Icon(Icons.music_note, color: RannaTheme.primary),
+                  child: const Icon(
+                    Icons.music_note,
+                    color: RannaTheme.primary,
+                  ),
                 ),
                 title: Text(
                   fan.name,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 subtitle: fan.description != null
                     ? Text(
                         fan.description!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: RannaTheme.mutedForeground),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: RannaTheme.mutedForeground,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       )
                     : null,
-                trailing: const Icon(Icons.chevron_left, color: RannaTheme.mutedForeground),
+                trailing: const Icon(
+                  Icons.chevron_left,
+                  color: RannaTheme.mutedForeground,
+                ),
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً')));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('قريباً')));
                 },
               );
             },

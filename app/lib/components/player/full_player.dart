@@ -42,13 +42,13 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
       duration: const Duration(milliseconds: 600),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 60 / 800),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entryController,
-      curve: Curves.easeOutBack,
-    ));
+    _slideAnimation =
+        Tween<Offset>(
+          begin: const Offset(0, 60 / 800),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutBack),
+        );
 
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(parent: _entryController, curve: Curves.easeOutBack),
@@ -110,295 +110,324 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           position: _slideAnimation,
           child: ScaleTransition(
             scale: _scaleAnimation,
-            child: FadeTransition(
-              opacity: _opacityAnimation,
-              child: child,
-            ),
+            child: FadeTransition(opacity: _opacityAnimation, child: child),
           ),
         );
       },
       child: Container(
-            decoration: BoxDecoration(
-              color: RannaTheme.primary.withValues(alpha: 0.97),
-              borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-              border: Border.all(
-                color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
-              ),
-              boxShadow: RannaTheme.shadowFloat,
-            ),
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final h = constraints.maxHeight;
-                  final coverSize = (h * 0.40).clamp(160.0, 280.0);
-                  final glowSize = coverSize * 1.1;
-                  final gapLarge = (h * 0.035).clamp(12.0, 32.0);
-                  final gapMedium = (h * 0.025).clamp(8.0, 24.0);
-                  final gapSmall = (h * 0.018).clamp(6.0, 16.0);
+        decoration: BoxDecoration(
+          color: RannaTheme.primary.withValues(alpha: 0.97),
+          borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+          border: Border.all(
+            color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
+          ),
+          boxShadow: RannaTheme.shadowFloat,
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final h = constraints.maxHeight;
+              final coverSize = (h * 0.40).clamp(160.0, 280.0);
+              final glowSize = coverSize * 1.1;
+              final gapLarge = (h * 0.035).clamp(12.0, 32.0);
+              final gapMedium = (h * 0.025).clamp(8.0, 24.0);
+              final gapSmall = (h * 0.018).clamp(6.0, 16.0);
 
-                  return Column(
-                    children: [
-                      // ===================================================
-                      // 1. Header
-                      // ===================================================
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(
-                          start: 8, end: 16, top: 12,
+              return Column(
+                children: [
+                  // ===================================================
+                  // 1. Header
+                  // ===================================================
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: 8,
+                      end: 16,
+                      top: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => notifier.closeFullPlayer(),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: RannaTheme.primaryForeground.withValues(
+                                alpha: 0.15,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 24,
+                              color: RannaTheme.primaryForeground.withValues(
+                                alpha: 0.70,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => notifier.closeFullPlayer(),
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: RannaTheme.primaryForeground
-                                      .withValues(alpha: 0.15),
-                                ),
+                        Expanded(
+                          child: Text(
+                            '\u0627\u0644\u0622\u0646 \u064A\u064F\u0633\u062A\u0645\u0639',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: RannaTheme.fontFustat,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: RannaTheme.primaryForeground.withValues(
+                                alpha: 0.50,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // ===================================================
+                  // 2. Cover art / Lyrics toggle
+                  // ===================================================
+                  AnimatedBuilder(
+                    animation: _coverScaleAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _coverScaleAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _showLyrics && hasLyrics
+                          ? _buildLyricsView(track.lyrics!, coverSize)
+                          : _buildCoverArt(track, coverSize, glowSize),
+                    ),
+                  ),
+
+                  SizedBox(height: gapLarge),
+
+                  // ===================================================
+                  // 3. Track info
+                  // ===================================================
+                  Padding(
+                    padding: const EdgeInsetsDirectional.symmetric(
+                      horizontal: 32,
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          track?.title ?? '',
+                          style: const TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _buildSubtitle(track),
+                          style: TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.50),
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: gapSmall),
+
+                  // ===================================================
+                  // 4. Action buttons (love, share, lyrics)
+                  // ===================================================
+                  Builder(
+                    builder: (context) {
+                      final trackId = track?.id;
+                      if (trackId == null) return const SizedBox.shrink();
+
+                      final isFav = ref
+                          .watch(favoritesProvider)
+                          .contains(trackId);
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Favorite
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(favoritesProvider.notifier)
+                                .toggle(trackId),
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Center(
                                 child: Icon(
-                                  Icons.keyboard_arrow_down_rounded,
+                                  isFav
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  size: 24,
+                                  color: isFav
+                                      ? RannaTheme.accent
+                                      : RannaTheme.primaryForeground.withValues(
+                                          alpha: 0.40,
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          // Share
+                          GestureDetector(
+                            onTap: () {
+                              if (track != null) {
+                                shareTrack(
+                                  trackId: track.id,
+                                  title: track.title,
+                                  artistName:
+                                      track.madihDetails?.name ?? track.madih,
+                                );
+                              }
+                            },
+                            child: SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: Center(
+                                child: Icon(
+                                  Icons.ios_share_rounded,
                                   size: 24,
                                   color: RannaTheme.primaryForeground
-                                      .withValues(alpha: 0.70),
+                                      .withValues(alpha: 0.40),
                                 ),
                               ),
                             ),
-                            Expanded(
-                              child: Text(
-                                '\u0627\u0644\u0622\u0646 \u064A\u064F\u0633\u062A\u0645\u0639',
-                                textAlign: TextAlign.center,
+                          ),
+                          // Lyrics toggle
+                          if (hasLyrics) ...[
+                            const SizedBox(width: 24),
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _showLyrics = !_showLyrics),
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.menu_book_rounded,
+                                    size: 24,
+                                    color: _showLyrics
+                                        ? RannaTheme.accent
+                                        : RannaTheme.primaryForeground
+                                              .withValues(alpha: 0.40),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: gapMedium),
+
+                  // ===================================================
+                  // 5. Progress slider
+                  // ===================================================
+                  Padding(
+                    padding: const EdgeInsetsDirectional.symmetric(
+                      horizontal: 24,
+                    ),
+                    child: Column(
+                      children: [
+                        SliderTheme(
+                          data: SliderThemeData(
+                            trackHeight: 4,
+                            trackShape: const RoundedRectSliderTrackShape(),
+                            activeTrackColor: Colors.white,
+                            inactiveTrackColor: RannaTheme.primaryForeground
+                                .withValues(alpha: 0.15),
+                            thumbColor: Colors.white,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 10,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 20,
+                            ),
+                            overlayColor: Colors.white.withValues(alpha: 0.12),
+                          ),
+                          child: Slider(
+                            value: position.inSeconds.toDouble().clamp(
+                              0,
+                              duration.inSeconds.toDouble().clamp(
+                                0,
+                                double.infinity,
+                              ),
+                            ),
+                            min: 0,
+                            max: duration.inSeconds > 0
+                                ? duration.inSeconds.toDouble()
+                                : 1,
+                            onChanged: (value) {
+                              notifier.seekTo(Duration(seconds: value.toInt()));
+                            },
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsetsDirectional.symmetric(
+                            horizontal: 8,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Current time on right (RTL), total on left
+                              Text(
+                                formatDuration(position.inSeconds),
                                 style: TextStyle(
                                   fontFamily: RannaTheme.fontFustat,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
                                   color: RannaTheme.primaryForeground
-                                      .withValues(alpha: 0.50),
+                                      .withValues(alpha: 0.40),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 40),
-                          ],
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      // ===================================================
-                      // 2. Cover art / Lyrics toggle
-                      // ===================================================
-                      AnimatedBuilder(
-                        animation: _coverScaleAnimation,
-                        builder: (context, child) {
-                          return Transform.scale(
-                            scale: _coverScaleAnimation.value,
-                            child: child,
-                          );
-                        },
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: _showLyrics && hasLyrics
-                              ? _buildLyricsView(track.lyrics!, coverSize)
-                              : _buildCoverArt(track, coverSize, glowSize),
-                        ),
-                      ),
-
-                      SizedBox(height: gapLarge),
-
-                      // ===================================================
-                      // 3. Track info
-                      // ===================================================
-                      Padding(
-                        padding: const EdgeInsetsDirectional.symmetric(
-                            horizontal: 32),
-                        child: Column(
-                          children: [
-                            Text(
-                              track?.title ?? '',
-                              style: const TextStyle(
-                                fontFamily: RannaTheme.fontFustat,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _buildSubtitle(track),
-                              style: TextStyle(
-                                fontFamily: RannaTheme.fontFustat,
-                                fontSize: 14,
-                                color: Colors.white.withValues(alpha: 0.50),
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      SizedBox(height: gapSmall),
-
-                      // ===================================================
-                      // 4. Action buttons (love, share, lyrics)
-                      // ===================================================
-                      Builder(builder: (context) {
-                        final trackId = track?.id;
-                        if (trackId == null) return const SizedBox.shrink();
-
-                        final isFav = ref.watch(favoritesProvider).contains(trackId);
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Favorite
-                            GestureDetector(
-                              onTap: () => ref.read(favoritesProvider.notifier).toggle(trackId),
-                              child: SizedBox(
-                                width: 44, height: 44,
-                                child: Center(
-                                  child: Icon(
-                                    isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                    size: 24,
-                                    color: isFav
-                                        ? RannaTheme.accent
-                                        : RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            // Share
-                            GestureDetector(
-                              onTap: () {
-                                if (track != null) {
-                                  shareTrack(
-                                    trackId: track.id,
-                                    title: track.title,
-                                    artistName: track.madihDetails?.name ?? track.madih,
-                                  );
-                                }
-                              },
-                              child: SizedBox(
-                                width: 44, height: 44,
-                                child: Center(
-                                  child: Icon(
-                                    Icons.ios_share_rounded,
-                                    size: 24,
-                                    color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Lyrics toggle
-                            if (hasLyrics) ...[
-                              const SizedBox(width: 24),
-                              GestureDetector(
-                                onTap: () => setState(() => _showLyrics = !_showLyrics),
-                                child: SizedBox(
-                                  width: 44, height: 44,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.menu_book_rounded,
-                                      size: 24,
-                                      color: _showLyrics
-                                          ? RannaTheme.accent
-                                          : RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                                    ),
-                                  ),
+                              Text(
+                                formatDuration(duration.inSeconds),
+                                style: TextStyle(
+                                  fontFamily: RannaTheme.fontFustat,
+                                  fontSize: 11,
+                                  color: RannaTheme.primaryForeground
+                                      .withValues(alpha: 0.40),
                                 ),
                               ),
                             ],
-                          ],
-                        );
-                      }),
-
-                      SizedBox(height: gapMedium),
-
-                      // ===================================================
-                      // 5. Progress slider
-                      // ===================================================
-                      Padding(
-                        padding: const EdgeInsetsDirectional.symmetric(
-                            horizontal: 24),
-                        child: Column(
-                          children: [
-                            SliderTheme(
-                              data: SliderThemeData(
-                                trackHeight: 4,
-                                trackShape: const RoundedRectSliderTrackShape(),
-                                activeTrackColor: Colors.white,
-                                inactiveTrackColor: RannaTheme.primaryForeground
-                                    .withValues(alpha: 0.15),
-                                thumbColor: Colors.white,
-                                thumbShape: const RoundSliderThumbShape(
-                                    enabledThumbRadius: 10),
-                                overlayShape: const RoundSliderOverlayShape(
-                                    overlayRadius: 20),
-                                overlayColor: Colors.white.withValues(alpha: 0.12),
-                              ),
-                              child: Slider(
-                                value: position.inSeconds
-                                    .toDouble()
-                                    .clamp(0, duration.inSeconds.toDouble().clamp(0, double.infinity)),
-                                min: 0,
-                                max: duration.inSeconds > 0
-                                    ? duration.inSeconds.toDouble()
-                                    : 1,
-                                onChanged: (value) {
-                                  notifier.seekTo(Duration(seconds: value.toInt()));
-                                },
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsetsDirectional.symmetric(horizontal: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Current time on right (RTL), total on left
-                                  Text(
-                                    formatDuration(position.inSeconds),
-                                    style: TextStyle(
-                                      fontFamily: RannaTheme.fontFustat,
-                                      fontSize: 11,
-                                      color: RannaTheme.primaryForeground
-                                          .withValues(alpha: 0.40),
-                                    ),
-                                  ),
-                                  Text(
-                                    formatDuration(duration.inSeconds),
-                                    style: TextStyle(
-                                      fontFamily: RannaTheme.fontFustat,
-                                      fontSize: 11,
-                                      color: RannaTheme.primaryForeground
-                                          .withValues(alpha: 0.40),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
 
-                      SizedBox(height: gapSmall),
+                  SizedBox(height: gapSmall),
 
-                      // ===================================================
-                      // 6. Player controls
-                      // ===================================================
-                      const PlayerControls(),
+                  // ===================================================
+                  // 6. Player controls
+                  // ===================================================
+                  const PlayerControls(),
 
-                      const Spacer(),
-                    ],
-                  );
-                },
-              ),
-            ),
+                  const Spacer(),
+                ],
+              );
+            },
           ),
+        ),
+      ),
     );
   }
 
@@ -515,7 +544,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           width: 120,
           height: 120,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(
+          errorBuilder: (_, _, _) => const Icon(
             Icons.music_note_rounded,
             color: RannaTheme.primary,
             size: 64,

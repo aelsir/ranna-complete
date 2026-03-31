@@ -80,13 +80,13 @@ class BrowseScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              error: (_, __) => Padding(
+              error: (_, _) => Padding(
                 padding: const EdgeInsetsDirectional.only(start: 16),
                 child: Text(
                   'حدث خطأ',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: RannaTheme.mutedForeground,
-                      ),
+                    color: RannaTheme.mutedForeground,
+                  ),
                 ),
               ),
               data: (collections) => SizedBox(
@@ -95,13 +95,12 @@ class BrowseScreen extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsetsDirectional.only(start: 16),
                   itemCount: collections.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     final collection = collections[index];
                     return CollectionCard(
                       collection: collection,
-                      onTap: () =>
-                          context.push('/playlist/${collection.id}'),
+                      onTap: () => context.push('/playlist/${collection.id}'),
                     );
                   },
                 ),
@@ -133,17 +132,13 @@ class BrowseScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 48,
-              color: RannaTheme.primary,
-            ),
+            Icon(icon, size: 48, color: RannaTheme.primary),
             const SizedBox(height: 8),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),
