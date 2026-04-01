@@ -1,8 +1,18 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
+
+/// Custom cache manager with 30-day stale period for offline-first images.
+final _rannaCacheManager = CacheManager(
+  Config(
+    'ranna_images',
+    stalePeriod: const Duration(days: 30),
+    maxNrOfCacheObjects: 500,
+  ),
+);
 
 /// A network image widget that handles null/empty URLs gracefully,
 /// resolves R2 relative paths, and works on both mobile and web.
@@ -84,6 +94,7 @@ class RannaImage extends StatelessWidget {
     } else {
       image = CachedNetworkImage(
         imageUrl: resolvedUrl,
+        cacheManager: _rannaCacheManager,
         width: width,
         height: height,
         fit: fit,

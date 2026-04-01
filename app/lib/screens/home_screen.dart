@@ -448,7 +448,7 @@ class _HeroBanner extends StatelessWidget {
           // Background image — local asset
           Positioned.fill(
             child: Image.asset(
-              'assets/images/hero-bg.jpg',
+              'assets/images/hero-bg.webp',
               fit: BoxFit.cover,
             ),
           ),

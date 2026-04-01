@@ -69,6 +69,12 @@ class PendingActionRow {
 class LocalDb {
   static Database? _db;
 
+  /// Public access to the database for services that need raw queries.
+  static Future<Database> get db async {
+    if (_db == null) await init();
+    return _db!;
+  }
+
   /// Open or create the database. Call once in main().
   static Future<void> init() async {
     if (_db != null) return;
@@ -77,7 +83,7 @@ class LocalDb {
     final dbPath = await getDatabasesPath();
     _db = await openDatabase(
       p.join(dbPath, 'ranna.db'),
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE downloaded_tracks (
@@ -96,6 +102,24 @@ class LocalDb {
             created_at TEXT NOT NULL
           )
         ''');
+        await db.execute('''
+          CREATE TABLE cached_api_responses (
+            cache_key TEXT PRIMARY KEY,
+            response_json TEXT NOT NULL,
+            cached_at TEXT NOT NULL
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS cached_api_responses (
+              cache_key TEXT PRIMARY KEY,
+              response_json TEXT NOT NULL,
+              cached_at TEXT NOT NULL
+            )
+          ''');
+        }
       },
     );
   }

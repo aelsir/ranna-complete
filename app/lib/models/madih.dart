@@ -40,4 +40,11 @@ class Madih {
       trackCount: json['track_count'] as int? ?? 0,
     );
   }
+
+  Map<String, dynamic> toJsonCache() => {
+        'id': id, 'name': name, 'status': status, 'bio': bio,
+        'image_url': imageUrl, 'birth_year': birthYear, 'death_year': deathYear,
+        'is_verified': isVerified, 'tariqa_id': tariqaId,
+        'created_at': createdAt, 'track_count': trackCount,
+      };
 }

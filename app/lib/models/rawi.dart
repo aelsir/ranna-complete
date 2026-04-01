@@ -34,4 +34,10 @@ class Rawi {
       trackCount: json['track_count'] as int? ?? 0,
     );
   }
+
+  Map<String, dynamic> toJsonCache() => {
+        'id': id, 'name': name, 'status': status, 'bio': bio,
+        'image_url': imageUrl, 'birth_year': birthYear, 'death_year': deathYear,
+        'created_at': createdAt, 'track_count': trackCount,
+      };
 }

@@ -31,4 +31,10 @@ class MusicCollection {
       createdAt: json['created_at'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJsonCache() => {
+        'id': id, 'name': name, 'name_en': nameEn, 'description': description,
+        'image_url': imageUrl, 'is_active': isActive,
+        'display_order': displayOrder, 'created_at': createdAt,
+      };
 }

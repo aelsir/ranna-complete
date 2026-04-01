@@ -164,4 +164,23 @@ class MadhaWithRelations extends Madha {
           : null,
     );
   }
+
+  /// Serialize to JSON for local caching.
+  Map<String, dynamic> toJsonCache() => {
+        'id': id, 'title': title, 'madih': madih, 'writer': writer,
+        'madih_id': madihId, 'rawi_id': rawiId,
+        'audio_url': audioUrl, 'image_url': imageUrl,
+        'user_id': userId, 'status': status,
+        'needs_processing': needsProcessing,
+        'tariqa_id': tariqaId, 'fan_id': fanId,
+        'play_count': playCount, 'lyrics': lyrics,
+        'duration_seconds': durationSeconds, 'is_featured': isFeatured,
+        'created_at': createdAt, 'updated_at': updatedAt,
+        'file_size_bytes': fileSizeBytes,
+        'thumbnail_url': thumbnailUrl, 'content_type': contentType,
+        if (madihDetails != null) 'madiheen': madihDetails!.toJsonCache(),
+        if (rawi != null) 'ruwat': rawi!.toJsonCache(),
+        if (tariqa != null) 'turuq': tariqa!.toJsonCache(),
+        if (fan != null) 'funun': fan!.toJsonCache(),
+      };
 }

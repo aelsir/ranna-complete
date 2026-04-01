@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,7 +10,10 @@ import 'package:ranna/models/tariqa.dart';
 import 'package:ranna/models/fan.dart';
 import 'package:ranna/models/collection.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/services/cache_service.dart';
 import 'package:ranna/utils/lyrics.dart';
+
+final _cache = CacheService();
 
 final supabaseProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -40,57 +45,47 @@ Map<String, dynamic>? _asMap(dynamic result) {
 // Home page data — single RPC call
 // ============================================
 
+HomeData _parseHomeData(Map<String, dynamic> data) {
+  return HomeData(
+    totalTracks: data['total_tracks'] as int? ?? 0,
+    popularTracks: _asList(data['trending']).map((e) => MadhaWithRelations.fromJson(e)).toList(),
+    featuredTracks: _asList(data['featured']).map((e) => MadhaWithRelations.fromJson(e)).toList(),
+    recentTracks: _asList(data['recent']).map((e) => MadhaWithRelations.fromJson(e)).toList(),
+    artists: _asList(data['artists']).map((e) => Madih.fromJson(e)).toList(),
+    collections: _asList(data['collections']).map((e) => MusicCollection.fromJson(e)).toList(),
+    narrators: _asList(data['narrators']).map((e) => Rawi.fromJson(e)).toList(),
+  );
+}
+
 final homeDataProvider = FutureProvider<HomeData>((ref) async {
   ref.keepAlive();
   final supabase = ref.read(supabaseProvider);
 
-  try {
-    final dynamic result = await supabase.rpc('get_home_data', params: {'p_limit': 10});
-    final data = _asMap(result);
-
-    if (data == null) {
-      debugPrint('⛔ homeDataProvider: get_home_data returned null');
-      return const HomeData(
-        featuredTracks: [],
-        popularTracks: [],
-        recentTracks: [],
-        artists: [],
-        collections: [],
-        narrators: [],
-      );
-    }
-
-    debugPrint('✅ homeDataProvider: got home data from RPC');
-
-    final totalTracks = data['total_tracks'] as int? ?? 0;
-    final trending = _asList(data['trending']);
-    final featured = _asList(data['featured']);
-    final recent = _asList(data['recent']);
-    final artists = _asList(data['artists']);
-    final narrators = _asList(data['narrators']);
-    final collections = _asList(data['collections']);
-
-    return HomeData(
-      totalTracks: totalTracks,
-      popularTracks: trending.map((e) => MadhaWithRelations.fromJson(e)).toList(),
-      featuredTracks: featured.map((e) => MadhaWithRelations.fromJson(e)).toList(),
-      recentTracks: recent.map((e) => MadhaWithRelations.fromJson(e)).toList(),
-      artists: artists.map((e) => Madih.fromJson(e)).toList(),
-      collections: collections.map((e) => MusicCollection.fromJson(e)).toList(),
-      narrators: narrators.map((e) => Rawi.fromJson(e)).toList(),
-    );
-  } catch (e, st) {
-    debugPrint('⛔ homeDataProvider error: $e');
-    debugPrint('$st');
-    return const HomeData(
-      featuredTracks: [],
-      popularTracks: [],
-      recentTracks: [],
-      artists: [],
-      collections: [],
-      narrators: [],
-    );
-  }
+  return _cache.fetch<HomeData>(
+    key: 'home_data',
+    maxAge: const Duration(hours: 1),
+    fetcher: () async {
+      final dynamic result = await supabase.rpc('get_home_data', params: {'p_limit': 10});
+      final data = _asMap(result);
+      if (data == null) throw Exception('get_home_data returned null');
+      debugPrint('✅ homeDataProvider: fetched fresh from RPC');
+      return _parseHomeData(data);
+    },
+    serialize: (homeData) => jsonEncode({
+      'total_tracks': homeData.totalTracks,
+      'trending': homeData.popularTracks.map((t) => t.toJsonCache()).toList(),
+      'featured': homeData.featuredTracks.map((t) => t.toJsonCache()).toList(),
+      'recent': homeData.recentTracks.map((t) => t.toJsonCache()).toList(),
+      'artists': homeData.artists.map((a) => a.toJsonCache()).toList(),
+      'collections': homeData.collections.map((c) => c.toJsonCache()).toList(),
+      'narrators': homeData.narrators.map((n) => n.toJsonCache()).toList(),
+    }),
+    deserialize: (json) {
+      final data = jsonDecode(json) as Map<String, dynamic>;
+      debugPrint('📦 homeDataProvider: loaded from cache');
+      return _parseHomeData(data);
+    },
+  );
 });
 
 class HomeData {
@@ -298,17 +293,22 @@ final paginatedArtistsProvider =
 final artistTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, artistId) async {
   final supabase = ref.read(supabaseProvider);
-  try {
-    final dynamic result = await supabase.rpc('get_artist_profile', params: {
-      'p_artist_id': artistId,
-    });
-    final data = _asMap(result);
-    if (data == null) return [];
-    return _asList(data['tracks']).map((e) => MadhaWithRelations.fromJson(e)).toList();
-  } catch (e) {
-    debugPrint('⛔ artistTracksProvider error: $e');
-    return [];
-  }
+  return _cache.fetch<List<MadhaWithRelations>>(
+    key: 'artist_tracks:$artistId',
+    maxAge: const Duration(hours: 24),
+    fetcher: () async {
+      final dynamic result = await supabase.rpc('get_artist_profile', params: {
+        'p_artist_id': artistId,
+      });
+      final data = _asMap(result);
+      if (data == null) return <MadhaWithRelations>[];
+      return _asList(data['tracks']).map((e) => MadhaWithRelations.fromJson(e)).toList();
+    },
+    serialize: (tracks) => jsonEncode(tracks.map((t) => t.toJsonCache()).toList()),
+    deserialize: (json) => (jsonDecode(json) as List)
+        .map((e) => MadhaWithRelations.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 });
 
 final artistDetailProvider = FutureProvider.family<Madih?, String>((ref, id) async {
@@ -366,17 +366,22 @@ final paginatedNarratorsProvider =
 final narratorTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, rawiId) async {
   final supabase = ref.read(supabaseProvider);
-  try {
-    final dynamic result = await supabase.rpc('get_narrator_profile', params: {
-      'p_narrator_id': rawiId,
-    });
-    final data = _asMap(result);
-    if (data == null) return [];
-    return _asList(data['tracks']).map((e) => MadhaWithRelations.fromJson(e)).toList();
-  } catch (e) {
-    debugPrint('⛔ narratorTracksProvider error: $e');
-    return [];
-  }
+  return _cache.fetch<List<MadhaWithRelations>>(
+    key: 'narrator_tracks:$rawiId',
+    maxAge: const Duration(hours: 24),
+    fetcher: () async {
+      final dynamic result = await supabase.rpc('get_narrator_profile', params: {
+        'p_narrator_id': rawiId,
+      });
+      final data = _asMap(result);
+      if (data == null) return <MadhaWithRelations>[];
+      return _asList(data['tracks']).map((e) => MadhaWithRelations.fromJson(e)).toList();
+    },
+    serialize: (tracks) => jsonEncode(tracks.map((t) => t.toJsonCache()).toList()),
+    deserialize: (json) => (jsonDecode(json) as List)
+        .map((e) => MadhaWithRelations.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 });
 
 final narratorDetailProvider = FutureProvider.family<Rawi?, String>((ref, id) async {
@@ -443,15 +448,20 @@ final allCollectionsProvider = FutureProvider<List<MusicCollection>>((ref) async
 final collectionTracksProvider =
     FutureProvider.family<List<MadhaWithRelations>, String>((ref, collectionId) async {
   final supabase = ref.read(supabaseProvider);
-  try {
-    final dynamic result = await supabase.rpc('get_collection_tracks', params: {
-      'p_collection_id': collectionId,
-    });
-    return _asList(result).map((e) => MadhaWithRelations.fromJson(e)).toList();
-  } catch (e) {
-    debugPrint('⛔ collectionTracksProvider error: $e');
-    return [];
-  }
+  return _cache.fetch<List<MadhaWithRelations>>(
+    key: 'collection_tracks:$collectionId',
+    maxAge: const Duration(hours: 12),
+    fetcher: () async {
+      final dynamic result = await supabase.rpc('get_collection_tracks', params: {
+        'p_collection_id': collectionId,
+      });
+      return _asList(result).map((e) => MadhaWithRelations.fromJson(e)).toList();
+    },
+    serialize: (tracks) => jsonEncode(tracks.map((t) => t.toJsonCache()).toList()),
+    deserialize: (json) => (jsonDecode(json) as List)
+        .map((e) => MadhaWithRelations.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 });
 
 final collectionDetailProvider =

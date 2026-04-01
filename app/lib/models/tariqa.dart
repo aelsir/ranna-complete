@@ -19,4 +19,8 @@ class Tariqa {
       createdAt: json['created_at'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJsonCache() => {
+        'id': id, 'name': name, 'description': description, 'created_at': createdAt,
+      };
 }
