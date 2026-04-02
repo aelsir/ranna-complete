@@ -13,7 +13,10 @@ class RannaAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: Text(title),
+      title: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Text(title),
+      ),
       titleTextStyle: const TextStyle(
         fontFamily: RannaTheme.fontFustat,
         fontSize: 18,
@@ -21,7 +24,6 @@ class RannaAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: RannaTheme.primary,
       ),
       centerTitle: false,
-      titleSpacing: 0, // Reduces the gap between the title and the back button
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       elevation: 0,

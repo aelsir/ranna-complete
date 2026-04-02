@@ -144,11 +144,18 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
       flexibleSpace: FlexibleSpaceBar(
+        centerTitle: false,
+        titlePadding: const EdgeInsetsDirectional.only(
+          start: 64,
+          bottom: 16,
+          end: 16,
+        ),
         title: Text(
           name,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
         ),
         background: Stack(

@@ -113,6 +113,12 @@ class PlaylistScreen extends ConsumerWidget {
         ),
       ),
       flexibleSpace: FlexibleSpaceBar(
+        centerTitle: false,
+        titlePadding: const EdgeInsetsDirectional.only(
+          start: 64,
+          bottom: 16,
+          end: 16,
+        ),
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
