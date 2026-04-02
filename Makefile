@@ -38,8 +38,7 @@ dev-app: sync
 
 ## Install the Flutter app in release mode on a connected iPhone (works independently)
 release-app: sync
-	cd app && flutter install --release
-
+	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json && flutter install --release
 
 ## Build the iOS app for App Store / TestFlight distribution
 build-ipa: sync
