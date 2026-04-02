@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
@@ -119,7 +120,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
       },
       child: Container(
         decoration: BoxDecoration(
-          color: RannaTheme.primary.withValues(alpha: 0.97),
+          color: RannaTheme.primary,
           borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
           border: Border.all(
             color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
@@ -169,21 +170,6 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                             ),
                           ),
                         ),
-                        Expanded(
-                          child: Text(
-                            '\u0627\u0644\u0622\u0646 \u064A\u064F\u0633\u062A\u0645\u0639',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: RannaTheme.fontFustat,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: RannaTheme.primaryForeground.withValues(
-                                alpha: 0.50,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 40),
                       ],
                     ),
                   ),
@@ -229,18 +215,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _buildSubtitle(track),
-                          style: TextStyle(
-                            fontFamily: RannaTheme.fontFustat,
-                            fontSize: 14,
-                            color: Colors.white.withValues(alpha: 0.50),
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        _buildSubtitleWidget(context, notifier, track),
                       ],
                     ),
                   ),
@@ -526,16 +501,72 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
     );
   }
 
-  String _buildSubtitle(dynamic track) {
-    if (track == null) return '';
-    final parts = <String>[];
-    final artist = track.madihDetails?.name ?? track.madih;
-    if (artist != null && (artist as String).isNotEmpty) parts.add(artist);
-    final narrator = track.rawi?.name;
-    if (narrator != null && (narrator as String).isNotEmpty) {
-      parts.add(narrator);
-    }
-    return parts.join(' \u00B7 ');
+  Widget _buildSubtitleWidget(
+    BuildContext context,
+    AudioPlayerService notifier,
+    MadhaWithRelations? track,
+  ) {
+    if (track == null) return const SizedBox.shrink();
+
+    final artistName = track.madihDetails?.name ?? track.madih;
+    final narratorName = track.rawi?.name;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (artistName.isNotEmpty)
+            GestureDetector(
+              onTap: () {
+                if (track.madihId != null) {
+                  notifier.closeFullPlayer();
+                  context.push('/profile/artist/${track.madihId}');
+                }
+              },
+              child: Text(
+                artistName,
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.60),
+                ),
+              ),
+            ),
+          if (artistName.isNotEmpty && narratorName != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                '·',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.30),
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          if (narratorName != null)
+            GestureDetector(
+              onTap: () {
+                if (track.rawiId != null) {
+                  notifier.closeFullPlayer();
+                  context.push('/profile/narrator/${track.rawiId}');
+                }
+              },
+              child: Text(
+                narratorName,
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.60),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildFallbackCover() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 
@@ -12,9 +13,35 @@ class AllTariqasScreen extends ConsumerWidget {
     final tariqasAsync = ref.watch(allTuruqProvider);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('الطرق الصوفية'),
-        backgroundColor: RannaTheme.primary,
+        titleTextStyle: const TextStyle(
+          fontFamily: RannaTheme.fontFustat,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: RannaTheme.primary,
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GestureDetector(
+            onTap: () => context.pop(),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: RannaTheme.muted.withValues(alpha: 0.8),
+              ),
+              child: const Icon(
+                Icons.keyboard_arrow_right_rounded,
+                size: 24,
+                color: RannaTheme.foreground,
+              ),
+            ),
+          ),
+        ),
       ),
       body: tariqasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

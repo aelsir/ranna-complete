@@ -261,10 +261,8 @@ class _FloatingBottomNav extends ConsumerWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
-                    // Close full player when switching tabs
-                    if (index != currentIndex) {
-                      ref.read(audioPlayerProvider.notifier).closeFullPlayer();
-                    }
+                    // Always close full player when tapping tabs to ensure content visibility
+                    ref.read(audioPlayerProvider.notifier).closeFullPlayer();
                     navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
                   },
                   child: _AnimatedTab(

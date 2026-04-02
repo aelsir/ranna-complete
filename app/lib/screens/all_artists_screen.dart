@@ -77,10 +77,35 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
     final firstPageAsync = ref.watch(paginatedArtistsProvider(0));
 
     return Scaffold(
-      backgroundColor: RannaTheme.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('المادحين'),
-        backgroundColor: RannaTheme.primary,
+        titleTextStyle: const TextStyle(
+          fontFamily: RannaTheme.fontFustat,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: RannaTheme.primary,
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GestureDetector(
+            onTap: () => context.pop(),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: RannaTheme.muted.withValues(alpha: 0.8),
+              ),
+              child: const Icon(
+                Icons.keyboard_arrow_right_rounded,
+                size: 24,
+                color: RannaTheme.foreground,
+              ),
+            ),
+          ),
+        ),
       ),
       body: firstPageAsync.when(
         loading: () => _buildLoading(),
