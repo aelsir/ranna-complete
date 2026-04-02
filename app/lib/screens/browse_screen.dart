@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/providers/supabase_providers.dart';
-import 'package:ranna/components/home/section_header.dart';
-import 'package:ranna/components/home/collection_card.dart';
-import 'package:ranna/components/common/shimmer_loading.dart';
+import 'package:ranna/components/common/ranna_app_bar.dart';
+import 'package:ranna/components/common/ranna_image.dart';
 
 class BrowseScreen extends ConsumerWidget {
   const BrowseScreen({super.key});
@@ -15,133 +14,94 @@ class BrowseScreen extends ConsumerWidget {
     final collectionsAsync = ref.watch(allCollectionsProvider);
 
     return Scaffold(
-      backgroundColor: RannaTheme.background,
-      appBar: AppBar(
-        title: const Text('تصفح'),
-        backgroundColor: RannaTheme.primary,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Category grid
-            Padding(
-              padding: const EdgeInsetsDirectional.all(16),
-              child: GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                children: [
-                  _buildCategoryCard(
-                    context,
-                    icon: Icons.person,
-                    label: 'المادحين',
-                    onTap: () => context.push('/artists'),
-                  ),
-                  _buildCategoryCard(
-                    context,
-                    icon: Icons.record_voice_over,
-                    label: 'الرواة',
-                    onTap: () => context.push('/narrators'),
-                  ),
-                  _buildCategoryCard(
-                    context,
-                    icon: Icons.auto_awesome,
-                    label: 'الطرق الصوفية',
-                    onTap: () => context.push('/tariqas'),
-                  ),
-                  _buildCategoryCard(
-                    context,
-                    icon: Icons.music_note,
-                    label: 'الفنون',
-                    onTap: () => context.push('/funoon'),
-                  ),
-                ],
+      backgroundColor: Colors.white,
+      appBar: const RannaAppBar(title: 'القوائم المميزة'),
+      body: collectionsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: RannaTheme.mutedForeground,
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Collections section
-            SectionHeader(title: 'قوائم التشغيل', onSeeAll: null),
-
-            collectionsAsync.when(
-              loading: () => SizedBox(
-                height: 180,
-                child: Row(
-                  children: List.generate(
-                    3,
-                    (_) => const Padding(
-                      padding: EdgeInsetsDirectional.only(start: 16),
-                      child: ShimmerCollectionCard(),
-                    ),
-                  ),
+              const SizedBox(height: 12),
+              Text('حدث خطأ', style: Theme.of(context).textTheme.bodyLarge),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(allCollectionsProvider),
+                child: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+        ),
+        data: (collections) {
+          if (collections.isEmpty) {
+            return Center(
+              child: Text(
+                'لا توجد قوائم مميزة',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: RannaTheme.mutedForeground,
                 ),
               ),
-              error: (_, _) => Padding(
-                padding: const EdgeInsetsDirectional.only(start: 16),
-                child: Text(
-                  'حدث خطأ',
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.only(top: 8, bottom: 120),
+            itemCount: collections.length,
+            separatorBuilder: (_, _) => const Divider(indent: 84, endIndent: 16),
+            itemBuilder: (context, index) {
+              final collection = collections[index];
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: RannaTheme.primary.withValues(alpha: 0.1),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: collection.imageUrl != null
+                      ? RannaImage(
+                          url: collection.imageUrl,
+                          width: 56,
+                          height: 56,
+                          fallbackWidget: const Icon(Icons.queue_music, color: RannaTheme.primary),
+                        )
+                      : const Icon(Icons.queue_music, color: RannaTheme.primary),
+                ),
+                title: Text(
+                  collection.name,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: RannaTheme.mutedForeground,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        fontFamily: RannaTheme.fontFustat,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              data: (collections) => SizedBox(
-                height: 180,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsetsDirectional.only(start: 16),
-                  itemCount: collections.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final collection = collections[index];
-                    return CollectionCard(
-                      collection: collection,
-                      onTap: () => context.push('/playlist/${collection.id}'),
-                    );
-                  },
+                subtitle: collection.description != null && collection.description!.isNotEmpty
+                    ? Text(
+                        collection.description!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: RannaTheme.mutedForeground,
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : null,
+                trailing: const Icon(
+                  Icons.chevron_left,
+                  color: RannaTheme.mutedForeground,
                 ),
-              ),
-            ),
-
-            // Bottom padding for mini player + nav bar
-            const SizedBox(height: 120),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryCard(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: RannaTheme.card,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: RannaTheme.shadowSm,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: RannaTheme.primary),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+                onTap: () => context.push('/playlist/${collection.id}'),
+              );
+            },
+          );
+        },
       ),
     );
   }

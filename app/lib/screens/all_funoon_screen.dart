@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/providers/supabase_providers.dart';
+import 'package:ranna/components/common/ranna_app_bar.dart';
 
 /// Grid/list of all music styles (الفنون).
 class AllFunoonScreen extends ConsumerWidget {
@@ -14,35 +14,7 @@ class AllFunoonScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('الفنون'),
-        titleTextStyle: const TextStyle(
-          fontFamily: RannaTheme.fontFustat,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: RannaTheme.primary,
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: RannaTheme.muted.withValues(alpha: 0.8),
-              ),
-              child: const Icon(
-                Icons.keyboard_arrow_right_rounded,
-                size: 24,
-                color: RannaTheme.foreground,
-              ),
-            ),
-          ),
-        ),
-      ),
+      appBar: const RannaAppBar(title: 'الفنون'),
       body: fununAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(

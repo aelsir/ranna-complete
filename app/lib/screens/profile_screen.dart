@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
@@ -119,6 +120,29 @@ class ProfileScreen extends ConsumerWidget {
       expandedHeight: 264,
       pinned: true,
       backgroundColor: RannaTheme.primary,
+      leading: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: GestureDetector(
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: RannaTheme.muted.withValues(alpha: 0.8),
+            ),
+            child: const Icon(
+              Icons.keyboard_arrow_right_rounded,
+              size: 24,
+              color: RannaTheme.foreground,
+            ),
+          ),
+        ),
+      ),
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
           name,
