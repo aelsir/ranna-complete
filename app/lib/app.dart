@@ -125,7 +125,7 @@ class ShellScaffold extends ConsumerWidget {
     // Offline banner height (animated)
     const bannerHeight = 28.0;
     final showBanner = !isOnline;
-    final contentTop = topPadding - 6 + (showBanner ? bannerHeight : 0);
+    final contentTop = topPadding + (showBanner ? bannerHeight : 0);
 
     return Scaffold(
       backgroundColor: RannaTheme.background,
@@ -162,7 +162,7 @@ class ShellScaffold extends ConsumerWidget {
             top: showBanner ? 0 : -(topPadding + bannerHeight),
             left: 0,
             right: 0,
-            height: topPadding - 6 + bannerHeight,
+            height: topPadding + bannerHeight,
             child: Container(
               color: const Color(0xFFF97316), // Orange
               alignment: Alignment.bottomCenter,
@@ -214,7 +214,11 @@ class ShellScaffold extends ConsumerWidget {
               right: 3,
               top: contentTop,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
-              child: const FullPlayer(),
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: const FullPlayer(),
+              ),
             ),
         ],
       ),
