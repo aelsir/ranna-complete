@@ -351,7 +351,8 @@ export function useBulkUpload() {
         // 1. Upload audio to R2
         let audioPath: string;
         try {
-          audioPath = await uploadToR2(file.file, "audio/madhaat");
+          const uploadResult = await uploadToR2(file.file, "audio/madhaat");
+          audioPath = uploadResult.path;
         } catch (uploadErr) {
           const msg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
           console.error(`[رفع R2] فشل "${file.title}":`, uploadErr);

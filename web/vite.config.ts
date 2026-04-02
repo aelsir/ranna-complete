@@ -60,11 +60,42 @@ function r2UploadDevPlugin(): Plugin {
             })
           );
 
+          // Generate thumbnail for images
+          let thumbnailPath: string | undefined;
+          if (contentType.startsWith("image/") && !contentType.includes("svg")) {
+            try {
+              const sharp = (await import("sharp")).default;
+              const thumbBuffer = await sharp(buffer)
+                .resize(150, 150, { fit: "cover" })
+                .webp({ quality: 60 })
+                .toBuffer();
+
+              const nameWithoutExt = filename.replace(/\.[^.]+$/, "");
+              const thumbKey = `${folder}/${nameWithoutExt}-thumb.webp`;
+
+              await s3.send(
+                new PutObjectCommand({
+                  Bucket: env.R2_BUCKET_NAME,
+                  Key: thumbKey,
+                  Body: thumbBuffer,
+                  ContentType: "image/webp",
+                })
+              );
+              thumbnailPath = thumbKey;
+            } catch (thumbErr) {
+              console.warn("Thumbnail generation failed:", thumbErr);
+            }
+          }
+
           res.setHeader("Content-Type", "application/json");
           res.end(
             JSON.stringify({
               path: key,
               url: `${env.R2_PUBLIC_URL}/${key}`,
+              ...(thumbnailPath && {
+                thumbnailPath,
+                thumbnailUrl: `${env.R2_PUBLIC_URL}/${thumbnailPath}`,
+              }),
             })
           );
         } catch (err: any) {

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 
 const s3 = new S3Client({
   region: "auto",
@@ -15,6 +16,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const THUMB_SIZE = 150;
+const THUMB_QUALITY = 60;
+
+/** Check if this content type is an image we can thumbnail */
+function isImage(contentType: string): boolean {
+  return contentType.startsWith("image/") && !contentType.includes("svg");
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -44,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const buffer = Buffer.from(file, "base64");
     const key = `${folder}/${filename}`;
 
+    // Upload original
     await s3.send(
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -53,9 +63,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     );
 
+    // Generate and upload thumbnail for images
+    let thumbnailPath: string | undefined;
+    if (isImage(contentType)) {
+      try {
+        const thumbBuffer = await sharp(buffer)
+          .resize(THUMB_SIZE, THUMB_SIZE, { fit: "cover" })
+          .webp({ quality: THUMB_QUALITY })
+          .toBuffer();
+
+        const nameWithoutExt = filename.replace(/\.[^.]+$/, "");
+        const thumbKey = `${folder}/${nameWithoutExt}-thumb.webp`;
+
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: thumbKey,
+            Body: thumbBuffer,
+            ContentType: "image/webp",
+          })
+        );
+
+        thumbnailPath = thumbKey;
+      } catch (thumbErr) {
+        // Thumbnail generation is best-effort — don't fail the upload
+        console.warn("Thumbnail generation failed:", thumbErr);
+      }
+    }
+
     return res.json({
       path: key,
       url: `${process.env.R2_PUBLIC_URL}/${key}`,
+      ...(thumbnailPath && {
+        thumbnailPath,
+        thumbnailUrl: `${process.env.R2_PUBLIC_URL}/${thumbnailPath}`,
+      }),
     });
   } catch (err: any) {
     console.error("Upload error:", err);

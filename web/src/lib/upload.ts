@@ -17,9 +17,14 @@ function getExtension(name: string): string {
   return ext ? `.${ext}` : "";
 }
 
+export interface UploadResult {
+  path: string;
+  thumbnailPath?: string;
+}
+
 /**
  * Upload a file to Cloudflare R2 via the /api/upload serverless function.
- * Returns the relative path (e.g. "images/collections/1234-photo.jpg").
+ * Returns the relative path and optional thumbnail path.
  *
  * Filenames are stored as "{timestamp}-{uuid}{ext}" — always ASCII-safe.
  * Arabic titles and original filenames are kept in the database, not in the path.
@@ -27,7 +32,7 @@ function getExtension(name: string): string {
 export async function uploadToR2(
   file: File,
   folder: string
-): Promise<string> {
+): Promise<UploadResult> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -63,6 +68,9 @@ export async function uploadToR2(
     throw new Error(message);
   }
 
-  const { path } = await res.json();
-  return path;
+  const data = await res.json();
+  return {
+    path: data.path,
+    thumbnailPath: data.thumbnailPath,
+  };
 }

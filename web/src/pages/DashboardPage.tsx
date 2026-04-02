@@ -933,7 +933,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
     setAudioUploading(true);
     try {
-      const path = await uploadToR2(file, "audio/madha");
+      const { path } = await uploadToR2(file, "audio/madha");
 
       // Try to detect duration from audio file
       let detectedDuration: string | undefined;
@@ -991,9 +991,16 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       : "images/madha";
     setImageUploading(true);
     try {
-      const path = await uploadToR2(croppedFile, folder);
+      const { path, thumbnailPath } = await uploadToR2(croppedFile, folder);
       if (cropTarget === "pasteTrack") {
         const count = selectedTracks.size;
+        // Update image_url + thumbnail_url together
+        if (thumbnailPath) {
+          bulkUpdateMadhaatMutation.mutate(
+            { ids: Array.from(selectedTracks), field: "thumbnail_url", value: thumbnailPath },
+            {},
+          );
+        }
         bulkUpdateMadhaatMutation.mutate(
           { ids: Array.from(selectedTracks), field: "image_url", value: path },
           {
@@ -1038,9 +1045,9 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       } else if (cropTarget === "addRawi") {
         setNewRawi((prev) => ({ ...prev, image_url: path }));
       } else if (cropTarget === "editTrack" && editingTrack) {
-        setEditingTrack({ ...editingTrack, imageUrl: path });
+        setEditingTrack({ ...editingTrack, imageUrl: path, thumbnailUrl: thumbnailPath });
       } else if (cropTarget === "addTrack") {
-        setNewTrack((prev) => ({ ...prev, imageUrl: path }));
+        setNewTrack((prev) => ({ ...prev, imageUrl: path, thumbnailUrl: thumbnailPath }));
       } else if (cropTarget === "playlist") {
         setNewPlaylist((prev) => ({ ...prev, image: path }));
       } else if (cropTarget === "editPlaylist" && editingPlaylist) {

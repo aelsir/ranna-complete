@@ -21,6 +21,9 @@ final _rannaCacheManager = CacheManager(
 /// attempting a network request.
 class RannaImage extends StatelessWidget {
   final String? url;
+  /// Optional thumbnail URL — loaded first for faster display on slow connections.
+  /// The full-size image replaces it once loaded.
+  final String? thumbnailUrl;
   final double width;
   final double height;
   final BoxFit fit;
@@ -30,6 +33,7 @@ class RannaImage extends StatelessWidget {
   const RannaImage({
     super.key,
     required this.url,
+    this.thumbnailUrl,
     required this.width,
     required this.height,
     this.fit = BoxFit.cover,
@@ -92,6 +96,9 @@ class RannaImage extends StatelessWidget {
         },
       );
     } else {
+      // Resolve thumbnail URL for progressive loading
+      final resolvedThumb = getImageUrl(thumbnailUrl);
+
       image = CachedNetworkImage(
         imageUrl: resolvedUrl,
         cacheManager: _rannaCacheManager,
@@ -100,6 +107,17 @@ class RannaImage extends StatelessWidget {
         fit: fit,
         memCacheWidth: cacheW,
         memCacheHeight: cacheH,
+        // Show thumbnail while full image loads (progressive loading)
+        placeholder: resolvedThumb.isNotEmpty
+            ? (context, url) => CachedNetworkImage(
+                  imageUrl: resolvedThumb,
+                  cacheManager: _rannaCacheManager,
+                  width: width,
+                  height: height,
+                  fit: fit,
+                  // Thumbnails are small — no memCache optimization needed
+                )
+            : null,
         errorWidget: (context, url, error) {
           assert(() {
             debugPrint('RannaImage: failed to load $url');
