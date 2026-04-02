@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ranna/providers/connectivity_provider.dart';
+import 'package:ranna/services/sync_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/screens/home_screen.dart';
 import 'package:ranna/screens/search_screen.dart';
@@ -99,9 +101,17 @@ class ShellScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isFullPlayerOpen = ref.watch(isFullPlayerOpenProvider);
     final hasTrack = ref.watch(currentTrackProvider) != null;
+    final isOnline = ref.watch(isOnlineProvider);
     final padding = MediaQuery.of(context).padding;
     final topPadding = padding.top;
     final bottomPadding = padding.bottom;
+
+    // Auto-sync queued actions when coming back online
+    ref.listen<bool>(isOnlineProvider, (prev, next) {
+      if (prev == false && next == true) {
+        SyncService.syncPendingActions();
+      }
+    });
 
     // Bottom nav height + spacing
     const navBarHeight = 68.0;
@@ -130,7 +140,48 @@ class ShellScaffold extends ConsumerWidget {
                 boxShadow: RannaTheme.shadowCard,
               ),
               clipBehavior: Clip.antiAlias,
-              child: navigationShell,
+              child: Column(
+                children: [
+                  // Offline banner
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    height: isOnline ? 0 : 32,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: BoxDecoration(
+                      color: RannaTheme.muted,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: RannaTheme.border.withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.wifi_off_rounded,
+                            size: 14,
+                            color: RannaTheme.mutedForeground,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'أنت غير متصل — يتم عرض البيانات المحفوظة',
+                            style: TextStyle(
+                              fontFamily: RannaTheme.fontFustat,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: RannaTheme.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(child: navigationShell),
+                ],
+              ),
             ),
           ),
 

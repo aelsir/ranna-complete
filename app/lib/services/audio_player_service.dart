@@ -340,27 +340,43 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
 
   /// Logs a play event to Supabase for trending calculations,
   /// increments play_count, and records listening history.
-  void _logPlayEvent(String trackId) {
+  /// If Supabase is unreachable, queues actions for later sync.
+  void _logPlayEvent(String trackId) async {
     try {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
 
       // 1. Log play event (trending analytics)
-      final data = <String, dynamic>{'madha_id': trackId};
-      if (userId != null) data['user_id'] = userId;
-      supabase.from('play_events').insert(data).then((_) {}).catchError((_) {});
+      final playData = <String, dynamic>{'track_id': trackId};
+      if (userId != null) playData['user_id'] = userId;
+      try {
+        await supabase.from('play_events').insert(playData);
+      } catch (_) {
+        await LocalDb.enqueueAction('play_event', playData);
+      }
 
       // 2. Increment play_count on the track
-      supabase.rpc('increment_play_count', params: {'p_madha_id': trackId})
-          .then((_) {}).catchError((_) {});
+      try {
+        await supabase.rpc('increment_play_count', params: {'p_madha_id': trackId});
+      } catch (_) {
+        await LocalDb.enqueueAction('increment_play_count', {'p_madha_id': trackId});
+      }
 
       // 3. Record listening history (if authenticated)
       if (userId != null) {
-        supabase.from('listening_history').upsert({
+        final historyData = {
           'user_id': userId,
-          'madha_id': trackId,
+          'track_id': trackId,
           'listened_at': DateTime.now().toUtc().toIso8601String(),
-        }, onConflict: 'user_id,madha_id').then((_) {}).catchError((_) {});
+        };
+        try {
+          await supabase.from('listening_history').upsert(
+            historyData,
+            onConflict: 'user_id,track_id',
+          );
+        } catch (_) {
+          await LocalDb.enqueueAction('listening_history', historyData);
+        }
       }
     } catch (_) {
       // Non-critical — don't interrupt playback
