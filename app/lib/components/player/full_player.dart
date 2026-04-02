@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -219,17 +220,14 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                     ),
                     child: Column(
                       children: [
-                        Text(
-                          track?.title ?? '',
+                        ScrollingTitle(
+                          text: track?.title ?? '',
                           style: const TextStyle(
                             fontFamily: RannaTheme.fontFustat,
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -555,6 +553,107 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
             size: 64,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class ScrollingTitle extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const ScrollingTitle({
+    super.key,
+    required this.text,
+    required this.style,
+  });
+
+  @override
+  State<ScrollingTitle> createState() => _ScrollingTitleState();
+}
+
+class _ScrollingTitleState extends State<ScrollingTitle> {
+  late ScrollController _scrollController;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _startScrollingAfterDelay();
+  }
+
+  @override
+  void didUpdateWidget(ScrollingTitle oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) {
+      _resetScroll();
+      _startScrollingAfterDelay();
+    }
+  }
+
+  void _resetScroll() {
+    _timer?.cancel();
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  void _startScrollingAfterDelay() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(seconds: 2), () {
+      _scroll();
+    });
+  }
+
+  void _scroll() async {
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    if (maxExtent <= 0) return;
+
+    // Scroll to end
+    await _scrollController.animateTo(
+      maxExtent,
+      duration: Duration(milliseconds: (maxExtent * 50).toInt()),
+      curve: Curves.linear,
+    );
+
+    if (!mounted) return;
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Scroll back to start
+    if (!mounted) return;
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(seconds: 1),
+      curve: Curves.easeInOut,
+    );
+
+    // Restart after a small delay
+    if (!mounted) return;
+    _timer = Timer(const Duration(seconds: 2), () {
+      _scroll();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(), // Only auto-scroll
+      child: Text(
+        widget.text,
+        style: widget.style,
+        maxLines: 1,
       ),
     );
   }
