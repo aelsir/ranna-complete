@@ -71,67 +71,71 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: RannaTheme.muted,
-                borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
-                boxShadow: RannaTheme.shadowSm,
-                border: Border.all(
-                  color: RannaTheme.border.withValues(alpha: 0.2),
-                ),
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              onChanged: (val) {
+                _onSearchChanged(val);
+                setState(() {});
+              },
+              style: TextStyle(
+                fontFamily: RannaTheme.fontNotoNaskh,
+                fontSize: 16,
+                color: RannaTheme.foreground,
               ),
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                onChanged: (val) {
-                  _onSearchChanged(val);
-                  setState(() {});
-                },
-                style: TextStyle(
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: RannaTheme.muted,
+                hintText: 'ابحث عن مدحة، مادح، راوي أو كلمات...',
+                hintStyle: TextStyle(
                   fontFamily: RannaTheme.fontNotoNaskh,
                   fontSize: 16,
-                  color: RannaTheme.foreground,
+                  color: RannaTheme.mutedForeground,
                 ),
-                decoration: InputDecoration(
-                  hintText: 'ابحث عن مدحة، مادح، راوي أو كلمات...',
-                  hintStyle: TextStyle(
-                    fontFamily: RannaTheme.fontNotoNaskh,
-                    fontSize: 16,
+                prefixIcon: const Padding(
+                  padding: EdgeInsetsDirectional.only(start: 16, end: 8),
+                  child: Icon(
+                    Icons.search_rounded,
                     color: RannaTheme.mutedForeground,
+                    size: 22,
                   ),
-                  prefixIcon: const Padding(
-                    padding: EdgeInsetsDirectional.only(start: 12, end: 8),
-                    child: Icon(
-                      Icons.search_rounded,
-                      color: RannaTheme.mutedForeground,
-                      size: 22,
-                    ),
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 42,
+                  minHeight: 42,
+                ),
+                suffixIcon: _controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: RannaTheme.mutedForeground,
+                        ),
+                        onPressed: () {
+                          _controller.clear();
+                          ref.read(searchQueryProvider.notifier).state = '';
+                          setState(() {});
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                  borderSide: const BorderSide(
+                    color: RannaTheme.primary,
+                    width: 1.5,
                   ),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 42,
-                    minHeight: 42,
-                  ),
-                  suffixIcon: _controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 20,
-                            color: RannaTheme.mutedForeground,
-                          ),
-                          onPressed: () {
-                            _controller.clear();
-                            ref.read(searchQueryProvider.notifier).state = '';
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 0,
-                    vertical: 14,
-                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
                 ),
               ),
             ),

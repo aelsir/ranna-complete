@@ -122,13 +122,20 @@ class ShellScaffold extends ConsumerWidget {
     final totalBottomForContent = navBarHeight + navBarBottomMargin + bottomPadding + 4 +
         (hasTrack ? miniPlayerHeight + 4 : 0);
 
+    // Offline banner height (animated)
+    const bannerHeight = 28.0;
+    final showBanner = !isOnline;
+    final contentTop = topPadding - 6 + (showBanner ? bannerHeight : 0);
+
     return Scaffold(
       backgroundColor: RannaTheme.background,
       body: Stack(
         children: [
           // ===== Content Shell =====
-          Positioned(
-            top: topPadding + 2,
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            top: contentTop,
             left: 3,
             right: 3,
             bottom: totalBottomForContent,
@@ -140,46 +147,44 @@ class ShellScaffold extends ConsumerWidget {
                 boxShadow: RannaTheme.shadowCard,
               ),
               clipBehavior: Clip.antiAlias,
-              child: Column(
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: navigationShell,
+              ),
+            ),
+          ),
+
+          // ===== Offline Banner (above everything) =====
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            top: showBanner ? 0 : -(topPadding + bannerHeight),
+            left: 0,
+            right: 0,
+            height: topPadding - 6 + bannerHeight,
+            child: Container(
+              color: const Color(0xFFF97316), // Orange
+              alignment: Alignment.bottomCenter,
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Offline banner
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    height: isOnline ? 0 : 32,
-                    clipBehavior: Clip.hardEdge,
-                    decoration: BoxDecoration(
-                      color: RannaTheme.muted,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: RannaTheme.border.withValues(alpha: 0.3),
-                        ),
-                      ),
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.wifi_off_rounded,
-                            size: 14,
-                            color: RannaTheme.mutedForeground,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'أنت غير متصل — يتم عرض البيانات المحفوظة',
-                            style: TextStyle(
-                              fontFamily: RannaTheme.fontFustat,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: RannaTheme.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ),
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    size: 13,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'أنت غير متصل — يتم عرض البيانات المحفوظة',
+                    style: TextStyle(
+                      fontFamily: RannaTheme.fontFustat,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
-                  Expanded(child: navigationShell),
                 ],
               ),
             ),
@@ -207,7 +212,7 @@ class ShellScaffold extends ConsumerWidget {
             Positioned(
               left: 3,
               right: 3,
-              top: topPadding + 2,
+              top: contentTop,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
               child: const FullPlayer(),
             ),
@@ -221,7 +226,7 @@ class ShellScaffold extends ConsumerWidget {
 // Floating Bottom Navigation Bar
 // =============================================================================
 
-class _FloatingBottomNav extends StatelessWidget {
+class _FloatingBottomNav extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   const _FloatingBottomNav({required this.navigationShell});
 
@@ -232,7 +237,7 @@ class _FloatingBottomNav extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = navigationShell.currentIndex;
 
     return Container(
@@ -251,7 +256,13 @@ class _FloatingBottomNav extends StatelessWidget {
               return Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+                  onTap: () {
+                    // Close full player when switching tabs
+                    if (index != currentIndex) {
+                      ref.read(audioPlayerProvider.notifier).closeFullPlayer();
+                    }
+                    navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
+                  },
                   child: _AnimatedTab(
                     icon: isActive ? tab.activeIcon : tab.icon,
                     label: tab.label,

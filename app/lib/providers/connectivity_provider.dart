@@ -36,34 +36,63 @@ class _OnlineNotifier extends StateNotifier<bool> {
   _OnlineNotifier() : super(true); // Assume online initially
 
   Timer? _debounce;
+  Timer? _retryTimer;
 
   void setOffline() {
-    _debounce?.cancel();
+    _stopTimers();
     state = false;
+  }
+
+  void _stopTimers() {
+    _debounce?.cancel();
+    _retryTimer?.cancel();
   }
 
   /// Ping a reliable host to verify actual internet access.
   Future<void> checkReachability() async {
-    _debounce?.cancel();
+    _stopTimers();
+
     // Small delay to let the network settle after interface changes
     _debounce = Timer(const Duration(milliseconds: 500), () async {
-      if (kIsWeb) {
-        state = true; // Can't do socket lookup on web
-        return;
-      }
-      try {
-        final result = await InternetAddress.lookup('dns.google')
-            .timeout(const Duration(seconds: 3));
-        state = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-      } catch (_) {
-        state = false;
-      }
+      await _performCheck();
     });
+  }
+
+  Future<void> _performCheck() async {
+    if (kIsWeb) {
+      state = true; // Can't do socket lookup on web
+      return;
+    }
+
+    try {
+      // Try multiple reliable hosts in parallel
+      final results = await Future.wait([
+        InternetAddress.lookup('dns.google').timeout(const Duration(seconds: 2)),
+        InternetAddress.lookup('one.one.one.one').timeout(const Duration(seconds: 2)),
+      ]).catchError((_) => [<InternetAddress>[], <InternetAddress>[]]);
+
+      final isActuallyOnline = results.any((list) => list.isNotEmpty && list.first.rawAddress.isNotEmpty);
+      
+      state = isActuallyOnline;
+
+      // If we still think we are offline but the network interface is active,
+      // schedule a retry to recover automatically.
+      if (!isActuallyOnline) {
+        _retryTimer?.cancel();
+        _retryTimer = Timer(const Duration(seconds: 10), () => _performCheck());
+      } else {
+        _retryTimer?.cancel();
+      }
+    } catch (_) {
+      state = false;
+      _retryTimer?.cancel();
+      _retryTimer = Timer(const Duration(seconds: 10), () => _performCheck());
+    }
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
+    _stopTimers();
     super.dispose();
   }
 }

@@ -164,24 +164,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ---------------------------------------------------------------------------
 
   SliverAppBar _buildStickyAppBar({bool forceScrolled = false}) {
-    final isScrolled = forceScrolled || _isScrolled.value;
     return SliverAppBar(
       pinned: true,
       floating: false,
-      backgroundColor: isScrolled
-          ? RannaTheme.card
-          : Colors.transparent,
+      backgroundColor: RannaTheme.card,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
       centerTitle: false,
       toolbarHeight: 56,
-      bottom: isScrolled
-          ? const PreferredSize(
-              preferredSize: Size.fromHeight(0.5),
-              child: Divider(height: 0.5, thickness: 0.5, color: RannaTheme.border),
-            )
-          : null,
+      bottom: const PreferredSize(
+        preferredSize: Size.fromHeight(0.5),
+        child: Divider(
+            height: 0.5, thickness: 0.5, color: RannaTheme.border),
+      ),
       title: Image.asset(
         'assets/images/logo-ranna.png',
         height: 32,
@@ -190,7 +186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         IconButton(
           icon: Icon(
             Icons.search_rounded,
-            color: isScrolled ? RannaTheme.foreground : Colors.white,
+            color: RannaTheme.foreground,
           ),
           onPressed: () => context.go('/search'),
         ),

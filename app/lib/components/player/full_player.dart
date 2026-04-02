@@ -129,11 +129,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           child: LayoutBuilder(
             builder: (context, constraints) {
               final h = constraints.maxHeight;
-              final coverSize = (h * 0.40).clamp(160.0, 280.0);
+              final coverSize = (h * 0.40).clamp(120.0, 280.0);
               final glowSize = coverSize * 1.1;
-              final gapLarge = (h * 0.035).clamp(12.0, 32.0);
+              final gapLarge = (h * 0.035).clamp(8.0, 32.0);
               final gapMedium = (h * 0.025).clamp(8.0, 24.0);
-              final gapSmall = (h * 0.018).clamp(6.0, 16.0);
+              final gapSmall = (h * 0.018).clamp(4.0, 16.0);
 
               return Column(
                 children: [
