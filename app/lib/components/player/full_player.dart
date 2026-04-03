@@ -118,27 +118,41 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: RannaTheme.primary,
-          borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-          border: Border.all(
-            color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
+      child: GestureDetector(
+        onVerticalDragUpdate: (details) {
+          double fraction = details.primaryDelta! / MediaQuery.of(context).size.height;
+          _entryController.value -= fraction * 1.2;
+        },
+        onVerticalDragEnd: (details) {
+          if ((details.primaryVelocity ?? 0) > 300 || _entryController.value < 0.6) {
+            _entryController.reverse().then((_) {
+              if (mounted) notifier.closeFullPlayer();
+            });
+          } else {
+            _entryController.forward();
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: RannaTheme.primary,
+            borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+            border: Border.all(
+              color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
+            ),
+            boxShadow: RannaTheme.shadowFloat,
           ),
-          boxShadow: RannaTheme.shadowFloat,
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final h = constraints.maxHeight;
-              final coverSize = (h * 0.40).clamp(120.0, 280.0);
-              final glowSize = coverSize * 1.1;
-              final gapLarge = (h * 0.035).clamp(8.0, 32.0);
-              final gapMedium = (h * 0.025).clamp(8.0, 24.0);
-              final gapSmall = (h * 0.018).clamp(4.0, 16.0);
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final h = constraints.maxHeight;
+                final coverSize = (h * 0.40).clamp(120.0, 280.0);
+                final glowSize = coverSize * 1.1;
+                final gapLarge = (h * 0.035).clamp(8.0, 32.0);
+                final gapMedium = (h * 0.025).clamp(8.0, 24.0);
+                final gapSmall = (h * 0.018).clamp(4.0, 16.0);
 
-              return Column(
-                children: [
+                return Column(
+                  children: [
                   // ===================================================
                   // 1. Header
                   // ===================================================
@@ -151,7 +165,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => notifier.closeFullPlayer(),
+                          onTap: () {
+                            _entryController.reverse().then((_) {
+                              if (mounted) notifier.closeFullPlayer();
+                            });
+                          },
                           child: Container(
                             width: 40,
                             height: 40,
@@ -406,8 +424,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCoverArt(dynamic track, double coverSize, double glowSize) {
     return Center(
