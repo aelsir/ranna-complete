@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ranna/providers/connectivity_provider.dart';
 import 'package:ranna/services/sync_service.dart';
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/utils/responsive.dart';
 import 'package:ranna/screens/home_screen.dart';
 import 'package:ranna/screens/search_screen.dart';
 import 'package:ranna/screens/favorites_screen.dart';
@@ -127,6 +128,10 @@ class ShellScaffold extends ConsumerWidget {
     final showBanner = !isOnline;
     final contentTop = topPadding + (showBanner ? bannerHeight : 0);
 
+    // iPad: no shell margins, content constrained to phone width inside
+    final tablet = isTablet(context);
+    final shellMargin = tablet ? 0.0 : 3.0;
+
     return Scaffold(
       backgroundColor: RannaTheme.background,
       body: Stack(
@@ -136,21 +141,26 @@ class ShellScaffold extends ConsumerWidget {
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             top: contentTop,
-            left: 3,
-            right: 3,
+            left: shellMargin,
+            right: shellMargin,
             bottom: totalBottomForContent,
             child: Container(
               decoration: BoxDecoration(
                 color: RannaTheme.card,
-                borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-                border: Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
-                boxShadow: RannaTheme.shadowCard,
+                borderRadius: BorderRadius.circular(tablet ? 0 : RannaTheme.radius3xl),
+                border: tablet ? null : Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
+                boxShadow: tablet ? null : RannaTheme.shadowCard,
               ),
               clipBehavior: Clip.antiAlias,
-              child: MediaQuery.removePadding(
-                context: context,
-                removeTop: true,
-                child: navigationShell,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: navigationShell,
+                  ),
+                ),
               ),
             ),
           ),
@@ -193,31 +203,46 @@ class ShellScaffold extends ConsumerWidget {
           // ===== Mini Player =====
           if (hasTrack)
             Positioned(
-              left: 3,
-              right: 3,
+              left: shellMargin,
+              right: shellMargin,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
-              child: const MiniPlayer(),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
+                  child: const MiniPlayer(),
+                ),
+              ),
             ),
 
           // ===== Bottom Navigation =====
           Positioned(
-            left: 3,
-            right: 3,
+            left: shellMargin,
+            right: shellMargin,
             bottom: navBarBottomMargin + bottomPadding,
-            child: _FloatingBottomNav(navigationShell: navigationShell),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
+                child: _FloatingBottomNav(navigationShell: navigationShell),
+              ),
+            ),
           ),
 
           // ===== Full Player Overlay =====
           if (isFullPlayerOpen)
             Positioned(
-              left: 3,
-              right: 3,
+              left: shellMargin,
+              right: shellMargin,
               top: contentTop,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
-              child: MediaQuery.removePadding(
-                context: context,
-                removeTop: true,
-                child: const FullPlayer(),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: const FullPlayer(),
+                  ),
+                ),
               ),
             ),
         ],

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/utils/responsive.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
@@ -53,7 +54,7 @@ class TrackRow extends ConsumerWidget {
           onTap?.call();
         },
         child: SizedBox(
-          height: 56,
+          height: scaleForTablet(context, 56, 68),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
