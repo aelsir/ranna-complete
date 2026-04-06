@@ -43,3 +43,9 @@ release-app: sync
 ## Build the iOS app for App Store / TestFlight distribution
 build-ipa: sync
 	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store
+
+## Upload to App Store Connect (TestFlight & App Store)
+## Usage: make upload-ios ISSUER_ID="your-issuer-id"
+upload-ios: 
+	@if [ -z "$(ISSUER_ID)" ]; then echo "❌ Error: ISSUER_ID is required. Run: make upload-ios ISSUER_ID=\"your-issuer-id\""; exit 1; fi
+	xcrun altool --upload-app -f "app/build/ios/ipa/ranna.ipa" -t ios --apiKey "76KGJ269A6" --apiIssuer "$(ISSUER_ID)"

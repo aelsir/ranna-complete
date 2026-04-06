@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ranna/app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,21 +13,40 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
 
-  // ── Global error logging ──────────────────────────────────────────────────
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    debugPrint('━━━ FLUTTER ERROR ━━━');
-    debugPrint(details.exceptionAsString());
-    debugPrint('${details.stack}');
-  };
+  const sentryDsn = String.fromEnvironment('SENTRY_DSN', defaultValue: '');
 
-  PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('━━━ PLATFORM ERROR ━━━');
-    debugPrint('$error');
-    debugPrint('$stack');
-    return true;
-  };
+  if (sentryDsn.isNotEmpty) {
+    // ── Production: Sentry enabled ──
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = sentryDsn;
+        options.tracesSampleRate = 0.2;
+        options.environment = kReleaseMode ? 'production' : 'development';
+        options.sendDefaultPii = false;
+      },
+      appRunner: () async => _startApp(),
+    );
+  } else {
+    // ── Development: no Sentry, just console logging ──
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      debugPrint('━━━ FLUTTER ERROR ━━━');
+      debugPrint(details.exceptionAsString());
+      debugPrint('${details.stack}');
+    };
 
+    PlatformDispatcher.instance.onError = (error, stack) {
+      debugPrint('━━━ PLATFORM ERROR ━━━');
+      debugPrint('$error');
+      debugPrint('$stack');
+      return true;
+    };
+
+    await _startApp();
+  }
+}
+
+Future<void> _startApp() async {
   // Pre-warm SharedPreferences cache so FavoritesNotifier._load() is instant
   await SharedPreferences.getInstance();
 

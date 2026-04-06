@@ -30,6 +30,7 @@ class PlayerState {
   final Duration position;
   final Duration duration;
   final bool isFullPlayerOpen;
+  final bool showLyricsOnOpen;
 
   const PlayerState({
     this.currentTrackId,
@@ -39,6 +40,7 @@ class PlayerState {
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.isFullPlayerOpen = false,
+    this.showLyricsOnOpen = false,
   });
 
   PlayerState copyWith({
@@ -49,6 +51,7 @@ class PlayerState {
     Duration? position,
     Duration? duration,
     bool? isFullPlayerOpen,
+    bool? showLyricsOnOpen,
   }) {
     return PlayerState(
       currentTrackId: currentTrackId ?? this.currentTrackId,
@@ -58,6 +61,7 @@ class PlayerState {
       position: position ?? this.position,
       duration: duration ?? this.duration,
       isFullPlayerOpen: isFullPlayerOpen ?? this.isFullPlayerOpen,
+      showLyricsOnOpen: showLyricsOnOpen ?? this.showLyricsOnOpen,
     );
   }
 
@@ -482,6 +486,16 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
 
   void openFullPlayer() {
     state = state.copyWith(isFullPlayerOpen: true);
+  }
+
+  void openFullPlayerWithLyrics() {
+    state = state.copyWith(isFullPlayerOpen: true, showLyricsOnOpen: true);
+  }
+
+  void consumeShowLyricsOnOpen() {
+    if (state.showLyricsOnOpen) {
+      state = state.copyWith(showLyricsOnOpen: false);
+    }
   }
 
   void closeFullPlayer() {

@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <application
         android:label="رنّة"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -28,6 +28,15 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- App Links: Make ranna.aelsir.sd open inside the app -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:host="ranna.aelsir.sd" />
+                <data android:scheme="https" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

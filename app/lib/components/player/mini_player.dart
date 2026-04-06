@@ -123,7 +123,7 @@ class MiniPlayer extends ConsumerWidget {
                   icon: Icons.menu_book_rounded,
                   color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
                   onTap: () {
-                    notifier.openFullPlayer();
+                    notifier.openFullPlayerWithLyrics();
                   },
                 ),
               _MiniDownloadButton(track: track),

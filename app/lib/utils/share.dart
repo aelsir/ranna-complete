@@ -1,6 +1,6 @@
 import 'package:share_plus/share_plus.dart';
 
-const _baseUrl = 'https://ranna.app';
+const _baseUrl = 'https://ranna.aelsir.sd';
 
 String getTrackShareUrl(String id) => '$_baseUrl/track/$id';
 

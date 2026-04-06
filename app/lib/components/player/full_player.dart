@@ -95,6 +95,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
 
     ref.listen<bool>(isFullPlayerOpenProvider, (prev, next) {
       _animateEntry(next);
+      // Check if lyrics should be shown on open
+      if (next && ref.read(audioPlayerProvider).showLyricsOnOpen) {
+        _showLyrics = true;
+        ref.read(audioPlayerProvider.notifier).consumeShowLyricsOnOpen();
+      }
     });
 
     if (!isOpen) return const SizedBox.shrink();

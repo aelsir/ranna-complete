@@ -16,6 +16,7 @@ import 'package:ranna/screens/all_artists_screen.dart';
 import 'package:ranna/screens/all_narrators_screen.dart';
 import 'package:ranna/screens/all_tariqas_screen.dart';
 import 'package:ranna/screens/all_funoon_screen.dart';
+import 'package:ranna/screens/track_deeplink_screen.dart';
 import 'package:ranna/components/player/mini_player.dart';
 import 'package:ranna/components/player/full_player.dart';
 import 'package:ranna/services/audio_player_service.dart';
@@ -54,6 +55,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 GoRoute(path: 'narrators', builder: (context, state) => const AllNarratorsScreen()),
                 GoRoute(path: 'tariqas', builder: (context, state) => const AllTariqasScreen()),
                 GoRoute(path: 'funoon', builder: (context, state) => const AllFunoonScreen()),
+                GoRoute(
+                  path: 'track/:id',
+                  builder: (context, state) => TrackDeepLinkScreen(trackId: state.pathParameters['id']!),
+                ),
               ],
             ),
           ]),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ranna/theme/app_theme.dart';
 
@@ -88,6 +89,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               ),
             ]),
             const SizedBox(height: 28),
+
+            // Privacy policy
+            _buildPrivacyPolicyButton(),
+            const SizedBox(height: 12),
 
             // Logout button
             _buildLogoutButton(context),
@@ -337,6 +342,40 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrivacyPolicyButton() {
+    return GestureDetector(
+      onTap: () => launchUrl(
+        Uri.parse('https://docs.google.com/document/d/1qAiSQvGqky5UJSeUyxqhoZsma2rj9qzqvU7JSRjhs2o'),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: RannaTheme.card,
+          borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+          border: Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.policy_rounded, size: 18, color: RannaTheme.mutedForeground),
+            const SizedBox(width: 10),
+            Text(
+              'سياسة الخصوصية',
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: RannaTheme.foreground,
+              ),
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_left_rounded, size: 20, color: RannaTheme.mutedForeground),
+          ],
         ),
       ),
     );

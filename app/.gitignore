@@ -47,7 +47,7 @@ app.*.map.json
 /android/app/release
 .claude
 .claude/
-.private_keys
+/private_keys
 
 
 # Environment config (contains secrets)
