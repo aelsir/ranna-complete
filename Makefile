@@ -2,6 +2,14 @@ SHARED_DIR := $(CURDIR)/shared
 APP_ASSETS := $(CURDIR)/app/assets
 WEB_ASSETS := $(CURDIR)/web/src/assets
 
+# Load .env file variables
+-include .env
+export $(shell [ -f .env ] && sed 's/=.*//' .env)
+
+# Default Issuer ID from .env if not provided on command line
+ISSUER_ID ?= $(APPLE_API_ISSUER)
+
+
 # List of asset directories to link
 ASSET_DIRS := icons images fonts
 
@@ -45,7 +53,15 @@ build-ipa: sync
 	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store
 
 ## Upload to App Store Connect (TestFlight & App Store)
-## Usage: make upload-ios ISSUER_ID="your-issuer-id"
-upload-ios: 
-	@if [ -z "$(ISSUER_ID)" ]; then echo "❌ Error: ISSUER_ID is required. Run: make upload-ios ISSUER_ID=\"your-issuer-id\""; exit 1; fi
-	xcrun altool --upload-app -f "app/build/ios/ipa/ranna.ipa" -t ios --apiKey "76KGJ269A6" --apiIssuer "$(ISSUER_ID)"
+## Usage: make upload-ios (Uses APPLE_API_ISSUER from .env or ISSUER_ID override)
+upload-ios: build-ipa
+	@if [ -z "$(ISSUER_ID)" ]; then \
+		echo "❌ Error: ISSUER_ID is not set in .env as APPLE_API_ISSUER. Open .env to set it."; \
+		exit 1; \
+	fi
+	@if [ -f "app/private_keys/AuthKey_76KGJ269A6.p8" ]; then \
+		cp "app/private_keys/AuthKey_76KGJ269A6.p8" ~/.appstoreconnect/private_keys/; \
+	fi
+	cd app && xcrun altool --upload-app -f "build/ios/ipa/ranna.ipa" -t ios --apiKey "76KGJ269A6" --apiIssuer "$(ISSUER_ID)"
+
+
