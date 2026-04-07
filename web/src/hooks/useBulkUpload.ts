@@ -39,6 +39,7 @@ export interface SharedMetadata {
   fanId: string;
   recordingPlace: string;
   lyrics: string;
+  contentType: string;
 }
 
 interface BulkUploadState {
@@ -77,6 +78,7 @@ const initialMetadata: SharedMetadata = {
   fanId: "",
   recordingPlace: "",
   lyrics: "",
+  contentType: "madha",
 };
 
 function loadSavedMetadata(): SharedMetadata {
@@ -380,6 +382,7 @@ export function useBulkUpload() {
             lyrics: effective.lyrics || null,
             duration_seconds: file.durationSeconds,
             audio_url: audioPath,
+            content_type: (effective.contentType || "madha") as any,
           });
         } catch (dbErr: any) {
           const parts = [dbErr?.message, dbErr?.details, dbErr?.hint].filter(Boolean);

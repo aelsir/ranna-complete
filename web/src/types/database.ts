@@ -109,6 +109,16 @@ export interface Madha {
   updated_at: string;
 }
 
+export type ContentType = "madha" | "quran" | "lecture" | "dhikr" | "inshad";
+
+export const CONTENT_TYPES: { value: ContentType; label: string; icon: string }[] = [
+  { value: "madha", label: "مدحة", icon: "🎵" },
+  { value: "quran", label: "قرآن", icon: "📖" },
+  { value: "lecture", label: "درس", icon: "🎓" },
+  { value: "dhikr", label: "ذكر", icon: "📿" },
+  { value: "inshad", label: "إنشاد", icon: "🎤" },
+];
+
 export interface MadhaInsert {
   title: string;
   madih: string;
@@ -127,6 +137,8 @@ export interface MadhaInsert {
   tariqa_id?: string | null;
   fan_id?: string | null;
   duration_seconds?: number | null;
+  content_type?: ContentType | null;
+  thumbnail_url?: string | null;
 }
 
 // ============================================

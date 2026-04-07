@@ -45,6 +45,8 @@ interface BulkUploadDialogProps {
   narrators: { id: string; name: string }[];
   tariqas: { id: string; name: string }[];
   funoon: { id: string; name: string }[];
+  /** Default content type for all uploaded tracks */
+  contentType?: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -259,6 +261,7 @@ export function BulkUploadDialog({
   narrators,
   tariqas,
   funoon,
+  contentType = "madha",
 }: BulkUploadDialogProps) {
   const {
     files,
@@ -281,6 +284,13 @@ export function BulkUploadDialog({
     retryFailed,
     reset,
   } = useBulkUpload();
+
+  // Set content type from prop when dialog opens
+  useEffect(() => {
+    if (open && metadata.contentType !== contentType) {
+      setMetadata({ contentType });
+    }
+  }, [open, contentType]);
 
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);

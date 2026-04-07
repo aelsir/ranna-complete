@@ -76,7 +76,9 @@ import {
   useAdminMadhaat,
   useAdminCollections,
   useAllMadhaatMinimal,
+  useContentTypeCounts,
 } from "@/lib/api/hooks";
+import { CONTENT_TYPES } from "@/types/database";
 import type { MadhaWithRelations, Collection, MadhaInsert, Madih, MadihInsert, Rawi, RawiInsert } from "@/types/database";
 import { uploadToR2 } from "@/lib/upload";
 import { getImageUrl } from "@/lib/format";
@@ -104,7 +106,25 @@ import { Link } from "react-router-dom";
 import { usePlayer } from "@/context/PlayerContext";
 import { useAuth } from "@/context/AuthContext";
 
-type SidebarItem = "madhat" | "playlists" | "madiheen" | "ruwat" | "analytics";
+type SidebarItem = "madhat" | "quran" | "lectures" | "dhikr" | "inshad" | "playlists" | "madiheen" | "ruwat" | "analytics";
+
+/** Map sidebar tabs to their content_type filter */
+const SECTION_CONTENT_TYPE: Partial<Record<SidebarItem, string>> = {
+  madhat: "madha",
+  quran: "quran",
+  lectures: "lecture",
+  dhikr: "dhikr",
+  inshad: "inshad",
+};
+
+/** Labels for each content section */
+const SECTION_LABELS: Partial<Record<SidebarItem, { singular: string; plural: string; uploadSingle: string; uploadBulk: string; artistLabel: string; narratorLabel: string }>> = {
+  madhat: { singular: "مدحة", plural: "المدائح", uploadSingle: "إضافة مدحة", uploadBulk: "رفع مدائح", artistLabel: "المادح", narratorLabel: "الراوي" },
+  quran: { singular: "مقطع قرآن", plural: "القرآن", uploadSingle: "إضافة مقطع", uploadBulk: "رفع مقاطع", artistLabel: "القارئ", narratorLabel: "الرواية" },
+  lectures: { singular: "درس", plural: "الدروس", uploadSingle: "إضافة درس", uploadBulk: "رفع دروس", artistLabel: "المحاضر", narratorLabel: "الكاتب" },
+  dhikr: { singular: "ذكر", plural: "الأذكار", uploadSingle: "إضافة ذكر", uploadBulk: "رفع أذكار", artistLabel: "المنشد", narratorLabel: "الكاتب" },
+  inshad: { singular: "إنشاد", plural: "الإنشاد", uploadSingle: "إضافة إنشاد", uploadBulk: "رفع إنشادات", artistLabel: "المنشد", narratorLabel: "الكاتب" },
+};
 
 interface ExtendedTrack extends Track {
   lyrics?: string;
@@ -117,6 +137,8 @@ interface ExtendedTrack extends Track {
   playCount?: number;
   audioUrl?: string;
   imageUrl?: string;
+  thumbnailUrl?: string;
+  contentType?: string;
 }
 
 interface ExtendedPlaylist extends Playlist {
@@ -237,6 +259,8 @@ const DashboardPage = () => {
 
 const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const [activeSection, setActiveSection] = useState<SidebarItem>("madhat");
+  const isContentSection = activeSection in SECTION_CONTENT_TYPE;
+  const sectionLabels = SECTION_LABELS[activeSection];
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
@@ -248,12 +272,16 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const [filterDateRange, setFilterDateRange] = useState<string>("");
   const [filterPlayCount, setFilterPlayCount] = useState<string>("");
 
+  // Determine content_type filter from active section
+  const activeContentType = SECTION_CONTENT_TYPE[activeSection] || "";
+
   const { data: adminData } = useAdminMadhaat({
     page: currentPage,
     limit: ITEMS_PER_PAGE,
     searchQuery: searchQuery,
     artistId: filterArtist,
     narratorId: filterNarrator,
+    contentType: activeContentType,
   });
   
   const fetchedTracks = adminData?.data || [];
@@ -310,7 +338,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     title: p.name,
     desc: p.description || "",
     image: p.image_url || "",
-    trackIds: (p.collection_items || []).map((ci: any) => ci.madha_id) as string[],
+    trackIds: (p.collection_items || []).map((ci: any) => ci.track_id) as string[],
   }));
 
   const tariqas = (fetchedTariqas || []).map(t => ({
@@ -500,7 +528,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const handlePaste = useCallback((e: ClipboardEvent) => {
     // Determine which section is active and which items are selected
     const hasSelection =
-      (activeSection === "madhat" && selectedTracks.size > 0) ||
+      (isContentSection && selectedTracks.size > 0) ||
       (activeSection === "madiheen" && selectedMadiheen.size > 0) ||
       (activeSection === "ruwat" && selectedRuwat.size > 0);
 
@@ -520,9 +548,9 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
 
-        if (activeSection === "madhat") {
+        if (isContentSection) {
           setCropTarget("pasteTrack");
-          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedTracks.size} مدحة محددة` });
+          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedTracks.size} محددة` });
         } else if (activeSection === "madiheen") {
           setCropTarget("pasteMadih");
           toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedMadiheen.size} مادح محدد` });
@@ -641,6 +669,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         duration_seconds: parseDuration(newTrack.duration),
         audio_url: newTrack.audioUrl || null,
         image_url: newTrack.imageUrl || null,
+        content_type: (newTrack as any).contentType || "madha",
+        thumbnail_url: (newTrack as any).thumbnailUrl || null,
       },
       {
         onSuccess: (madhaId) => {
@@ -668,7 +698,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         onSuccess: () => {
           setSelectedTracks(new Set());
           setDeleteConfirm(null);
-          toast({ title: "تم الحذف", description: `تم حذف ${count} مدحة بنجاح` });
+          toast({ title: "تم الحذف", description: `تم حذف ${count} ${sectionLabels?.singular || "محتوى"} بنجاح` });
         },
         onError: (err) => {
           toast({ title: "خطأ في الحذف", description: (err as Error).message, variant: "destructive" });
@@ -707,8 +737,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     if (deleteConfirm.type === "tracks") {
       const count = selectedTracks.size;
       return {
-        title: `حذف ${count} مدحة`,
-        desc: `سيتم حذف ${count} مدحة نهائيًا. سيتم أيضًا إزالتها من المفضلة وقوائم التشغيل وسجل الاستماع.`,
+        title: `حذف ${count} ${sectionLabels?.singular || "محتوى"}`,
+        desc: `سيتم حذف ${count} ${sectionLabels?.singular || "محتوى"} نهائيًا. سيتم أيضًا إزالتها من المفضلة وقوائم التشغيل وسجل الاستماع.`,
       };
     }
 
@@ -883,6 +913,10 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     else if (field === "fan") {
       dbField = "fan_id";
       dbValue = funoon.find(f => f.name === value)?.id || null;
+    }
+    else if (field === "contentType") {
+      dbField = "content_type";
+      dbValue = value;
     }
 
     if (!dbField) return;
@@ -1107,12 +1141,18 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
   const sortedPlaylists = [...playlistsList].sort((a, b) => a.order - b.order);
 
+  const { data: contentTypeCounts } = useContentTypeCounts();
+
   const sidebarItems = [
-    { id: "madhat" as SidebarItem, label: "المدائح", icon: Music, count: totalTracksCount },
+    { id: "madhat" as SidebarItem, label: "المدائح", icon: Music, count: contentTypeCounts?.["madha"] },
+    { id: "quran" as SidebarItem, label: "القرآن", icon: Music, count: contentTypeCounts?.["quran"] },
+    { id: "lectures" as SidebarItem, label: "الدروس", icon: Music, count: contentTypeCounts?.["lecture"] },
+    { id: "dhikr" as SidebarItem, label: "الأذكار", icon: Music, count: contentTypeCounts?.["dhikr"] },
+    { id: "inshad" as SidebarItem, label: "الإنشاد", icon: Music, count: contentTypeCounts?.["inshad"] },
     { id: "madiheen" as SidebarItem, label: "المادحين", icon: Music, count: artists.length },
     { id: "ruwat" as SidebarItem, label: "الرواة", icon: Music, count: narrators.length },
     { id: "playlists" as SidebarItem, label: "قوائم مميزة", icon: ListMusic, count: playlistsList.length },
-    { id: "analytics" as SidebarItem, label: "الإحصائيات", icon: BarChart3, count: 0 },
+    { id: "analytics" as SidebarItem, label: "الإحصائيات", icon: BarChart3 },
   ];
 
   return (
@@ -1135,7 +1175,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           {sidebarItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => { setActiveSection(item.id); setCurrentPage(1); setSearchQuery(""); }}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-fustat transition-all duration-200 ${
                 activeSection === item.id
                   ? "bg-primary text-primary-foreground shadow-md"
@@ -1144,12 +1184,14 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             >
               <item.icon className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-start">{item.label}</span>
-              <Badge
-                variant={activeSection === item.id ? "secondary" : "outline"}
-                className="text-[10px] h-5 px-1.5 rounded-md"
-              >
-                {item.count}
-              </Badge>
+              {item.count != null && (
+                <Badge
+                  variant={activeSection === item.id ? "secondary" : "outline"}
+                  className="text-[10px] h-5 px-1.5 rounded-md"
+                >
+                  {item.count}
+                </Badge>
+              )}
             </button>
           ))}
         </nav>
@@ -1174,9 +1216,13 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         <header className="h-16 border-b border-border bg-card px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="font-fustat font-bold text-lg text-foreground">
-              {activeSection === "analytics" ? "إحصائيات المنصة" : activeSection === "madhat" ? "إدارة المدائح" : activeSection === "madiheen" ? "إدارة المادحين" : activeSection === "ruwat" ? "إدارة الرواة" : "إدارة القوائم المميزة"}
+              {activeSection === "analytics" ? "إحصائيات المنصة"
+                : isContentSection ? `إدارة ${sectionLabels?.plural || "المحتوى"}`
+                : activeSection === "madiheen" ? "إدارة المادحين"
+                : activeSection === "ruwat" ? "إدارة الرواة"
+                : "إدارة القوائم المميزة"}
             </h2>
-            {selectedTracks.size > 0 && activeSection === "madhat" && (
+            {selectedTracks.size > 0 && isContentSection && (
               <Badge variant="secondary" className="text-xs">{selectedTracks.size} محدد</Badge>
             )}
             {selectedMadiheen.size > 0 && activeSection === "madiheen" && (
@@ -1187,7 +1233,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {activeSection === "madhat" && !isEditMode && (
+            {isContentSection && !isEditMode && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1214,7 +1260,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 حذف
               </Button>
             )}
-            {activeSection === "madhat" && (
+            {isContentSection && (
               <Button
                 size="sm"
                 variant="outline"
@@ -1222,21 +1268,27 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 onClick={() => setIsBulkUploadOpen(true)}
               >
                 <Upload className="h-3.5 w-3.5" />
-                رفع مجمّع
+                {sectionLabels?.uploadBulk || "رفع مجمّع"}
               </Button>
             )}
             <Button
               size="sm"
               className="gap-1.5 bg-primary hover:bg-primary/90 text-xs"
               onClick={() => {
-                if (activeSection === "madhat") setIsAddDialogOpen(true);
+                if (isContentSection) {
+                  setNewTrack({ ...newTrack, contentType: activeContentType || "madha" });
+                  setIsAddDialogOpen(true);
+                }
                 else if (activeSection === "playlists") setIsPlaylistDialogOpen(true);
                 else if (activeSection === "madiheen") setIsAddMadihDialogOpen(true);
                 else if (activeSection === "ruwat") setIsAddRawiDialogOpen(true);
               }}
             >
               <Plus className="h-3.5 w-3.5" />
-              {activeSection === "madhat" ? "إضافة مدحة" : activeSection === "madiheen" ? "إضافة مادح" : activeSection === "ruwat" ? "إضافة راوي" : "إنشاء قائمة"}
+              {isContentSection ? (sectionLabels?.uploadSingle || "إضافة محتوى")
+                : activeSection === "madiheen" ? "إضافة مادح"
+                : activeSection === "ruwat" ? "إضافة راوي"
+                : "إنشاء قائمة"}
             </Button>
           </div>
         </header>
@@ -1254,7 +1306,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 className="pr-9 h-9 text-sm bg-background"
               />
             </div>
-            {activeSection === "madhat" && (
+            {isContentSection && (
               <Button
                 variant={showFilters ? "default" : "outline"}
                 size="sm"
@@ -1273,7 +1325,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           </div>
 
           {/* Advanced Filters */}
-          {showFilters && activeSection === "madhat" && (
+          {showFilters && isContentSection && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -1388,7 +1440,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               </motion.div>
             )}
 
-            {activeSection === "madhat" && (
+            {isContentSection && (
               <motion.div
                 key="madhat"
                 initial={{ opacity: 0, y: 8 }}
@@ -1538,7 +1590,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-6 px-4">
                     <span className="text-xs text-muted-foreground font-fustat">
-                      {totalTracksCount} مدحة — صفحة {currentPage} من {totalPages}
+                      {totalTracksCount} {sectionLabels?.singular || "محتوى"} — صفحة {currentPage} من {totalPages}
                     </span>
                     <div className="flex gap-2">
                       <Button
@@ -1997,8 +2049,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
-            <DialogTitle className="font-fustat text-xl text-center">رفع مدحة جديدة</DialogTitle>
-            <p className="text-xs text-muted-foreground text-center">أدخل تفاصيل المدحة وارفع الملفات</p>
+            <DialogTitle className="font-fustat text-xl text-center">رفع محتوى جديد</DialogTitle>
+            <p className="text-xs text-muted-foreground text-center">اختر نوع المحتوى وأدخل التفاصيل</p>
           </DialogHeader>
 
           <div className="space-y-6 mt-2">
@@ -2116,26 +2168,73 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 <h3 className="font-fustat font-bold text-base text-foreground">المعلومات الأساسية</h3>
               </div>
               <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
+                {/* Content Type Selector */}
                 <div>
-                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">اسم المدحة *</label>
+                  <label className="text-xs font-fustat text-muted-foreground mb-2 block">نوع المحتوى *</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {CONTENT_TYPES.map((ct) => (
+                      <button
+                        key={ct.value}
+                        type="button"
+                        onClick={() => setNewTrack({ ...newTrack, contentType: ct.value })}
+                        className={`px-3 py-1.5 rounded-full text-xs font-fustat font-bold transition-all border ${
+                          (newTrack.contentType || "madha") === ct.value
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {ct.icon} {ct.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">
+                    {(newTrack.contentType || "madha") === "madha" ? "اسم المدحة *"
+                      : (newTrack.contentType) === "quran" ? "اسم السورة / المقطع *"
+                      : (newTrack.contentType) === "lecture" ? "عنوان الدرس *"
+                      : (newTrack.contentType) === "dhikr" ? "اسم الذكر *"
+                      : "العنوان *"}
+                  </label>
                   <Input
                     value={newTrack.title || ""}
                     onChange={(e) => setNewTrack({ ...newTrack, title: e.target.value })}
-                    placeholder="أدخل اسم المدحة..."
+                    placeholder={
+                      (newTrack.contentType || "madha") === "madha" ? "أدخل اسم المدحة..."
+                        : (newTrack.contentType) === "quran" ? "أدخل اسم السورة أو المقطع..."
+                        : (newTrack.contentType) === "lecture" ? "أدخل عنوان الدرس..."
+                        : (newTrack.contentType) === "dhikr" ? "أدخل اسم الذكر..."
+                        : "أدخل العنوان..."
+                    }
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">المادح *</label>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">
+                    {(newTrack.contentType || "madha") === "madha" ? "المادح *"
+                      : (newTrack.contentType) === "quran" ? "القارئ *"
+                      : (newTrack.contentType) === "lecture" ? "المحاضر *"
+                      : (newTrack.contentType) === "dhikr" ? "المنشد *"
+                      : "الفنان *"}
+                  </label>
                   <SearchableSelect
                     value={newTrack.artistId}
                     onValueChange={(v) => setNewTrack({ ...newTrack, artistId: v })}
                     options={artists.map((a) => ({ value: a.id, label: a.name }))}
-                    placeholder="اختر المادح"
-                    searchPlaceholder="ابحث عن مادح..."
+                    placeholder={
+                      (newTrack.contentType || "madha") === "madha" ? "اختر المادح"
+                        : (newTrack.contentType) === "quran" ? "اختر القارئ"
+                        : (newTrack.contentType) === "lecture" ? "اختر المحاضر"
+                        : "اختر المنشد"
+                    }
+                    searchPlaceholder="ابحث..."
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الراوي (اختياري)</label>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">
+                    {(newTrack.contentType || "madha") === "madha" ? "الراوي (اختياري)"
+                      : (newTrack.contentType) === "quran" ? "الرواية (اختياري)"
+                      : "الكاتب (اختياري)"}
+                  </label>
                   <SearchableSelect
                     value={newTrack.narratorId}
                     onValueChange={(v) => setNewTrack({ ...newTrack, narratorId: v })}
@@ -2156,7 +2255,12 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               </div>
               <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
                 <div>
-                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">كلمات المدحة</label>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">
+                    {(newTrack.contentType || "madha") === "madha" ? "كلمات المدحة"
+                      : (newTrack.contentType) === "quran" ? "نص الآيات"
+                      : (newTrack.contentType) === "lecture" ? "ملخص الدرس"
+                      : "كلمات الذكر"}
+                  </label>
                   <Textarea
                     value={newTrack.lyrics || ""}
                     onChange={(e) => setNewTrack({ ...newTrack, lyrics: e.target.value })}
@@ -2829,7 +2933,13 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         <DialogContent className="max-w-sm" dir="rtl">
           <DialogHeader>
             <DialogTitle className="font-fustat">
-              تعديل جماعي — {bulkEditField === "artistId" ? "المادح" : bulkEditField === "tariqa" ? "الطريقة" : bulkEditField === "fan" ? "الفن" : "الراوي"}
+              تعديل جماعي —{" "}
+              {bulkEditField === "artistId" ? "المادح"
+                : bulkEditField === "narratorId" ? "الراوي"
+                : bulkEditField === "tariqa" ? "الطريقة"
+                : bulkEditField === "fan" ? "الفن"
+                : bulkEditField === "contentType" ? "نوع المحتوى"
+                : ""}
             </DialogTitle>
           </DialogHeader>
           <div>
@@ -2846,6 +2956,13 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 options={narrators.map((n) => ({ value: n.id, label: n.name }))}
                 placeholder="اختر الراوي"
                 searchPlaceholder="ابحث عن راوي..."
+              />
+            ) : bulkEditField === "contentType" ? (
+              <SearchableSelect
+                onValueChange={(v) => handleBulkUpdate("contentType", v)}
+                options={CONTENT_TYPES.map((ct) => ({ value: ct.value, label: `${ct.icon} ${ct.label}` }))}
+                placeholder="اختر نوع المحتوى"
+                searchPlaceholder="ابحث..."
               />
             ) : (
               <SearchableSelect
@@ -2899,10 +3016,11 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         narrators={narrators.map(n => ({ id: n.id, name: n.name }))}
         tariqas={tariqas.map(t => ({ id: t.id, name: t.name }))}
         funoon={funoon.map(f => ({ id: f.id, name: f.name }))}
+        contentType={activeContentType || "madha"}
       />
 
       {/* Floating Action Bar (for track selection + edit mode) */}
-      {activeSection === "madhat" && (
+      {isContentSection && (
         <FloatingActionBar
           selectedCount={selectedTracks.size}
           isEditMode={isEditMode}

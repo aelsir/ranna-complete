@@ -58,6 +58,7 @@ import {
   getPlaysTrend,
   getContentHealth,
   getAdminCollections,
+  getContentTypeCounts,
 } from "./queries";
 
 import type { MadhaInsert, MadihInsert, RawiInsert, CollectionInsert } from "@/types/database";
@@ -146,10 +147,20 @@ export function useAdminMadhaat(options?: {
   narratorId?: string;
   tariqa?: string;
   statusMode?: "all" | "approved" | "pending";
+  contentType?: string;
 }) {
   return useQuery({
     queryKey: [...queryKeys.madhaat, "admin", options],
     queryFn: () => getAdminMadhaat(options),
+  });
+}
+
+/** Fetch record count for each content_type — used for sidebar badges. */
+export function useContentTypeCounts() {
+  return useQuery({
+    queryKey: [...queryKeys.madhaat, "contentTypeCounts"],
+    queryFn: getContentTypeCounts,
+    staleTime: 30 * 1000, // 30 s
   });
 }
 

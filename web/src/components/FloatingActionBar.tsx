@@ -175,6 +175,9 @@ export function FloatingActionBar({
                     <DropdownMenuItem onClick={() => onBulkFieldEdit("fan")}>
                       تغيير الفن للجميع
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onBulkFieldEdit("contentType")}>
+                      تغيير نوع المحتوى للجميع
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={onPasteImage}>
                       <ImagePlus className="h-3.5 w-3.5 me-2" />

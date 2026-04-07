@@ -92,6 +92,7 @@ export async function getAdminMadhaat(options?: {
   narratorId?: string;
   tariqa?: string;
   statusMode?: "all" | "approved" | "pending";
+  contentType?: string;
 }): Promise<{ data: MadhaWithRelations[]; count: number }> {
   const {
     page = 1,
@@ -101,6 +102,7 @@ export async function getAdminMadhaat(options?: {
     narratorId = "",
     tariqa = "",
     statusMode = "all",
+    contentType = "",
   } = options || {};
 
   const offset = (page - 1) * limit;
@@ -121,6 +123,7 @@ export async function getAdminMadhaat(options?: {
     );
   }
 
+  if (contentType) query = query.eq("content_type", contentType);
   if (artistId) query = query.eq("madih_id", artistId);
   if (narratorId) query = query.eq("rawi_id", narratorId);
   // tariqa logic: if filtering by name, wait, we probably join, or we might need to filter by tariqa_id instead. Let's just ilike search relation or skip standard filtering if complicated.
@@ -137,6 +140,24 @@ export async function getAdminMadhaat(options?: {
     data: (data as unknown as MadhaWithRelations[]) || [],
     count: count || 0,
   };
+}
+
+/** Returns a map of content_type → total count (all records, regardless of status). */
+export async function getContentTypeCounts(): Promise<Record<string, number>> {
+  const contentTypes = ["madha", "quran", "lecture", "dhikr", "inshad"];
+  const counts: Record<string, number> = {};
+
+  await Promise.all(
+    contentTypes.map(async (ct) => {
+      const { count, error } = await supabase
+        .from("madha")
+        .select("*", { count: "exact", head: true })
+        .eq("content_type", ct);
+      if (!error) counts[ct] = count || 0;
+    })
+  );
+
+  return counts;
 }
 
 export async function getMadhaById(
@@ -319,7 +340,7 @@ export async function logPlayEvent(madhaId: string): Promise<void> {
   const userId = supabase.auth.getUser
     ? (await supabase.auth.getUser()).data.user?.id
     : null;
-  const row: Record<string, string> = { madha_id: madhaId };
+  const row: Record<string, string> = { track_id: madhaId };
   if (userId) row.user_id = userId;
   await supabase.from("play_events").insert(row).throwOnError();
 }
@@ -526,27 +547,27 @@ export async function getFanById(id: string): Promise<Fan | null> {
 // Collections (playlists)
 // ============================================
 
-export async function getActiveCollections(): Promise<(Collection & { item_count: number; collection_items: { madha_id: string }[] })[]> {
+export async function getActiveCollections(): Promise<(Collection & { item_count: number; collection_items: { track_id: string }[] })[]> {
   // Use v_collections for the item_count, but still fetch collection_items for the madha_ids
   // (admin pages and home page need the track IDs for display)
   const { data, error } = await supabase
     .from("collections")
-    .select("*, collection_items(madha_id)")
+    .select("*, collection_items(track_id)")
     .eq("is_active", true)
     .order("display_order");
 
   if (error) throw error;
-  return (data as unknown as (Collection & { item_count: number; collection_items: { madha_id: string }[] })[]) || [];
+  return (data as unknown as (Collection & { item_count: number; collection_items: { track_id: string }[] })[]) || [];
 }
 
-export async function getAdminCollections(): Promise<(Collection & { collection_items: { madha_id: string }[] })[]> {
+export async function getAdminCollections(): Promise<(Collection & { collection_items: { track_id: string }[] })[]> {
   const { data, error } = await supabase
     .from("collections")
-    .select("*, collection_items(madha_id)")
+    .select("*, collection_items(track_id)")
     .order("display_order");
 
   if (error) throw error;
-  return (data as unknown as (Collection & { collection_items: { madha_id: string }[] })[]) || [];
+  return (data as unknown as (Collection & { collection_items: { track_id: string }[] })[]) || [];
 }
 
 export async function getCollectionById(
@@ -582,11 +603,11 @@ export async function getUserFavoriteIds(
 ): Promise<string[]> {
   const { data, error } = await supabase
     .from("user_favorites")
-    .select("madha_id")
+    .select("track_id")
     .eq("user_id", userId);
 
   if (error) throw error;
-  return data?.map((f) => f.madha_id) || [];
+  return data?.map((f) => f.track_id) || [];
 }
 
 export async function getUserFavorites(
@@ -619,7 +640,7 @@ export async function toggleFavorite(
     .from("user_favorites")
     .select("id")
     .eq("user_id", userId)
-    .eq("madha_id", madhaId)
+    .eq("track_id", madhaId)
     .single();
 
   if (existing) {
@@ -632,7 +653,7 @@ export async function toggleFavorite(
   } else {
     const { error } = await supabase
       .from("user_favorites")
-      .insert({ user_id: userId, madha_id: madhaId });
+      .insert({ user_id: userId, track_id: madhaId });
     if (error) throw error;
     return true; // favorited
   }
@@ -650,13 +671,13 @@ export async function getListeningHistory(
   // Get history IDs in order, then fetch from v_tracks
   const { data: historyData, error: historyError } = await supabase
     .from("listening_history")
-    .select("madha_id")
+    .select("track_id")
     .eq("user_id", userId)
     .order("listened_at", { ascending: false })
     .limit(MAX_HISTORY_ITEMS);
 
   if (historyError) throw historyError;
-  const ids = historyData?.map((h) => h.madha_id) || [];
+  const ids = historyData?.map((h) => h.track_id) || [];
   if (!ids.length) return [];
 
   const { data, error } = await supabase
@@ -680,10 +701,10 @@ export async function addToListeningHistory(
   const { error } = await supabase.from("listening_history").upsert(
     {
       user_id: userId,
-      madha_id: madhaId,
+      track_id: madhaId,
       listened_at: new Date().toISOString(),
     },
-    { onConflict: "user_id,madha_id" }
+    { onConflict: "user_id,track_id" }
   );
 
   if (error) throw error;
@@ -702,7 +723,7 @@ export async function recordPlay(params: {
 }): Promise<void> {
   const { error } = await supabase.from("user_plays").insert({
     user_id: params.userId || null,
-    madha_id: params.madhaId,
+    track_id: params.madhaId,
     duration_seconds: params.durationSeconds,
     completed: params.completed || false,
     device_type: params.deviceType,
@@ -780,6 +801,8 @@ export async function createMadha(
         duration_seconds: data.duration_seconds || null,
         audio_url: data.audio_url || null,
         image_url: data.image_url || null,
+        thumbnail_url: data.thumbnail_url || null,
+        content_type: data.content_type || "madha",
         status: "approved",
       },
     ])
@@ -863,7 +886,7 @@ export async function createCollection(
   if (trackIds.length > 0) {
     const items = trackIds.map((madhaId, index) => ({
       collection_id: newCollection!.id,
-      madha_id: madhaId,
+      track_id: madhaId,
       position: index,
     }));
     
@@ -896,7 +919,7 @@ export async function updateCollection(
     if (trackIds.length > 0) {
       const items = trackIds.map((madhaId, index) => ({
         collection_id: id,
-        madha_id: madhaId,
+        track_id: madhaId,
         position: index,
       }));
       
