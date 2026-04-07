@@ -408,13 +408,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        // Auto-open dialog if draft exists
-        setTimeout(() => {
-          setIsAddDialogOpen(true);
-          toast({ title: "تم استعادة المسودة", description: "تم استعادة بيانات المدحة السابقة تلقائيًا" });
-        }, 500);
-        return parsed;
+        return JSON.parse(saved);
       }
     } catch { /* ignore */ }
     return {};
@@ -2041,11 +2035,15 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
       {/* Add Track Dialog — inspired by uploaded design */}
       <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-        if (!open && Object.keys(newTrack).length > 0) {
-          const confirmed = window.confirm("لديك بيانات غير محفوظة. هل تريد إغلاق النافذة؟ سيتم الاحتفاظ بالمسودة.");
-          if (!confirmed) return;
+        if (!open) {
+          if (Object.keys(newTrack).length > 0) {
+            const confirmed = window.confirm("هل تريد حذف المسودة وإغلاق النافذة؟");
+            if (!confirmed) return;
+            setNewTrack({});
+            clearDraft();
+          }
+          setIsAddDialogOpen(false);
         }
-        setIsAddDialogOpen(open);
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
@@ -2315,9 +2313,11 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => {
               if (Object.keys(newTrack).length > 0) {
-                const confirmed = window.confirm("لديك بيانات غير محفوظة. هل تريد إغلاق النافذة؟ سيتم الاحتفاظ بالمسودة.");
+                const confirmed = window.confirm("هل تريد حذف المسودة وإغلاق النافذة؟");
                 if (!confirmed) return;
               }
+              setNewTrack({});
+              clearDraft();
               setIsAddDialogOpen(false);
             }} disabled={createMadhaMutation.isPending}>إلغاء</Button>
             <Button onClick={handleAddTrack} disabled={createMadhaMutation.isPending} className="gap-1.5 w-full sm:w-auto">
