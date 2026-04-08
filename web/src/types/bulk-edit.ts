@@ -4,7 +4,7 @@ import type { MadhaInsert } from "./database";
 export type PendingEdits = Map<string, Partial<MadhaInsert>>;
 
 /** Fields that can be edited inline or via find-replace */
-export type EditableField = "title" | "madih_id" | "rawi_id" | "tariqa_id" | "fan_id";
+export type EditableField = "title" | "madih_id" | "rawi_id" | "tariqa_id" | "fan_id" | "content_type";
 
 /** A single find-replace match shown in the preview list */
 export interface FindReplaceMatch {

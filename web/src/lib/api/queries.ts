@@ -73,11 +73,11 @@ export async function getAllMadhaatMinimal(): Promise<
 
 /** Lightweight fetch of ALL tracks with fields needed for find & replace. */
 export async function getAllMadhaatForReplace(): Promise<
-  { id: string; title: string; madih_id: string | null; rawi_id: string | null; tariqa_id: string | null; fan_id: string | null }[]
+  { id: string; title: string; madih_id: string | null; rawi_id: string | null; tariqa_id: string | null; fan_id: string | null; content_type: string | null }[]
 > {
   const { data, error } = await supabase
     .from("madha")
-    .select("id, title, madih_id, rawi_id, tariqa_id, fan_id")
+    .select("id, title, madih_id, rawi_id, tariqa_id, fan_id, content_type")
     .order("created_at", { ascending: false });
 
   if (error) throw error;

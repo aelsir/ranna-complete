@@ -26,6 +26,12 @@ import {
   CalendarIcon,
   RotateCcw,
   BarChart3,
+  LibraryBig,
+  Book,
+  Shell,
+  Podcast,
+  AudioLines,
+  PenTool,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1137,17 +1143,19 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
   const { data: contentTypeCounts } = useContentTypeCounts();
 
-  const sidebarItems = [
-    { id: "madhat" as SidebarItem, label: "المدائح", icon: Music, count: contentTypeCounts?.["madha"] },
-    { id: "quran" as SidebarItem, label: "القرآن", icon: Music, count: contentTypeCounts?.["quran"] },
-    { id: "lectures" as SidebarItem, label: "الدروس", icon: Music, count: contentTypeCounts?.["lecture"] },
-    { id: "dhikr" as SidebarItem, label: "الأذكار", icon: Music, count: contentTypeCounts?.["dhikr"] },
-    { id: "inshad" as SidebarItem, label: "الإنشاد", icon: Music, count: contentTypeCounts?.["inshad"] },
-    { id: "madiheen" as SidebarItem, label: "المادحين", icon: Music, count: artists.length },
-    { id: "ruwat" as SidebarItem, label: "الرواة", icon: Music, count: narrators.length },
-    { id: "playlists" as SidebarItem, label: "قوائم مميزة", icon: ListMusic, count: playlistsList.length },
-    { id: "analytics" as SidebarItem, label: "الإحصائيات", icon: BarChart3 },
-  ];
+  const sidebarItems: ({ divider: true } | { id: SidebarItem; label: string; icon: React.ElementType; count?: number; divider?: false })[] = [
+    { id: "madhat",   label: "المدائح",    icon: Music,      count: contentTypeCounts?.["madha"] },
+    { id: "quran",    label: "القرآن",     icon: Book,       count: contentTypeCounts?.["quran"] },
+    { id: "lectures", label: "الدروس",     icon: LibraryBig, count: contentTypeCounts?.["lecture"] },
+    { id: "dhikr",    label: "الأذكار",    icon: Shell,      count: contentTypeCounts?.["dhikr"] },
+    { id: "inshad",   label: "الإنشاد",   icon: Podcast,    count: contentTypeCounts?.["inshad"] },
+    { divider: true },
+    { id: "madiheen", label: "المادحين",   icon: AudioLines, count: artists.length },
+    { id: "ruwat",    label: "الرواة",     icon: PenTool,    count: narrators.length },
+    { id: "playlists",label: "قوائم مميزة",icon: ListMusic,  count: playlistsList.length },
+    { divider: true },
+    { id: "analytics",label: "الإحصائيات",icon: BarChart3 },
+  ] as const as ({ divider: true } | { id: SidebarItem; label: string; icon: React.ElementType; count?: number })[];
 
   return (
     <div dir="rtl" className="flex h-screen bg-background overflow-hidden">
@@ -1166,28 +1174,34 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
-          {sidebarItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => { setActiveSection(item.id); setCurrentPage(1); setSearchQuery(""); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-fustat transition-all duration-200 ${
-                activeSection === item.id
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-start">{item.label}</span>
-              {item.count != null && (
-                <Badge
-                  variant={activeSection === item.id ? "secondary" : "outline"}
-                  className="text-[10px] h-5 px-1.5 rounded-md"
-                >
-                  {item.count}
-                </Badge>
-              )}
-            </button>
-          ))}
+          {sidebarItems.map((item, idx) => {
+            if ('divider' in item && item.divider) {
+              return <div key={`divider-${idx}`} className="my-1.5 border-t border-border" />;
+            }
+            const navItem = item as { id: SidebarItem; label: string; icon: React.ElementType; count?: number };
+            return (
+              <button
+                key={navItem.id}
+                onClick={() => { setActiveSection(navItem.id); setCurrentPage(1); setSearchQuery(""); }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-fustat transition-all duration-200 ${
+                  activeSection === navItem.id
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <navItem.icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-start">{navItem.label}</span>
+                {navItem.count != null && (
+                  <Badge
+                    variant={activeSection === navItem.id ? "secondary" : "outline"}
+                    className="text-[10px] h-5 px-1.5 rounded-md"
+                  >
+                    {navItem.count}
+                  </Badge>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t border-border space-y-1">

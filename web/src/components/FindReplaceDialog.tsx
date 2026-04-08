@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { normalizeArabic } from "@/lib/arabic";
+import { CONTENT_TYPES } from "@/types/database";
 import type { MadhaInsert } from "@/types/database";
 import type { EditableField, FindReplaceMatch } from "@/types/bulk-edit";
 
@@ -36,6 +37,7 @@ export interface FindReplaceTrack {
   rawi_id: string | null;
   tariqa_id: string | null;
   fan_id: string | null;
+  content_type: string | null;
 }
 
 interface FindReplaceDialogProps {
@@ -59,6 +61,7 @@ const FIELD_OPTIONS: { value: EditableField; label: string }[] = [
   { value: "rawi_id", label: "الراوي" },
   { value: "tariqa_id", label: "الطريقة" },
   { value: "fan_id", label: "الفن" },
+  { value: "content_type", label: "نوع المحتوى" },
 ];
 
 function escapeRegex(str: string): string {
@@ -84,6 +87,13 @@ export function FindReplaceDialog({
   const [showConfirm, setShowConfirm] = useState(false);
 
   const isTextField = selectedField === "title";
+  const isContentTypeField = selectedField === "content_type";
+
+  // Map CONTENT_TYPES to SelectOption format for the content_type field
+  const contentTypeOptions: SelectOption[] = CONTENT_TYPES.map((ct) => ({
+    id: ct.value,
+    name: `${ct.icon} ${ct.label}`,
+  }));
 
   const getOptionsForField = useCallback(
     (field: EditableField): SelectOption[] => {
@@ -96,11 +106,13 @@ export function FindReplaceDialog({
           return tariqas;
         case "fan_id":
           return funoon;
+        case "content_type":
+          return contentTypeOptions;
         default:
           return [];
       }
     },
-    [artists, narrators, tariqas, funoon]
+    [artists, narrators, tariqas, funoon, contentTypeOptions]
   );
 
   const getFieldLabel = (field: EditableField): string =>
@@ -119,6 +131,8 @@ export function FindReplaceDialog({
           return track.tariqa_id;
         case "fan_id":
           return track.fan_id;
+        case "content_type":
+          return track.content_type;
         default:
           return null;
       }
@@ -130,6 +144,9 @@ export function FindReplaceDialog({
     (field: EditableField, id: string | null): string => {
       if (!id) return "";
       if (field === "title") return id; // title IS the display value
+      if (field === "content_type") {
+        return CONTENT_TYPES.find((ct) => ct.value === id)?.label || id;
+      }
       const options = getOptionsForField(field);
       return options.find((o) => o.id === id)?.name || "";
     },

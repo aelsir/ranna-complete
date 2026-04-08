@@ -272,6 +272,7 @@ function getEffectiveMetadata(
     fanId: overrides.fanId ?? shared.fanId,
     recordingPlace: overrides.recordingPlace ?? shared.recordingPlace,
     lyrics: overrides.lyrics ?? shared.lyrics,
+    contentType: shared.contentType,
   };
 }
 

@@ -285,9 +285,9 @@ export function BulkUploadDialog({
     reset,
   } = useBulkUpload();
 
-  // Set content type from prop when dialog opens
+  // Always force content type from prop when dialog opens
   useEffect(() => {
-    if (open && metadata.contentType !== contentType) {
+    if (open) {
       setMetadata({ contentType });
     }
   }, [open, contentType]);
