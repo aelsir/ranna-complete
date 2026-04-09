@@ -40,7 +40,19 @@ export async function uploadToR2(
 
   const base64 = await fileToBase64(file);
   const ext = getExtension(file.name);
-  const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${ext}`;
+  
+  // Extract base name without extension
+  const nameWithoutExt = file.name.includes('.') 
+    ? file.name.substring(0, file.name.lastIndexOf('.')) 
+    : file.name;
+
+  // Clean the file name keeping Arabic text, English text, numbers, dashes and underscores
+  const safeName = nameWithoutExt
+    .replace(/\s+/g, '-') // Replace spaces with dashes
+    .replace(/[^\w\-\u0600-\u06FF]/g, '') // Remove symbols
+    .substring(0, 50); // Limit length
+    
+  const filename = safeName ? `${safeName}-${Date.now()}${ext}` : `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${ext}`;
 
   const res = await fetch("/api/upload", {
     method: "POST",

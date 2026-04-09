@@ -967,7 +967,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
     setAudioUploading(true);
     try {
-      const { path } = await uploadToR2(file, "audio/madha");
+      const targetContentType = audioUploadTarget === "addTrack" ? newTrack.contentType || "madha" : editingTrack?.content_type || "madha";
+      const { path } = await uploadToR2(file, `audio/${targetContentType}`);
 
       // Try to detect duration from audio file
       let detectedDuration: string | undefined;
@@ -1018,11 +1019,12 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   };
 
   const handleCroppedUpload = async (croppedFile: File) => {
+    const targetContentType = cropTarget === "addTrack" ? newTrack.contentType || "madha" : editingTrack?.content_type || "madha";
     const folder =
       cropTarget === "playlist" ? "images/collections"
       : (cropTarget === "editMadih" || cropTarget === "addMadih" || cropTarget === "pasteMadih") ? "images/madiheen"
       : (cropTarget === "editRawi" || cropTarget === "addRawi" || cropTarget === "pasteRawi") ? "images/ruwat"
-      : "images/madha";
+      : `images/${targetContentType}`;
     setImageUploading(true);
     try {
       const { path, thumbnailPath } = await uploadToR2(croppedFile, folder);

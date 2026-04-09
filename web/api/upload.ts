@@ -3,14 +3,69 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+// ─────────────────────────────────────────────────────────────
+// Multi-slot storage configuration
+//
+// Each slot is configured via numbered env vars:
+//   STORAGE_N_ENDPOINT   — full S3-compatible endpoint URL
+//   STORAGE_N_ACCESS_KEY — access key ID
+//   STORAGE_N_SECRET_KEY — secret access key
+//   STORAGE_N_BUCKET     — bucket name
+//   STORAGE_N_PUBLIC_URL — public base URL for reading files
+//
+// Switch active bucket by changing: ACTIVE_STORAGE_SLOT=N
+//
+// Slot examples:
+//   Cloudflare R2  → endpoint: https://<accountId>.r2.cloudflarestorage.com
+//   Backblaze B2   → endpoint: https://s3.<region>.backblazeb2.com
+//   IDrive E2      → endpoint: https://s3.eu-central-2.idrivee2.com
+// ─────────────────────────────────────────────────────────────
+
+interface StorageSlot {
+  endpoint: string;
+  accessKey: string;
+  secretKey: string;
+  bucket: string;
+  publicUrl: string;
+}
+
+function getSlotConfig(slot: number): StorageSlot {
+  const prefix = `STORAGE_${slot}`;
+  const endpoint   = process.env[`${prefix}_ENDPOINT`];
+  const accessKey  = process.env[`${prefix}_ACCESS_KEY`];
+  const secretKey  = process.env[`${prefix}_SECRET_KEY`];
+  const bucket     = process.env[`${prefix}_BUCKET`];
+  const publicUrl  = process.env[`${prefix}_PUBLIC_URL`];
+
+  if (!endpoint || !accessKey || !secretKey || !bucket || !publicUrl) {
+    throw new Error(
+      `Storage slot ${slot} is not fully configured. ` +
+      `Make sure all STORAGE_${slot}_* env vars are set.`
+    );
+  }
+
+  return { endpoint, accessKey, secretKey, bucket, publicUrl };
+}
+
+function buildS3Client(slot: StorageSlot): S3Client {
+  // Auto-detect region from endpoint if possible (required for Backblaze and IDrive)
+  // Example: https://s3.eu-central-003.backblazeb2.com -> eu-central-003
+  const regionMatch = slot.endpoint.match(/s3\.([a-z0-9-]+)\./);
+  const region = regionMatch ? regionMatch[1] : "auto";
+
+  return new S3Client({
+    region,
+    endpoint: slot.endpoint,
+    credentials: {
+      accessKeyId: slot.accessKey,
+      secretAccessKey: slot.secretKey,
+    },
+    // Backblaze B2 requires path-style (not virtual-hosted)
+    forcePathStyle: true,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +75,6 @@ const supabase = createClient(
 const THUMB_SIZE = 150;
 const THUMB_QUALITY = 60;
 
-/** Check if this content type is an image we can thumbnail */
 function isImage(contentType: string): boolean {
   return contentType.startsWith("image/") && !contentType.includes("svg");
 }
@@ -50,13 +104,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // Resolve active storage slot
+    const activeSlot = parseInt(process.env.ACTIVE_STORAGE_SLOT || "1", 10);
+    const slotConfig = getSlotConfig(activeSlot);
+    const s3 = buildS3Client(slotConfig);
+
     const buffer = Buffer.from(file, "base64");
     const key = `${folder}/${filename}`;
 
-    // Upload original
+    // Upload original file
     await s3.send(
       new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
+        Bucket: slotConfig.bucket,
         Key: key,
         Body: buffer,
         ContentType: contentType,
@@ -65,6 +124,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Generate and upload thumbnail for images
     let thumbnailPath: string | undefined;
+    let thumbnailUrl: string | undefined;
+
     if (isImage(contentType)) {
       try {
         const thumbBuffer = await sharp(buffer)
@@ -77,7 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await s3.send(
           new PutObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
+            Bucket: slotConfig.bucket,
             Key: thumbKey,
             Body: thumbBuffer,
             ContentType: "image/webp",
@@ -85,6 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
 
         thumbnailPath = thumbKey;
+        thumbnailUrl = `${slotConfig.publicUrl}/${thumbKey}`;
       } catch (thumbErr) {
         // Thumbnail generation is best-effort — don't fail the upload
         console.warn("Thumbnail generation failed:", thumbErr);
@@ -92,11 +154,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.json({
-      path: key,
-      url: `${process.env.R2_PUBLIC_URL}/${key}`,
+      path: `${slotConfig.publicUrl}/${key}`,   // full absolute URL
+      url:  `${slotConfig.publicUrl}/${key}`,
+      storageSlot: activeSlot,
       ...(thumbnailPath && {
-        thumbnailPath,
-        thumbnailUrl: `${process.env.R2_PUBLIC_URL}/${thumbnailPath}`,
+        thumbnailPath: thumbnailUrl,
+        thumbnailUrl,
       }),
     });
   } catch (err: any) {

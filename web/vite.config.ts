@@ -39,13 +39,38 @@ function r2UploadDevPlugin(): Plugin {
           const { S3Client, PutObjectCommand } = await import(
             "@aws-sdk/client-s3"
           );
+
+          const activeSlot = parseInt(env.ACTIVE_STORAGE_SLOT || "1", 10);
+          console.log(`[Upload API] Active storage slot detected: ${activeSlot}`);
+          const prefix = `STORAGE_${activeSlot}`;
+          console.log(`[Upload API] Loading config for prefix: ${prefix}`);
+          
+          const endpoint   = env[`${prefix}_ENDPOINT`];
+          const accessKey  = env[`${prefix}_ACCESS_KEY`];
+          const secretKey  = env[`${prefix}_SECRET_KEY`];
+          const bucket     = env[`${prefix}_BUCKET`];
+          const publicUrl  = env[`${prefix}_PUBLIC_URL`];
+
+          console.log(`[Upload API] endpoint: ${endpoint}, bucket: ${bucket}`);
+
+          if (!endpoint || !accessKey || !secretKey || !bucket || !publicUrl) {
+            console.error(`[Upload API] Missing config for slot ${activeSlot}`);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: `Storage slot ${activeSlot} is not fully configured.` }));
+            return;
+          }
+
+          const regionMatch = endpoint.match(/s3\.([a-z0-9-]+)\./);
+          const region = regionMatch ? regionMatch[1] : "auto";
+
           const s3 = new S3Client({
-            region: "auto",
-            endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+            region,
+            endpoint,
             credentials: {
-              accessKeyId: env.R2_ACCESS_KEY_ID,
-              secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+              accessKeyId: accessKey,
+              secretAccessKey: secretKey,
             },
+            forcePathStyle: true,
           });
 
           const buffer = Buffer.from(file, "base64");
@@ -53,7 +78,7 @@ function r2UploadDevPlugin(): Plugin {
 
           await s3.send(
             new PutObjectCommand({
-              Bucket: env.R2_BUCKET_NAME,
+              Bucket: bucket,
               Key: key,
               Body: buffer,
               ContentType: contentType,
@@ -62,6 +87,7 @@ function r2UploadDevPlugin(): Plugin {
 
           // Generate thumbnail for images
           let thumbnailPath: string | undefined;
+          let thumbnailUrl: string | undefined;
           if (contentType.startsWith("image/") && !contentType.includes("svg")) {
             try {
               const sharp = (await import("sharp")).default;
@@ -75,13 +101,15 @@ function r2UploadDevPlugin(): Plugin {
 
               await s3.send(
                 new PutObjectCommand({
-                  Bucket: env.R2_BUCKET_NAME,
+                  Bucket: bucket,
                   Key: thumbKey,
                   Body: thumbBuffer,
                   ContentType: "image/webp",
                 })
               );
+              
               thumbnailPath = thumbKey;
+              thumbnailUrl = `${publicUrl}/${thumbKey}`;
             } catch (thumbErr) {
               console.warn("Thumbnail generation failed:", thumbErr);
             }
@@ -90,11 +118,12 @@ function r2UploadDevPlugin(): Plugin {
           res.setHeader("Content-Type", "application/json");
           res.end(
             JSON.stringify({
-              path: key,
-              url: `${env.R2_PUBLIC_URL}/${key}`,
+              path: `${publicUrl}/${key}`,
+              url: `${publicUrl}/${key}`,
+              storageSlot: activeSlot,
               ...(thumbnailPath && {
-                thumbnailPath,
-                thumbnailUrl: `${env.R2_PUBLIC_URL}/${thumbnailPath}`,
+                thumbnailPath: thumbnailUrl,
+                thumbnailUrl,
               }),
             })
           );
