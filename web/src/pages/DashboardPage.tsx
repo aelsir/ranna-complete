@@ -526,43 +526,86 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
   // Clipboard paste handler for image thumbnails
   const handlePaste = useCallback((e: ClipboardEvent) => {
-    // Determine which section is active and which items are selected
-    const hasSelection =
-      (isContentSection && selectedTracks.size > 0) ||
-      (activeSection === "madiheen" && selectedMadiheen.size > 0) ||
-      (activeSection === "ruwat" && selectedRuwat.size > 0);
-
-    if (!hasSelection) return;
-
-    // Don't intercept paste in input/textarea fields
-    const target = e.target as HTMLElement;
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
-
     const items = e.clipboardData?.items;
     if (!items) return;
 
+    let hasImage = false;
     for (const item of Array.from(items)) {
       if (item.type.startsWith("image/")) {
-        e.preventDefault();
+        hasImage = true;
+        break;
+      }
+    }
+    
+    // If it's not an image, let the browser handle it normally (e.g. text in an input)
+    if (!hasImage) return;
+
+    // Determine target based on currently open dialogs first
+    let targetAction: CropTarget | null = null;
+    let toastDesc = "";
+
+    if (isAddDialogOpen) {
+      targetAction = "addTrack";
+      toastDesc = "كصورة للملف الجديد";
+    } else if (editingTrack) {
+      targetAction = "editTrack";
+      toastDesc = "كصورة للملف الحالي";
+    } else if (isAddMadihDialogOpen) {
+      targetAction = "addMadih";
+      toastDesc = "كصورة للمادح الجديد";
+    } else if (editingMadih) {
+      targetAction = "editMadih";
+      toastDesc = "كصورة للمادح الحالي";
+    } else if (isAddRawiDialogOpen) {
+      targetAction = "addRawi";
+      toastDesc = "كصورة للراوي الجديد";
+    } else if (editingRawi) {
+      targetAction = "editRawi";
+      toastDesc = "كصورة للراوي الحالي";
+    } else if (isPlaylistDialogOpen) {
+      targetAction = "playlist";
+      toastDesc = "كصورة للقائمة الجديدة";
+    } else if (editingPlaylist) {
+      targetAction = "editPlaylist";
+      toastDesc = "كصورة للقائمة الحالية";
+    } 
+    // Fallback to bulk selection overrides
+    else if (isContentSection && selectedTracks.size > 0) {
+      targetAction = "pasteTrack";
+      toastDesc = `سيتم تطبيقها على ${selectedTracks.size} ملف محدد`;
+    } else if (activeSection === "madiheen" && selectedMadiheen.size > 0) {
+      targetAction = "pasteMadih";
+      toastDesc = `سيتم تطبيقها على ${selectedMadiheen.size} مادح محدد`;
+    } else if (activeSection === "ruwat" && selectedRuwat.size > 0) {
+      targetAction = "pasteRawi";
+      toastDesc = `سيتم تطبيقها على ${selectedRuwat.size} راوي محدد`;
+    }
+
+    if (!targetAction) return;
+
+    // Prevent default so the image doesn't get pasted into the input field text box directly
+    e.preventDefault();
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
         const blob = item.getAsFile();
         if (!blob) return;
         const url = URL.createObjectURL(blob);
-
-        if (isContentSection) {
-          setCropTarget("pasteTrack");
-          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedTracks.size} محددة` });
-        } else if (activeSection === "madiheen") {
-          setCropTarget("pasteMadih");
-          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedMadiheen.size} مادح محدد` });
-        } else if (activeSection === "ruwat") {
-          setCropTarget("pasteRawi");
-          toast({ title: "تم لصق صورة", description: `سيتم تطبيقها على ${selectedRuwat.size} راوي محدد` });
-        }
+        setCropTarget(targetAction);
+        toast({ title: "تم التقاط الصورة", description: toastDesc });
         setCropImageSrc(url);
         return;
       }
     }
-  }, [activeSection, selectedTracks, selectedMadiheen, selectedRuwat, toast]);
+  }, [
+    isAddDialogOpen, editingTrack, 
+    isAddMadihDialogOpen, editingMadih, 
+    isAddRawiDialogOpen, editingRawi, 
+    isPlaylistDialogOpen, editingPlaylist, 
+    isContentSection, activeSection, 
+    selectedTracks, selectedMadiheen, selectedRuwat, 
+    toast
+  ]);
 
   useEffect(() => {
     document.addEventListener("paste", handlePaste);
