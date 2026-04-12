@@ -52,6 +52,14 @@ release-app: sync
 build-ipa: sync
 	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store
 
+## Build Android App Bundle (.aab) for Google Play Store
+build-aab: sync
+	cd app && flutter build appbundle --release --dart-define-from-file=env.json
+
+## Build Android APK for direct distribution
+build-apk: sync
+	cd app && flutter build apk --release --dart-define-from-file=env.json
+
 ## Upload to App Store Connect (TestFlight & App Store)
 ## Usage: make upload-ios (Interactive version bump + upload)
 upload-ios:
