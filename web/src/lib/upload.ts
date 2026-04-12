@@ -31,7 +31,9 @@ export interface UploadResult {
  */
 export async function uploadToR2(
   file: File,
-  folder: string
+  folder: string,
+  customName?: string,
+  contentTypePrefix?: string
 ): Promise<UploadResult> {
   const {
     data: { session },
@@ -41,10 +43,13 @@ export async function uploadToR2(
   const base64 = await fileToBase64(file);
   const ext = getExtension(file.name);
   
+  // Decide base name to use: Custom name (e.g. Title) or original file name
+  const nameToUse = customName ? customName : file.name;
+
   // Extract base name without extension
-  const nameWithoutExt = file.name.includes('.') 
-    ? file.name.substring(0, file.name.lastIndexOf('.')) 
-    : file.name;
+  const nameWithoutExt = nameToUse.includes('.') && !customName 
+    ? nameToUse.substring(0, nameToUse.lastIndexOf('.')) 
+    : nameToUse;
 
   // Clean the file name keeping Arabic text, English text, numbers, dashes and underscores
   const safeName = nameWithoutExt
@@ -52,7 +57,11 @@ export async function uploadToR2(
     .replace(/[^\w\-\u0600-\u06FF]/g, '') // Remove symbols
     .substring(0, 50); // Limit length
     
-  const filename = safeName ? `${safeName}-${Date.now()}${ext}` : `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${ext}`;
+  // Use passed prefix or fallback to deriving it from folder
+  const typeSnippet = contentTypePrefix || (folder.includes('/') ? folder.split('/').pop() || "" : folder);
+    
+  const prefix = safeName ? `${typeSnippet}-${safeName}` : typeSnippet;
+  const filename = prefix ? `${prefix}-${Date.now()}${ext}` : `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${ext}`;
 
   const res = await fetch("/api/upload", {
     method: "POST",
@@ -84,5 +93,42 @@ export async function uploadToR2(
   return {
     path: data.path,
     thumbnailPath: data.thumbnailPath,
+    storageSlot: data.storageSlot,
   };
+}
+
+/**
+ * Delete files from Cloudflare R2 / Backblaze via the /api/delete serverless function.
+ * Accepts an array of full absolute URLs.
+ */
+export async function deleteFromStorage(urls: string[]): Promise<any> {
+  if (!urls || urls.length === 0) return { results: [] };
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const res = await fetch("/api/delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ urls }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    let message = `فشل الحذف (${res.status})`;
+    try {
+      const json = JSON.parse(body);
+      if (json.error) message = `حذف مساحة التخزين: ${json.error}`;
+    } catch {
+      if (body) message = `حذف مساحة التخزين: ${body.slice(0, 200)}`;
+    }
+    throw new Error(message);
+  }
+
+  return await res.json();
 }

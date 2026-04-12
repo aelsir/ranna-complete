@@ -137,6 +137,98 @@ function r2UploadDevPlugin(): Plugin {
   };
 }
 
+function r2DeleteDevPlugin(): Plugin {
+  let env: Record<string, string>;
+  return {
+    name: "r2-delete-dev",
+    configureServer(server) {
+      env = loadEnv("development", process.cwd(), "");
+      server.middlewares.use("/api/delete", async (req, res) => {
+        if (req.method !== "POST") {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: "Method not allowed" }));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const body = JSON.parse(Buffer.concat(chunks).toString());
+
+        const { urls } = body;
+        if (!urls || !Array.isArray(urls)) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "Missing required fields: urls array" }));
+          return;
+        }
+
+        try {
+          const { S3Client, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+          
+          const deletePromises = urls.map(async (url) => {
+            let matchedConfig = null;
+            let matchedKey = null;
+
+            for (let s = 1; s <= 5; s++) {
+              const prefix = `STORAGE_${s}`;
+              const publicUrl = env[`${prefix}_PUBLIC_URL`];
+              if (publicUrl && url.startsWith(publicUrl)) {
+                matchedConfig = {
+                  slot: s,
+                  endpoint: env[`${prefix}_ENDPOINT`],
+                  accessKey: env[`${prefix}_ACCESS_KEY`],
+                  secretKey: env[`${prefix}_SECRET_KEY`],
+                  bucket: env[`${prefix}_BUCKET`],
+                  publicUrl,
+                };
+                const prefixWithSlash = publicUrl.endsWith('/') ? publicUrl : `${publicUrl}/`;
+                matchedKey = decodeURIComponent(url.replace(prefixWithSlash, ""));
+                break;
+              }
+            }
+
+            if (!matchedConfig || !matchedKey) {
+              return { url, status: 'skipped', reason: 'No matching storage slot' };
+            }
+
+            const regionMatch = matchedConfig.endpoint.match(/s3\.([a-z0-9-]+)\./);
+            const region = regionMatch ? regionMatch[1] : "auto";
+
+            const s3 = new S3Client({
+              region,
+              endpoint: matchedConfig.endpoint,
+              credentials: {
+                accessKeyId: matchedConfig.accessKey,
+                secretAccessKey: matchedConfig.secretKey,
+              },
+              forcePathStyle: true,
+            });
+
+            try {
+              await s3.send(
+                new DeleteObjectCommand({
+                  Bucket: matchedConfig.bucket,
+                  Key: matchedKey,
+                })
+              );
+              return { url, key: matchedKey, slot: matchedConfig.slot, status: 'success' };
+            } catch (err: any) {
+              return { url, key: matchedKey, slot: matchedConfig.slot, status: 'error', reason: err.message };
+            }
+          });
+
+          const results = await Promise.all(deletePromises);
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ message: "Deletion sequence completed", results }));
+        } catch (err: any) {
+          console.error("Delete API error:", err);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: err.message || "Delete failed" }));
+        }
+      });
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   envPrefix: ["VITE_", "NEXT_PUBLIC_"],
@@ -154,6 +246,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     mode === "development" && r2UploadDevPlugin(),
+    mode === "development" && r2DeleteDevPlugin(),
     VitePWA({
       registerType: "autoUpdate",
       devOptions: {

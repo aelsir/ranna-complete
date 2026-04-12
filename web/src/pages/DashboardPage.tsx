@@ -967,8 +967,10 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
     setAudioUploading(true);
     try {
+      const customTitle = audioUploadTarget === "addTrack" ? newTrack.title : editingTrack?.title;
+      // We pass the targetContentType artificially just for the file prefix logic inside upload.ts
       const targetContentType = audioUploadTarget === "addTrack" ? newTrack.contentType || "madha" : editingTrack?.content_type || "madha";
-      const { path } = await uploadToR2(file, `audio/${targetContentType}`);
+      const { path } = await uploadToR2(file, `audios`, customTitle, targetContentType);
 
       // Try to detect duration from audio file
       let detectedDuration: string | undefined;
@@ -1020,14 +1022,26 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
   const handleCroppedUpload = async (croppedFile: File) => {
     const targetContentType = cropTarget === "addTrack" ? newTrack.contentType || "madha" : editingTrack?.content_type || "madha";
-    const folder =
-      cropTarget === "playlist" ? "images/collections"
-      : (cropTarget === "editMadih" || cropTarget === "addMadih" || cropTarget === "pasteMadih") ? "images/madiheen"
-      : (cropTarget === "editRawi" || cropTarget === "addRawi" || cropTarget === "pasteRawi") ? "images/ruwat"
-      : `images/${targetContentType}`;
+    
+    // Determine the prefix snippet
+    let prefixType = targetContentType;
+    if (cropTarget === "playlist") prefixType = "playlist";
+    if (["addMadih", "editMadih", "pasteMadih"].includes(cropTarget!)) prefixType = "madih";
+    if (["addRawi", "editRawi", "pasteRawi"].includes(cropTarget!)) prefixType = "rawi";
+
+    const customTitle = 
+      cropTarget === "addTrack" ? newTrack.title
+      : cropTarget === "editTrack" ? editingTrack?.title
+      : cropTarget === "addMadih" ? newMadih.name
+      : cropTarget === "editMadih" ? editingMadih?.name
+      : cropTarget === "addRawi" ? newRawi.name
+      : cropTarget === "editRawi" ? editingRawi?.name
+      : cropTarget === "playlist" ? newPlaylist.title
+      : undefined;
+
     setImageUploading(true);
     try {
-      const { path, thumbnailPath } = await uploadToR2(croppedFile, folder);
+      const { path, thumbnailPath } = await uploadToR2(croppedFile, "images", customTitle, prefixType);
       if (cropTarget === "pasteTrack") {
         const count = selectedTracks.size;
         // Update image_url + thumbnail_url together

@@ -351,10 +351,14 @@ export function useBulkUpload() {
       dispatch({ type: "FILE_UPLOADING", id: file.id });
 
       try {
+        // Merge shared defaults with per-file overrides
+        const effective = getEffectiveMetadata(state.metadata, file.overrides);
+
         // 1. Upload audio to R2
         let audioPath: string;
         try {
-          const uploadResult = await uploadToR2(file.file, "audio/madhaat");
+          const targetContentType = effective.contentType || "madha";
+          const uploadResult = await uploadToR2(file.file, `audios`, file.title, targetContentType);
           audioPath = uploadResult.path;
         } catch (uploadErr) {
           const msg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
@@ -365,9 +369,6 @@ export function useBulkUpload() {
         if (cancelledRef.current) break;
 
         dispatch({ type: "FILE_SAVING", id: file.id, audioUrl: audioPath });
-
-        // Merge shared defaults with per-file overrides
-        const effective = getEffectiveMetadata(state.metadata, file.overrides);
 
         // 2. Create DB record
         let madhaId: string;

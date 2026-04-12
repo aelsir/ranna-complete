@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { deleteFromStorage } from "../upload";
 import type {
   Madha,
   MadhaInsert,
@@ -454,6 +455,12 @@ export async function updateMadih(
 }
 
 export async function deleteMadiheen(ids: string[]): Promise<void> {
+  const { data: records } = await supabase.from("madiheen").select("image_url").in("id", ids);
+  const urlsToDelete = records?.map((r) => r.image_url).filter(Boolean) as string[];
+  if (urlsToDelete && urlsToDelete.length > 0) {
+    await deleteFromStorage(urlsToDelete).catch(console.error);
+  }
+
   const { error } = await supabase.from("madiheen").delete().in("id", ids);
   if (error) throw error;
 }
@@ -489,6 +496,12 @@ export async function updateRawi(
 }
 
 export async function deleteRuwat(ids: string[]): Promise<void> {
+  const { data: records } = await supabase.from("ruwat").select("image_url").in("id", ids);
+  const urlsToDelete = records?.map((r) => r.image_url).filter(Boolean) as string[];
+  if (urlsToDelete && urlsToDelete.length > 0) {
+    await deleteFromStorage(urlsToDelete).catch(console.error);
+  }
+
   const { error } = await supabase.from("ruwat").delete().in("id", ids);
   if (error) throw error;
 }
@@ -822,6 +835,21 @@ export async function updateMadha(
 }
 
 export async function deleteMadhaat(ids: string[]): Promise<void> {
+  const { data: records } = await supabase.from("madha").select("audio_url, image_url, thumbnail_url").in("id", ids);
+  
+  const urlsToDelete: string[] = [];
+  if (records) {
+    records.forEach((r) => {
+      if (r.audio_url) urlsToDelete.push(r.audio_url);
+      if (r.image_url) urlsToDelete.push(r.image_url);
+      if (r.thumbnail_url) urlsToDelete.push(r.thumbnail_url);
+    });
+  }
+
+  if (urlsToDelete.length > 0) {
+    await deleteFromStorage(urlsToDelete).catch(console.error);
+  }
+
   // Related records (user_favorites, listening_history, user_plays, collection_items) 
   // should ideally cascade, but we delete from madha table directly
   const { error } = await supabase.from("madha").delete().in("id", ids);
