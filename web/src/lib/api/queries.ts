@@ -94,6 +94,8 @@ export async function getAdminMadhaat(options?: {
   tariqa?: string;
   statusMode?: "all" | "approved" | "pending";
   contentType?: string;
+  sortBy?: "created_at" | "play_count";
+  sortAscending?: boolean;
 }): Promise<{ data: MadhaWithRelations[]; count: number }> {
   const {
     page = 1,
@@ -104,6 +106,8 @@ export async function getAdminMadhaat(options?: {
     tariqa = "",
     statusMode = "all",
     contentType = "",
+    sortBy = "created_at",
+    sortAscending = false,
   } = options || {};
 
   const offset = (page - 1) * limit;
@@ -131,7 +135,7 @@ export async function getAdminMadhaat(options?: {
   // We'll rely on the dashboard parsing for standard ID matching if provided.
 
   query = query
-    .order("created_at", { ascending: false })
+    .order(sortBy, { ascending: sortAscending })
     .range(offset, offset + limit - 1);
 
   const { data, count, error } = await query;

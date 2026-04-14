@@ -32,6 +32,9 @@ import {
   Podcast,
   AudioLines,
   PenTool,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,6 +142,7 @@ interface ExtendedTrack extends Track {
   notes?: string;
   location?: string;
   updatedAt?: string;
+  createdAt?: string;
   thumbnail?: string;
   playCount?: number;
   audioUrl?: string;
@@ -277,6 +281,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const [filterTariqa, setFilterTariqa] = useState<string>("");
   const [filterDateRange, setFilterDateRange] = useState<string>("");
   const [filterPlayCount, setFilterPlayCount] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"created_at" | "play_count">("created_at");
+  const [sortAscending, setSortAscending] = useState(false);
 
   // Determine content_type filter from active section
   const activeContentType = SECTION_CONTENT_TYPE[activeSection] || "";
@@ -288,6 +294,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     artistId: filterArtist,
     narratorId: filterNarrator,
     contentType: activeContentType,
+    sortBy,
+    sortAscending,
   });
   
   const fetchedTracks = adminData?.data || [];
@@ -390,6 +398,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       notes: "",
       location: original?.recording_place || "",
       updatedAt: original?.updated_at || "",
+      createdAt: original?.created_at || "",
       thumbnail: original?.image_url || artist?.image || "/placeholder.svg",
       playCount: original?.play_count || 0,
       audioUrl: original?.audio_url || "",
@@ -1543,8 +1552,40 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                       <span>العنوان</span>
                       <span>المادح</span>
                       <span>الراوي</span>
-                      <span className="text-center">التشغيل</span>
-                      <span className="text-center">آخر تحديث</span>
+                      <button
+                        className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
+                        onClick={() => {
+                          if (sortBy === "play_count") {
+                            setSortAscending((a) => !a);
+                          } else {
+                            setSortBy("play_count");
+                            setSortAscending(false);
+                          }
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <span>التشغيل</span>
+                        {sortBy === "play_count"
+                          ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                          : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                      </button>
+                      <button
+                        className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
+                        onClick={() => {
+                          if (sortBy === "created_at") {
+                            setSortAscending((a) => !a);
+                          } else {
+                            setSortBy("created_at");
+                            setSortAscending(false);
+                          }
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <span>تاريخ الإضافة</span>
+                        {sortBy === "created_at"
+                          ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                          : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                      </button>
                       <span className="text-center">إجراءات</span>
                     </div>
                     <Separator className="mb-1" />
@@ -1554,9 +1595,9 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                       {paginatedMadhat.map((track) => {
                         const status = getCompletionStatus(track);
                         const isPlaying = nowPlayingId === track.id;
-                        const relativeDate = track.updatedAt
+                        const relativeDate = track.createdAt
                           ? (() => {
-                              const diff = Date.now() - new Date(track.updatedAt).getTime();
+                              const diff = Date.now() - new Date(track.createdAt).getTime();
                               const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                               if (days === 0) return "اليوم";
                               if (days === 1) return "أمس";

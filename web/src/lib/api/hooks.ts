@@ -148,6 +148,8 @@ export function useAdminMadhaat(options?: {
   tariqa?: string;
   statusMode?: "all" | "approved" | "pending";
   contentType?: string;
+  sortBy?: "created_at" | "play_count";
+  sortAscending?: boolean;
 }) {
   return useQuery({
     queryKey: [...queryKeys.madhaat, "admin", options],
