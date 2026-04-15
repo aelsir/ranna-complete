@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect, DragEvent } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo, DragEvent } from "react";
 import {
   Upload,
   X,
@@ -9,6 +9,9 @@ import {
   Clock,
   Pause,
   Pencil,
+  Link2,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { RtlPlay } from "@/components/icons/rtl-icons";
@@ -27,6 +30,11 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -36,6 +44,7 @@ import {
   type FileMetadataOverrides,
   type SharedMetadata,
 } from "@/hooks/useBulkUpload";
+import { useAllMadhaatForReplace } from "@/lib/api/hooks";
 import { useToast } from "@/hooks/use-toast";
 
 interface BulkUploadDialogProps {
@@ -75,6 +84,42 @@ function StatusIcon({ status }: { status: FileStatus }) {
   }
 }
 
+// ── Track matching helpers ──
+
+type TrackForMatch = {
+  id: string;
+  title: string;
+  lyrics: string | null;
+  writer: string | null;
+  rawi_id: string | null;
+};
+
+/** Normalize Arabic text for comparison: strip tashkeel, unify alef/taa forms, lowercase. */
+function normalizeArabic(s: string): string {
+  return s
+    .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/g, "") // Arabic tashkeel only (NOT letters)
+    .replace(/[أإآٱ]/g, "ا")              // Unify alef variants → bare alef
+    .replace(/ة/g, "ه")                   // Taa marbouta → haa
+    .replace(/ى/g, "ي")                   // Alef maksura → yaa
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")      // Latin combining marks
+    .toLowerCase()
+    .trim();
+}
+
+function scoreTitle(a: string, b: string): number {
+  const na = normalizeArabic(a);
+  const nb = normalizeArabic(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  // Check if one contains the other (catches partial matches like "كاشفي" in "مكاشفي القوم")
+  if (na.includes(nb) || nb.includes(na)) return 0.8;
+  const ta = new Set(na.split(/\s+/).filter(Boolean));
+  const tb = new Set(nb.split(/\s+/).filter(Boolean));
+  const shared = [...ta].filter((w) => tb.has(w)).length;
+  return shared / Math.max(ta.size, tb.size);
+}
+
 // ── Per-file row with collapsible metadata overrides + audio preview ──
 
 function FileRow({
@@ -86,12 +131,18 @@ function FileRow({
   sharedMetadata,
   isPreviewPlaying,
   previewProgress,
+  suggestion,
+  allTracks,
+  isSelected,
   onUpdateTitle,
   onRemove,
   onSetOverride,
   onClearOverrides,
   onTogglePreview,
   onOpenAdvanced,
+  onLinkTrack,
+  onDismissSuggestion,
+  onSelect,
 }: {
   file: BulkFile;
   artists: { id: string; name: string }[];
@@ -101,17 +152,90 @@ function FileRow({
   sharedMetadata: SharedMetadata;
   isPreviewPlaying: boolean;
   previewProgress: number;
+  suggestion: TrackForMatch | null;
+  allTracks: TrackForMatch[];
+  isSelected: boolean;
   onUpdateTitle: (id: string, title: string) => void;
   onRemove: (id: string) => void;
   onSetOverride: (id: string, overrides: Partial<FileMetadataOverrides>) => void;
   onClearOverrides: (id: string) => void;
   onTogglePreview: () => void;
   onOpenAdvanced: (id: string) => void;
+  onLinkTrack: (fileId: string, track: TrackForMatch) => void;
+  onDismissSuggestion: (fileId: string) => void;
+  onSelect: (fileId: string) => void;
 }) {
-  const hasOverrides = Object.keys(file.overrides).length > 0;
+  const hasOverrides = Object.keys(file.overrides).filter(k => k !== 'linkedTrackId').length > 0;
+  const isLinked = !!file.overrides.linkedTrackId;
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkOpen, setLinkOpen] = useState(false);
+
+  const filteredTracks = useMemo(() => {
+    if (!linkSearch.trim()) return allTracks.slice(0, 10);
+    const q = normalizeArabic(linkSearch);
+    return allTracks
+      .filter((t) => normalizeArabic(t.title).includes(q))
+      .slice(0, 10);
+  }, [allTracks, linkSearch]);
 
   return (
-    <div className="bg-background rounded-xl border border-border overflow-hidden">
+    <div
+      className={`bg-background rounded-xl border-2 overflow-hidden transition-all cursor-pointer ${
+        isSelected
+          ? "border-primary shadow-[0_0_0_4px_color-mix(in_srgb,var(--primary)_15%,transparent),0_0_20px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
+          : "border-primary/25"
+      }`}
+      onClick={(e) => {
+        // Only select when clicking card background — skip interactive child elements
+        const target = e.target as HTMLElement;
+        if (target.closest('button, input, textarea, [role="combobox"], [role="listbox"], [role="option"], [data-radix-collection-item]')) return;
+        onSelect(file.id);
+      }}
+    >
+      {/* Smart suggestion banner */}
+      {suggestion && !isLinked && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/8 border-b border-amber-500/20">
+          <Sparkles className="h-3 w-3 text-amber-500 shrink-0" />
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-fustat flex-1 truncate">
+            مقترح: <span className="font-semibold">{suggestion.title}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onLinkTrack(file.id, suggestion)}
+            className="flex items-center gap-1 text-[10px] text-emerald-600 font-fustat hover:text-emerald-700 transition-colors shrink-0"
+          >
+            <Check className="h-3 w-3" />
+            قبول
+          </button>
+          <button
+            type="button"
+            onClick={() => onDismissSuggestion(file.id)}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Linked track badge */}
+      {isLinked && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/8 border-b border-emerald-500/20">
+          <Link2 className="h-3 w-3 text-emerald-500 shrink-0" />
+          <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-fustat flex-1 truncate">
+            مرتبط بـ: <span className="font-semibold">{file.title}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              onSetOverride(file.id, { linkedTrackId: undefined, lyrics: undefined, writer: undefined });
+            }}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       {/* Compact row — always visible */}
       <div className="flex items-center gap-3 p-3">
           {/* Play/Pause preview toggle */}
@@ -161,11 +285,57 @@ function FileRow({
             />
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {hasOverrides && (
+            {hasOverrides && !isLinked && (
               <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-1.5">
                 مخصص
               </Badge>
             )}
+            {/* Manual link button */}
+            <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="ربط بمدحة موجودة"
+                  className={`h-6 w-6 flex items-center justify-center rounded transition-colors ${
+                    isLinked
+                      ? "text-emerald-500 hover:text-emerald-600"
+                      : "text-muted-foreground/50 hover:text-muted-foreground"
+                  }`}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-2" align="end" dir="rtl">
+                <p className="text-[11px] font-fustat text-muted-foreground mb-2 px-1">ابحث عن مدحة لاستيراد عنوانها وكلماتها وكاتبها</p>
+                <Input
+                  value={linkSearch}
+                  onChange={(e) => setLinkSearch(e.target.value)}
+                  placeholder="اسم المدحة..."
+                  className="h-7 text-xs mb-2"
+                  autoFocus
+                />
+                <div className="max-h-48 overflow-y-auto space-y-0.5">
+                  {filteredTracks.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground text-center py-3">لا توجد نتائج</p>
+                  ) : (
+                    filteredTracks.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="w-full text-right px-2 py-1.5 rounded-lg text-[12px] font-fustat hover:bg-muted/60 transition-colors truncate block"
+                        onClick={() => {
+                          onLinkTrack(file.id, t);
+                          setLinkOpen(false);
+                          setLinkSearch("");
+                        }}
+                      >
+                        {t.title}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
             <Badge variant="outline" className="text-[10px] font-mono">
               {formatDuration(file.durationSeconds)}
             </Badge>
@@ -279,11 +449,62 @@ export function BulkUploadDialog({
     setFileOverride,
     clearFileOverrides,
     applySharedToAll,
+    linkTrack,
     startUpload,
     cancelUpload,
     retryFailed,
     reset,
   } = useBulkUpload();
+
+  // Fetch existing tracks for matching (only when dialog is open)
+  const { data: allTracksRaw } = useAllMadhaatForReplace(open);
+  const allTracks: TrackForMatch[] = useMemo(
+    () => allTracksRaw?.map((t) => ({ id: t.id, title: t.title, lyrics: t.lyrics, writer: t.writer, rawi_id: t.rawi_id })) ?? [],
+    [allTracksRaw]
+  );
+
+  // Selected card (clicked to edit)
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+
+  // Dismissed suggestion IDs per file
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Record<string, true>>({});
+
+  // Compute best match per file (score ≥ 0.5, not already linked, not dismissed)
+  const suggestions = useMemo<Record<string, TrackForMatch>>(() => {
+    if (!allTracks.length) return {};
+    const result: Record<string, TrackForMatch> = {};
+    for (const f of files) {
+      if (f.overrides.linkedTrackId) continue;
+      if (dismissedSuggestions[f.id]) continue;
+      let best: TrackForMatch | null = null;
+      let bestScore = 0.5; // threshold
+      for (const t of allTracks) {
+        const score = scoreTitle(f.title, t.title);
+        if (score > bestScore) {
+          bestScore = score;
+          best = t;
+        }
+      }
+      if (best) result[f.id] = best;
+    }
+    return result;
+  }, [files, allTracks, dismissedSuggestions]);
+
+  const handleLinkTrack = useCallback(
+    (fileId: string, track: TrackForMatch) => {
+      linkTrack(fileId, track.id, track.title, track.lyrics ?? "", track.writer ?? "", track.rawi_id ?? "");
+      setDismissedSuggestions((prev) => {
+        const next = { ...prev };
+        delete next[fileId];
+        return next;
+      });
+    },
+    [linkTrack]
+  );
+
+  const handleDismissSuggestion = useCallback((fileId: string) => {
+    setDismissedSuggestions((prev) => ({ ...prev, [fileId]: true }));
+  }, []);
 
   // Always force content type from prop when dialog opens
   useEffect(() => {
@@ -586,7 +807,7 @@ export function BulkUploadDialog({
 
                   {/* File List — expandable rows with audio preview */}
                   {files.length > 0 && (
-                    <div className="space-y-2 max-h-[28rem] overflow-y-auto">
+                    <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
                       {files.map((f) => (
                         <FileRow
                           key={f.id}
@@ -602,12 +823,18 @@ export function BulkUploadDialog({
                           previewProgress={
                             previewingId === f.id ? previewProgress : 0
                           }
+                          suggestion={suggestions[f.id] ?? null}
+                          allTracks={allTracks}
+                          isSelected={selectedFileId === f.id}
                           onUpdateTitle={updateTitle}
-                          onRemove={removeFile}
+                          onRemove={(id) => { removeFile(id); setSelectedFileId((p) => p === id ? null : p); }}
                           onSetOverride={setFileOverride}
                           onClearOverrides={clearFileOverrides}
                           onTogglePreview={() => togglePreview(f.id, f.file)}
                           onOpenAdvanced={setAdvancedEditingId}
+                          onLinkTrack={handleLinkTrack}
+                          onDismissSuggestion={handleDismissSuggestion}
+                          onSelect={(id) => setSelectedFileId((prev) => prev === id ? null : id)}
                         />
                       ))}
                     </div>

@@ -16,6 +16,8 @@ export interface FileMetadataOverrides {
   fanId?: string;
   recordingPlace?: string;
   lyrics?: string;
+  writer?: string;
+  linkedTrackId?: string;
 }
 
 export interface BulkFile {
@@ -59,6 +61,7 @@ type Action =
   | { type: "SET_FILE_OVERRIDE"; id: string; overrides: Partial<FileMetadataOverrides> }
   | { type: "CLEAR_FILE_OVERRIDES"; id: string }
   | { type: "APPLY_SHARED_TO_ALL" }
+  | { type: "LINK_TRACK"; fileId: string; trackId: string; title: string; lyrics: string; writer: string; rawiId: string }
   | { type: "START_UPLOAD" }
   | { type: "FILE_UPLOADING"; id: string }
   | { type: "FILE_SAVING"; id: string; audioUrl: string }
@@ -162,6 +165,26 @@ function reducer(state: BulkUploadState, action: Action): BulkUploadState {
       return {
         ...state,
         files: state.files.map((f) => ({ ...f, overrides: {} })),
+      };
+
+    case "LINK_TRACK":
+      return {
+        ...state,
+        files: state.files.map((f) =>
+          f.id === action.fileId
+            ? {
+                ...f,
+                title: action.title,
+                overrides: {
+                  ...f.overrides,
+                  linkedTrackId: action.trackId,
+                  lyrics: action.lyrics,
+                  writer: action.writer,
+                  ...(action.rawiId ? { rawiId: action.rawiId } : {}),
+                },
+              }
+            : f
+        ),
       };
 
     case "START_UPLOAD":
@@ -272,6 +295,7 @@ function getEffectiveMetadata(
     fanId: overrides.fanId ?? shared.fanId,
     recordingPlace: overrides.recordingPlace ?? shared.recordingPlace,
     lyrics: overrides.lyrics ?? shared.lyrics,
+    writer: overrides.writer ?? "",
     contentType: shared.contentType,
   };
 }
@@ -335,6 +359,13 @@ export function useBulkUpload() {
     dispatch({ type: "CLEAR_FILE_OVERRIDES", id });
   }, []);
 
+  const linkTrack = useCallback(
+    (fileId: string, trackId: string, title: string, lyrics: string, writer: string, rawiId = "") => {
+      dispatch({ type: "LINK_TRACK", fileId, trackId, title, lyrics, writer, rawiId });
+    },
+    []
+  );
+
   const applySharedToAll = useCallback(() => {
     dispatch({ type: "APPLY_SHARED_TO_ALL" });
   }, []);
@@ -382,6 +413,7 @@ export function useBulkUpload() {
             fan_id: effective.fanId || null,
             recording_place: effective.recordingPlace || null,
             lyrics: effective.lyrics || null,
+            writer: effective.writer || null,
             duration_seconds: file.durationSeconds,
             audio_url: audioPath,
             content_type: (effective.contentType || "madha") as any,
@@ -450,6 +482,7 @@ export function useBulkUpload() {
     setFileOverride,
     clearFileOverrides,
     applySharedToAll,
+    linkTrack,
     startUpload,
     cancelUpload,
     retryFailed,

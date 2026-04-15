@@ -72,17 +72,28 @@ export async function getAllMadhaatMinimal(): Promise<
   return data || [];
 }
 
-/** Lightweight fetch of ALL tracks with fields needed for find & replace. */
+/** Lightweight fetch of ALL tracks with fields needed for find & replace and bulk-upload inheritance. */
 export async function getAllMadhaatForReplace(): Promise<
-  { id: string; title: string; madih_id: string | null; rawi_id: string | null; tariqa_id: string | null; fan_id: string | null; content_type: string | null }[]
+  { id: string; title: string; madih_id: string | null; rawi_id: string | null; tariqa_id: string | null; fan_id: string | null; content_type: string | null; lyrics: string | null; writer: string | null }[]
 > {
-  const { data, error } = await supabase
-    .from("madha")
-    .select("id, title, madih_id, rawi_id, tariqa_id, fan_id, content_type")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  // Fetch all tracks in pages (Supabase default limit is 1000 rows)
+  type TrackRow = { id: string; title: string; madih_id: string | null; rawi_id: string | null; tariqa_id: string | null; fan_id: string | null; content_type: string | null; lyrics: string | null; writer: string | null };
+  const allData: TrackRow[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("madha")
+      .select("id, title, madih_id, rawi_id, tariqa_id, fan_id, content_type, lyrics, writer")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allData.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return allData;
 }
 
 export async function getAdminMadhaat(options?: {
@@ -814,6 +825,7 @@ export async function createMadha(
         tariqa_id: data.tariqa_id || null,
         fan_id: data.fan_id || null,
         lyrics: data.lyrics || null,
+        writer: data.writer || null,
         recording_place: data.recording_place || null,
         duration_seconds: data.duration_seconds || null,
         audio_url: data.audio_url || null,
