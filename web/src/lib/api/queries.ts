@@ -980,49 +980,353 @@ export async function updateCollection(
 // Platform Analytics (Admin only)
 // ============================================
 
+/** Paginated fetch of rows from `user_plays` since a given ISO timestamp.
+ *  Overcomes Supabase's default 1000-row limit. */
+async function fetchPlaysSince<T>(sinceIso: string, columns: string): Promise<T[]> {
+  const rows: T[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("user_plays")
+      .select(columns)
+      .gte("played_at", sinceIso)
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...(data as unknown as T[]));
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return rows;
+}
+
+/** Local YYYY-MM-DD (respects user's timezone). */
+function toLocalDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA");
+}
+
 export async function getAnalyticsSummary() {
+  // Compare last 7 days to previous 7 days for real trend %.
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(now.getDate() - 14);
+
   const [
     { count: madhaCount },
     { count: madihCount },
     { count: rawiCount },
-    { data: playsData },
+    allPlays,
   ] = await Promise.all([
     supabase.from("madha").select("*", { count: "exact", head: true }),
     supabase.from("madiheen").select("*", { count: "exact", head: true }),
     supabase.from("ruwat").select("*", { count: "exact", head: true }),
-    supabase.from("user_plays").select("id, duration_seconds", { count: "exact" }) as any,
+    // Paginated so totals aren't capped at 1000.
+    (async () => {
+      const rows: { played_at: string; duration_seconds: number | null }[] = [];
+      const PAGE_SIZE = 1000;
+      let offset = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("user_plays")
+          .select("played_at, duration_seconds")
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        rows.push(...(data as unknown as { played_at: string; duration_seconds: number | null }[]));
+        if (data.length < PAGE_SIZE) break;
+        offset += PAGE_SIZE;
+      }
+      return rows;
+    })(),
   ]);
+
+  // Trend: plays last 7d vs prev 7d
+  let thisWeek = 0;
+  let prevWeek = 0;
+  let thisWeekDuration = 0;
+  let prevWeekDuration = 0;
+  const sevenMs = sevenDaysAgo.getTime();
+  const fourteenMs = fourteenDaysAgo.getTime();
+  for (const p of allPlays) {
+    const t = new Date(p.played_at).getTime();
+    if (t >= sevenMs) {
+      thisWeek++;
+      thisWeekDuration += p.duration_seconds || 0;
+    } else if (t >= fourteenMs) {
+      prevWeek++;
+      prevWeekDuration += p.duration_seconds || 0;
+    }
+  }
+
+  const pctChange = (curr: number, prev: number): string => {
+    if (prev === 0) return curr > 0 ? "+100%" : "0%";
+    const pct = Math.round(((curr - prev) / prev) * 100);
+    return `${pct >= 0 ? "+" : ""}${pct}%`;
+  };
 
   return {
     madhaCount: madhaCount || 0,
     madihCount: madihCount || 0,
     rawiCount: rawiCount || 0,
-    totalPlays: (playsData as any[])?.length || 0,
-    totalDuration: (playsData as any[])?.reduce((acc, p) => acc + (p.duration_seconds || 0), 0) || 0,
+    totalPlays: allPlays.length,
+    totalDuration: allPlays.reduce((acc, p) => acc + (p.duration_seconds || 0), 0),
+    playsTrendPct: pctChange(thisWeek, prevWeek),
+    durationTrendPct: pctChange(thisWeekDuration, prevWeekDuration),
   };
 }
 
-export async function getPlaysTrend(days = 7) {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
+export async function getPlaysTrend(days = 14) {
+  // Snap window start to start-of-day, days-1 back so the range spans exactly `days` days inclusive.
+  const start = new Date();
+  start.setDate(start.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
 
-  const { data, error } = await supabase
-    .from("user_plays")
-    .select("played_at")
-    .gte("played_at", startDate.toISOString()) as any;
+  const rows = await fetchPlaysSince<{ played_at: string }>(start.toISOString(), "played_at");
 
-  if (error) throw error;
-
-  // Aggregate by day
-  const dailyMap = new Map<string, number>();
-  for (const play of data || []) {
-    const day = play.played_at.split("T")[0];
-    dailyMap.set(day, (dailyMap.get(day) || 0) + 1);
+  // Bucket by local date
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const day = toLocalDay(r.played_at);
+    counts.set(day, (counts.get(day) || 0) + 1);
   }
 
-  return Array.from(dailyMap.entries())
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Zero-fill the full window so the chart always renders `days` evenly-spaced points.
+  const result: { date: string; count: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = d.toLocaleDateString("en-CA");
+    result.push({ date: key, count: counts.get(key) || 0 });
+  }
+  return result;
+}
+
+// ── Engagement Metrics ────────────────────────────────────
+
+export interface EngagementMetrics {
+  uniqueListeners: number;
+  completionRate: number; // 0–100
+  avgDurationSeconds: number;
+  deviceBreakdown: Record<string, number>;
+  totalFavorites: number;
+}
+
+export async function getEngagementMetrics(): Promise<EngagementMetrics> {
+  // Pull paginated plays (all-time — matches totalPlays denominators)
+  type PlayRow = { user_id: string | null; duration_seconds: number | null; completed: boolean | null; device_type: string | null };
+  const playRows: PlayRow[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("user_plays")
+      .select("user_id, duration_seconds, completed, device_type")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    playRows.push(...(data as unknown as PlayRow[]));
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  const uniqueUsers = new Set<string>();
+  let completedCount = 0;
+  let totalDuration = 0;
+  const devices: Record<string, number> = {};
+  for (const r of playRows) {
+    if (r.user_id) uniqueUsers.add(r.user_id);
+    if (r.completed) completedCount++;
+    totalDuration += r.duration_seconds || 0;
+    const d = (r.device_type || "unknown").toLowerCase();
+    devices[d] = (devices[d] || 0) + 1;
+  }
+
+  const totalPlays = playRows.length;
+  const completionRate = totalPlays > 0 ? Math.round((completedCount / totalPlays) * 100) : 0;
+  const avgDurationSeconds = totalPlays > 0 ? Math.round(totalDuration / totalPlays) : 0;
+
+  // Favorites count (exact, no rows needed)
+  const { count: favCount, error: favErr } = await supabase
+    .from("user_favorites")
+    .select("*", { count: "exact", head: true });
+  if (favErr) throw favErr;
+
+  return {
+    uniqueListeners: uniqueUsers.size,
+    completionRate,
+    avgDurationSeconds,
+    deviceBreakdown: devices,
+    totalFavorites: favCount || 0,
+  };
+}
+
+// ── Trending This Week ─────────────────────────────────────
+
+export interface TrendingTrack {
+  trackId: string;
+  title: string;
+  playCount: number;
+}
+
+/** Top N tracks by play count in the last `days` days.
+ *  Uses the SECURITY DEFINER RPC `get_trending_tracks` so it bypasses RLS
+ *  (the play_events table lacks an admin SELECT policy, so a direct query
+ *  would come back empty for non-superuser roles). Play counts are then
+ *  supplemented from play_events; if that read is blocked by RLS, we still
+ *  render the ranked list without the numeric count. */
+export async function getTrendingThisWeek(days = 7, limit = 5): Promise<TrendingTrack[]> {
+  // 1. Get the ranked track list via the RPC (bypasses RLS).
+  const { data: rpcData, error: rpcErr } = await supabase.rpc("get_trending_tracks", {
+    days_window: days,
+    max_results: limit,
+  });
+  if (rpcErr) throw rpcErr;
+
+  type TrackRow = { id: string; title: string };
+  const tracks = (rpcData || []) as unknown as TrackRow[];
+  if (tracks.length === 0) return [];
+
+  // 2. Supplement with play counts from play_events (may be blocked by RLS — that's fine).
+  const counts = new Map<string, number>();
+  try {
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    start.setHours(0, 0, 0, 0);
+    const ids = tracks.map((t) => t.id);
+
+    const events: { track_id: string }[] = [];
+    const PAGE_SIZE = 1000;
+    let offset = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from("play_events")
+        .select("track_id")
+        .in("track_id", ids)
+        .gte("played_at", start.toISOString())
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (error) break; // likely RLS; degrade gracefully
+      if (!data || data.length === 0) break;
+      events.push(...(data as unknown as { track_id: string }[]));
+      if (data.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+    for (const e of events) {
+      if (!e.track_id) continue;
+      counts.set(e.track_id, (counts.get(e.track_id) || 0) + 1);
+    }
+  } catch {
+    // Ignore — keep counts empty, RPC order preserves the ranking.
+  }
+
+  return tracks.map((t) => ({
+    trackId: t.id,
+    title: t.title,
+    playCount: counts.get(t.id) || 0,
+  }));
+}
+
+// ── Top Favorited Tracks ───────────────────────────────────
+
+export interface FavoritedTrack {
+  trackId: string;
+  title: string;
+  favCount: number;
+}
+
+export async function getTopFavorited(limit = 5): Promise<FavoritedTrack[]> {
+  // Pull all user_favorites rows (paginated)
+  const favRows: { track_id: string }[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("user_favorites")
+      .select("track_id")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    favRows.push(...(data as unknown as { track_id: string }[]));
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  const counts = new Map<string, number>();
+  for (const f of favRows) {
+    if (!f.track_id) continue;
+    counts.set(f.track_id, (counts.get(f.track_id) || 0) + 1);
+  }
+
+  const top = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+
+  if (top.length === 0) return [];
+
+  const ids = top.map((t) => t[0]);
+  const { data: tracks, error: tErr } = await supabase
+    .from("madha")
+    .select("id, title")
+    .in("id", ids);
+  if (tErr) throw tErr;
+
+  type TitleRow = { id: string; title: string };
+  const titleMap = new Map(((tracks || []) as unknown as TitleRow[]).map((t) => [t.id, t.title]));
+  return top.map(([trackId, favCount]) => ({
+    trackId,
+    title: titleMap.get(trackId) || "—",
+    favCount,
+  }));
+}
+
+// ── User Activity ──────────────────────────────────────────
+
+export interface UserActivity {
+  activeThisWeek: number;
+  activeThisMonth: number;
+  newThisMonth: number;
+  totalUsers: number;
+}
+
+export async function getUserActivity(): Promise<UserActivity> {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    { count: activeThisWeek },
+    { count: activeThisMonth },
+    { count: newThisMonth },
+    { count: totalUsers },
+  ] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("*", { count: "exact", head: true })
+      .gte("last_active_at", sevenDaysAgo.toISOString()),
+    supabase
+      .from("user_profiles")
+      .select("*", { count: "exact", head: true })
+      .gte("last_active_at", thirtyDaysAgo.toISOString()),
+    supabase
+      .from("user_profiles")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", startOfMonth.toISOString()),
+    supabase
+      .from("user_profiles")
+      .select("*", { count: "exact", head: true }),
+  ]);
+
+  return {
+    activeThisWeek: activeThisWeek || 0,
+    activeThisMonth: activeThisMonth || 0,
+    newThisMonth: newThisMonth || 0,
+    totalUsers: totalUsers || 0,
+  };
 }
 
 export async function getContentHealth() {

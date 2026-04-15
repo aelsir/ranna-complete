@@ -96,6 +96,33 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const lastSaveRef = useRef<number>(0);
   const playStartRef = useRef<{ trackId: string; startTime: number; historyLogged: boolean } | null>(null);
 
+  /**
+   * Record the currently-playing track to the `user_plays` analytics table.
+   * - Awaits the Supabase session so `user_id` is a real UUID (not a Promise).
+   * - Skips sessions shorter than 3 s to filter out fumbles.
+   * - Caller is responsible for clearing `playStartRef.current` after a
+   *   successful record (e.g. to prevent a track-change cleanup from
+   *   double-recording an already-completed play).
+   */
+  const recordCurrentPlay = useCallback(async (completed: boolean) => {
+    const start = playStartRef.current;
+    if (!start) return;
+    const elapsed = Math.floor((Date.now() - start.startTime) / 1000);
+    if (elapsed < 3) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await recordPlay({
+        userId: session?.user?.id,
+        madhaId: start.trackId,
+        durationSeconds: elapsed,
+        completed,
+        deviceType: "web",
+      });
+    } catch {
+      // Analytics writes must never break playback
+    }
+  }, []);
+
   const nowPlayingId = useMemo(() => {
     if (currentIndex >= 0 && currentIndex < queue.length) {
       return queue[currentIndex];
@@ -280,8 +307,16 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 5000);
 
-    return () => clearTimeout(historyTimer);
-  }, [nowPlayingId]);
+    return () => {
+      clearTimeout(historyTimer);
+      // Track is changing (or provider unmounting). If onEnded already
+      // recorded a completed play it cleared playStartRef.current — so this
+      // cleanup only fires for tracks the user switched away from mid-play.
+      if (playStartRef.current) {
+        void recordCurrentPlay(false);
+      }
+    };
+  }, [nowPlayingId, recordCurrentPlay]);
 
   // Audio event listeners — progress tracking, auto-advance
   useEffect(() => {
@@ -354,14 +389,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       // Record play analytics before advancing
       if (playStartRef.current && nowPlayingId) {
         const elapsed = Math.floor((Date.now() - playStartRef.current.startTime) / 1000);
-        recordPlay({
-          userId: supabase.auth.getSession().then(s => s.data.session?.user?.id).catch(() => undefined) as any,
-          madhaId: nowPlayingId,
-          durationSeconds: elapsed,
-          completed: true,
-          deviceType: "web",
-        }).catch(() => {});
+        // Fire-and-forget — recordCurrentPlay awaits the session internally
+        void recordCurrentPlay(true);
         trackEvent("track_completed", { track_id: nowPlayingId, duration_seconds: elapsed });
+        // Clear so the track-change cleanup doesn't re-record this play as partial
+        playStartRef.current = null;
       }
 
       if (repeatMode === "one") {
@@ -394,7 +426,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
     };
-  }, [hasNext, playNext, nowPlayingId, repeatMode, queue.length]);
+  }, [hasNext, playNext, nowPlayingId, repeatMode, queue.length, recordCurrentPlay]);
 
   return (
     <PlayerContext.Provider

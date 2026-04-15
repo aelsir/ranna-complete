@@ -57,6 +57,10 @@ import {
   getAnalyticsSummary,
   getPlaysTrend,
   getContentHealth,
+  getEngagementMetrics,
+  getTrendingThisWeek,
+  getTopFavorited,
+  getUserActivity,
   getAdminCollections,
   getContentTypeCounts,
 } from "./queries";
@@ -96,6 +100,11 @@ export const queryKeys = {
   analyticsSummary: ["analytics", "summary"] as const,
   playsTrend: (days: number) => ["analytics", "trends", days] as const,
   contentHealth: ["analytics", "health"] as const,
+  engagementMetrics: ["analytics", "engagement"] as const,
+  trendingThisWeek: (days: number, limit: number) => ["analytics", "trending", days, limit] as const,
+  contentTypeDistribution: ["analytics", "contentType"] as const,
+  topFavorited: (limit: number) => ["analytics", "topFavorited", limit] as const,
+  userActivity: ["analytics", "userActivity"] as const,
 };
 
 // ============================================
@@ -634,13 +643,21 @@ export function useAnalyticsSummary() {
   return useQuery({
     queryKey: queryKeys.analyticsSummary,
     queryFn: getAnalyticsSummary,
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
   });
 }
 
-export function usePlaysTrend(days = 7) {
+export function usePlaysTrend(days = 14) {
   return useQuery({
     queryKey: queryKeys.playsTrend(days),
     queryFn: () => getPlaysTrend(days),
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
   });
 }
 
@@ -648,5 +665,64 @@ export function useContentHealth() {
   return useQuery({
     queryKey: queryKeys.contentHealth,
     queryFn: getContentHealth,
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
+  });
+}
+
+export function useEngagementMetrics() {
+  return useQuery({
+    queryKey: queryKeys.engagementMetrics,
+    queryFn: getEngagementMetrics,
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
+  });
+}
+
+export function useTrendingThisWeek(days = 7, limit = 5) {
+  return useQuery({
+    queryKey: queryKeys.trendingThisWeek(days, limit),
+    queryFn: () => getTrendingThisWeek(days, limit),
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
+  });
+}
+
+export function useContentTypeDistribution() {
+  return useQuery({
+    queryKey: queryKeys.contentTypeDistribution,
+    queryFn: getContentTypeCounts,
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
+  });
+}
+
+export function useTopFavorited(limit = 5) {
+  return useQuery({
+    queryKey: queryKeys.topFavorited(limit),
+    queryFn: () => getTopFavorited(limit),
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
+  });
+}
+
+export function useUserActivity() {
+  return useQuery({
+    queryKey: queryKeys.userActivity,
+    queryFn: getUserActivity,
+    staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
+    gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
+    refetchOnWindowFocus: false, // don't refetch just because user switched tabs
+    refetchOnMount: false, // don't refetch if data is still fresh
   });
 }
