@@ -82,7 +82,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const ShimmerBox(
-                    width: double.infinity, height: 360, borderRadius: 0),
+                  width: double.infinity,
+                  height: 360,
+                  borderRadius: 0,
+                ),
                 const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -96,19 +99,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         crossAxisSpacing: 12,
                         childAspectRatio: 2.2,
                         children: List.generate(
-                            4,
-                            (_) => const ShimmerBox(
-                                width: double.infinity,
-                                height: 80,
-                                borderRadius: 12)),
+                          4,
+                          (_) => const ShimmerBox(
+                            width: double.infinity,
+                            height: 80,
+                            borderRadius: 12,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ...List.generate(
-                          5,
-                          (_) => const Padding(
-                                padding: EdgeInsets.only(bottom: 4),
-                                child: ShimmerTrackRow(),
-                              )),
+                        5,
+                        (_) => const Padding(
+                          padding: EdgeInsets.only(bottom: 4),
+                          child: ShimmerTrackRow(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -131,18 +137,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline,
-                size: 64, color: RannaTheme.mutedForeground),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: RannaTheme.mutedForeground,
+            ),
             const SizedBox(height: 16),
-            Text('\u062D\u062F\u062B \u062E\u0637\u0623',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              '\u062D\u062F\u062B \u062E\u0637\u0623',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             if (error != null) ...[
               const SizedBox(height: 8),
               Text(
                 error.toString(),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: RannaTheme.mutedForeground,
-                    ),
+                  color: RannaTheme.mutedForeground,
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 5,
                 overflow: TextOverflow.ellipsis,
@@ -175,19 +186,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       toolbarHeight: 56,
       bottom: const PreferredSize(
         preferredSize: Size.fromHeight(0.5),
-        child: Divider(
-            height: 0.5, thickness: 0.5, color: RannaTheme.border),
+        child: Divider(height: 0.5, thickness: 0.5, color: RannaTheme.border),
       ),
-      title: Image.asset(
-        'assets/images/logo-ranna.png',
-        height: 32,
-      ),
+      title: Image.asset('assets/images/logo-ranna.png', height: 32),
       actions: [
         IconButton(
-          icon: Icon(
-            Icons.search_rounded,
-            color: RannaTheme.foreground,
-          ),
+          icon: Icon(Icons.search_rounded, color: RannaTheme.foreground),
           onPressed: () => context.go('/search'),
         ),
       ],
@@ -222,7 +226,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ];
       },
-      loading: () => [],   // Don't block the page while loading
+      loading: () => [], // Don't block the page while loading
       error: (_, __) => [], // Silently skip on error
     );
   }
@@ -236,7 +240,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return CustomScrollView(
       controller: _scrollController,
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       slivers: [
         _buildStickyAppBar(),
 
@@ -268,7 +274,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ...ref.read(trackCacheProvider),
                 for (final t in allTracks) t.id: t,
               };
-              ref.read(audioPlayerProvider.notifier).playTrack(
+              ref
+                  .read(audioPlayerProvider.notifier)
+                  .playTrack(
                     random.id,
                     queue: allTracks.map((t) => t.id).toList(),
                   );
@@ -342,8 +350,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   final artist = reversedArtists[index];
                   return _PopularArtistAvatar(
                     artist: artist,
-                    onTap: () =>
-                        context.push('/profile/artist/${artist.id}'),
+                    onTap: () => context.push('/profile/artist/${artist.id}'),
                   );
                 },
               ),
@@ -371,8 +378,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   final narrator = reversedNarrators[index];
                   return _NarratorCard(
                     narrator: narrator,
-                    onTap: () => context
-                        .push('/profile/narrator/${narrator.id}'),
+                    onTap: () =>
+                        context.push('/profile/narrator/${narrator.id}'),
                   );
                 },
               ),
@@ -391,8 +398,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: RannaTheme.card,
-                  borderRadius:
-                      BorderRadius.circular(RannaTheme.radius2xl),
+                  borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
                   boxShadow: RannaTheme.shadowCard,
                   border: Border.all(
                     color: RannaTheme.border.withValues(alpha: 0.3),
@@ -403,22 +409,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: data.recentTracks
                       .asMap()
                       .entries
-                      .map((entry) => Column(
-                            children: [
-                              TrackRow(
-                                track: entry.value,
-                                index: entry.key,
-                                queue: data.recentTracks,
+                      .map(
+                        (entry) => Column(
+                          children: [
+                            TrackRow(
+                              track: entry.value,
+                              index: entry.key,
+                              queue: data.recentTracks,
+                            ),
+                            if (entry.key < data.recentTracks.length - 1)
+                              Divider(
+                                height: 1,
+                                indent: 76,
+                                color: RannaTheme.border.withValues(alpha: 0.3),
                               ),
-                              if (entry.key < data.recentTracks.length - 1)
-                                Divider(
-                                  height: 1,
-                                  indent: 76,
-                                  color: RannaTheme.border
-                                      .withValues(alpha: 0.3),
-                                ),
-                            ],
-                          ))
+                          ],
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -447,9 +454,7 @@ class _HeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(
-        color: RannaTheme.primary,
-      ),
+      decoration: const BoxDecoration(color: RannaTheme.primary),
       child: Stack(
         children: [
           // Non-positioned child to give Stack its intrinsic size
@@ -457,10 +462,7 @@ class _HeroBanner extends StatelessWidget {
 
           // Background image — local asset
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/hero-bg.webp',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover),
           ),
 
           // Gradient overlay 1: bottom to top (primary tint)
@@ -510,28 +512,33 @@ class _HeroBanner extends StatelessWidget {
                 _LiveBadge(totalTracks: data.totalTracks)
                     .animate()
                     .fadeIn(duration: 600.ms)
-                    .slideY(begin: 0.3, duration: 600.ms, curve: Curves.easeOut),
+                    .slideY(
+                      begin: 0.3,
+                      duration: 600.ms,
+                      curve: Curves.easeOut,
+                    ),
 
                 const SizedBox(height: 16),
 
                 // Title
                 const Text(
-                  'المدائح السودانية',
-                  style: TextStyle(
-                    fontFamily: RannaTheme.fontFustat,
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                  ),
-                )
+                      'المدائح النبوية',
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        color: Colors.white,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    )
                     .animate()
                     .fadeIn(delay: 200.ms, duration: 600.ms)
                     .slideY(
-                        begin: 0.2,
-                        delay: 200.ms,
-                        duration: 600.ms,
-                        curve: Curves.easeOut),
+                      begin: 0.2,
+                      delay: 200.ms,
+                      duration: 600.ms,
+                      curve: Curves.easeOut,
+                    ),
 
                 const SizedBox(height: 8),
 
@@ -546,48 +553,55 @@ class _HeroBanner extends StatelessWidget {
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                )
-                    .animate()
-                    .fadeIn(delay: 350.ms, duration: 500.ms),
+                ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
 
                 const SizedBox(height: 20),
 
                 // CTA button
                 Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
-                    boxShadow: RannaTheme.shadowGlowSecondary,
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: onShufflePlay,
-                    icon: const Icon(Icons.shuffle_rounded, size: 18),
-                    label: const Text('إخترنا لك'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: RannaTheme.secondary,
-                      foregroundColor: RannaTheme.secondaryForeground,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(RannaTheme.radiusFull),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(
+                          RannaTheme.radiusFull,
+                        ),
+                        boxShadow: RannaTheme.shadowGlowSecondary,
                       ),
-                      textStyle: const TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                      child: ElevatedButton.icon(
+                        onPressed: onShufflePlay,
+                        icon: Transform.rotate(
+                          angle: pi,
+                          child: const Icon(Icons.shuffle_rounded, size: 18),
+                        ),
+                        label: const Text('إخترنا لك'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: RannaTheme.secondary,
+                          foregroundColor: RannaTheme.secondaryForeground,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              RannaTheme.radiusFull,
+                            ),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                )
+                    )
                     .animate()
                     .fadeIn(delay: 500.ms, duration: 500.ms)
                     .slideY(
-                        begin: 0.3,
-                        delay: 500.ms,
-                        duration: 500.ms,
-                        curve: Curves.easeOut),
+                      begin: 0.3,
+                      delay: 500.ms,
+                      duration: 500.ms,
+                      curve: Curves.easeOut,
+                    ),
               ],
             ),
           ),
@@ -612,9 +626,7 @@ class _LiveBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: RannaTheme.primary.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -628,15 +640,20 @@ class _LiveBadge extends StatelessWidget {
               children: [
                 // Outer glow ring
                 Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: RannaTheme.secondary.withValues(alpha: 0.3),
-                  ),
-                )
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: RannaTheme.secondary.withValues(alpha: 0.3),
+                      ),
+                    )
                     .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .scaleXY(begin: 0.6, end: 1.0, duration: 1200.ms, curve: Curves.easeInOut)
+                    .scaleXY(
+                      begin: 0.6,
+                      end: 1.0,
+                      duration: 1200.ms,
+                      curve: Curves.easeInOut,
+                    )
                     .fadeIn(begin: 0.3, duration: 1200.ms),
                 // Inner dot
                 Container(
@@ -674,10 +691,7 @@ class _ContinueListeningGrid extends StatelessWidget {
   final List<MadhaWithRelations> tracks;
   final List<MadhaWithRelations> queue;
 
-  const _ContinueListeningGrid({
-    required this.tracks,
-    required this.queue,
-  });
+  const _ContinueListeningGrid({required this.tracks, required this.queue});
 
   @override
   Widget build(BuildContext context) {
@@ -691,10 +705,8 @@ class _ContinueListeningGrid extends StatelessWidget {
         crossAxisSpacing: 12,
         childAspectRatio: 2.0,
       ),
-      itemBuilder: (context, index) => _ContinueCard(
-        track: tracks[index],
-        queue: queue,
-      ),
+      itemBuilder: (context, index) =>
+          _ContinueCard(track: tracks[index], queue: queue),
     );
   }
 }
@@ -707,10 +719,7 @@ class _ContinueCard extends ConsumerWidget {
   final MadhaWithRelations track;
   final List<MadhaWithRelations> queue;
 
-  const _ContinueCard({
-    required this.track,
-    required this.queue,
-  });
+  const _ContinueCard({required this.track, required this.queue});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -720,10 +729,9 @@ class _ContinueCard extends ConsumerWidget {
           ...ref.read(trackCacheProvider),
           for (final t in queue) t.id: t,
         };
-        ref.read(audioPlayerProvider.notifier).playTrack(
-              track.id,
-              queue: queue.map((t) => t.id).toList(),
-            );
+        ref
+            .read(audioPlayerProvider.notifier)
+            .playTrack(track.id, queue: queue.map((t) => t.id).toList());
       },
       child: Container(
         height: 80,
@@ -782,8 +790,7 @@ class _ContinueCard extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (track.madihDetails != null ||
-                      track.madih.isNotEmpty) ...[
+                  if (track.madihDetails != null || track.madih.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       track.madihDetails?.name ?? track.madih,
@@ -845,30 +852,30 @@ class _TrendingTracksCard extends StatelessWidget {
         color: RannaTheme.card,
         borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
         boxShadow: RannaTheme.shadowCard,
-        border: Border.all(
-          color: RannaTheme.border.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: tracks
             .asMap()
             .entries
-            .map((entry) => Column(
-                  children: [
-                    _TrendingTrackRow(
-                      track: entry.value,
-                      index: entry.key,
-                      queue: tracks,
+            .map(
+              (entry) => Column(
+                children: [
+                  _TrendingTrackRow(
+                    track: entry.value,
+                    index: entry.key,
+                    queue: tracks,
+                  ),
+                  if (entry.key < tracks.length - 1)
+                    Divider(
+                      height: 1,
+                      indent: 76,
+                      color: RannaTheme.border.withValues(alpha: 0.3),
                     ),
-                    if (entry.key < tracks.length - 1)
-                      Divider(
-                        height: 1,
-                        indent: 76,
-                        color: RannaTheme.border.withValues(alpha: 0.3),
-                      ),
-                  ],
-                ))
+                ],
+              ),
+            )
             .toList(),
       ),
     );
@@ -892,7 +899,9 @@ class _TrendingTrackRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isCurrentTrack = ref.watch(audioPlayerProvider.select((s) => s.currentTrackId)) == track.id;
+    final isCurrentTrack =
+        ref.watch(audioPlayerProvider.select((s) => s.currentTrackId)) ==
+        track.id;
 
     return Material(
       color: isCurrentTrack
@@ -904,10 +913,9 @@ class _TrendingTrackRow extends ConsumerWidget {
             ...ref.read(trackCacheProvider),
             for (final t in queue) t.id: t,
           };
-          ref.read(audioPlayerProvider.notifier).playTrack(
-                track.id,
-                queue: queue.map((t) => t.id).toList(),
-              );
+          ref
+              .read(audioPlayerProvider.notifier)
+              .playTrack(track.id, queue: queue.map((t) => t.id).toList());
         },
         child: Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 14, 12),
@@ -919,9 +927,9 @@ class _TrendingTrackRow extends ConsumerWidget {
                 child: Text(
                   toArabicNum(index + 1),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: RannaTheme.mutedForeground,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: RannaTheme.mutedForeground,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -946,13 +954,13 @@ class _TrendingTrackRow extends ConsumerWidget {
                     Text(
                       track.title,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: isCurrentTrack
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: isCurrentTrack
-                                ? RannaTheme.accent
-                                : RannaTheme.foreground,
-                          ),
+                        fontWeight: isCurrentTrack
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: isCurrentTrack
+                            ? RannaTheme.accent
+                            : RannaTheme.foreground,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -961,8 +969,8 @@ class _TrendingTrackRow extends ConsumerWidget {
                       '${track.madihDetails?.name ?? track.madih}'
                       '${track.rawi != null ? ' - ${track.rawi!.name}' : ''}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: RannaTheme.mutedForeground,
-                          ),
+                        color: RannaTheme.mutedForeground,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -976,23 +984,32 @@ class _TrendingTrackRow extends ConsumerWidget {
                 child: Text(
                   formatDuration(track.durationSeconds),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: RannaTheme.mutedForeground,
-                      ),
+                    color: RannaTheme.mutedForeground,
+                  ),
                 ),
               ),
 
               // Heart icon
-              Builder(builder: (context) {
-                final isFav = ref.watch(favoritesProvider.select((s) => s.contains(track.id)));
-                return GestureDetector(
-                  onTap: () => ref.read(favoritesProvider.notifier).toggle(track.id),
-                  child: Icon(
-                    isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    size: 18,
-                    color: isFav ? RannaTheme.accent : RannaTheme.mutedForeground,
-                  ),
-                );
-              }),
+              Builder(
+                builder: (context) {
+                  final isFav = ref.watch(
+                    favoritesProvider.select((s) => s.contains(track.id)),
+                  );
+                  return GestureDetector(
+                    onTap: () =>
+                        ref.read(favoritesProvider.notifier).toggle(track.id),
+                    child: Icon(
+                      isFav
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      size: 18,
+                      color: isFav
+                          ? RannaTheme.accent
+                          : RannaTheme.mutedForeground,
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -1127,8 +1144,9 @@ class _NarratorCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius:
-                        BorderRadius.circular(RannaTheme.radiusXl - 2),
+                    borderRadius: BorderRadius.circular(
+                      RannaTheme.radiusXl - 2,
+                    ),
                   ),
                   child: Center(
                     child: Text(

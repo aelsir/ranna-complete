@@ -65,7 +65,7 @@ class PlayerControls extends ConsumerWidget {
             ),
             child: Center(
               child: Icon(
-                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                isPlaying ? Icons.pause_rounded : RannaTheme.playIcon,
                 color: RannaTheme.primary,
                 size: 40,
               ),

@@ -77,8 +77,8 @@ class CollectionCard extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: RannaTheme.shadowGlowSecondary,
                       ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
+                      child: Icon(
+                        RannaTheme.playIcon,
                         color: RannaTheme.secondaryForeground,
                         size: 20,
                       ),

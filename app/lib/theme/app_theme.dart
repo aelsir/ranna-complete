@@ -280,4 +280,16 @@ class RannaTheme {
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: accent, linearTrackColor: muted),
     );
   }
+  // ===========================================================================
+  // Directional Icons
+  // ===========================================================================
+
+  /// A directional version of the play arrow icon that automatically points
+  /// left in RTL (Arabic) contexts and right in LTR contexts.
+  static IconData get playIcon => IconData(
+        Icons.play_arrow_rounded.codePoint,
+        fontFamily: Icons.play_arrow_rounded.fontFamily,
+        fontPackage: Icons.play_arrow_rounded.fontPackage,
+        matchTextDirection: true,
+      );
 }

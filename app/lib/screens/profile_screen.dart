@@ -213,7 +213,7 @@ class ProfileScreen extends ConsumerWidget {
                   onPressed: tracks.isEmpty
                       ? null
                       : () => _playAll(ref, tracks),
-                  icon: const Icon(Icons.play_arrow_rounded),
+                  icon: Icon(RannaTheme.playIcon),
                   label: const Text('تشغيل الكل'),
                 ),
                 const SizedBox(width: 12),

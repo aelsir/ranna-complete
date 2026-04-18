@@ -69,7 +69,7 @@ const HeroSection = () => {
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="mb-2 font-fustat text-4xl font-extrabold text-primary-foreground md:text-5xl leading-[1.1]"
         >
-          المدائح السودانية
+          المدائح النبوية
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}

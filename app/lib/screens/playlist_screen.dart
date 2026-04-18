@@ -211,7 +211,7 @@ class PlaylistScreen extends ConsumerWidget {
                           backgroundColor: RannaTheme.accent,
                           foregroundColor: Colors.white,
                         ),
-                        icon: const Icon(Icons.play_arrow_rounded),
+                        icon: Icon(RannaTheme.playIcon),
                         label: const Text('تشغيل'),
                       ),
                     ),

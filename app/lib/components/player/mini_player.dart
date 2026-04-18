@@ -70,7 +70,7 @@ class MiniPlayer extends ConsumerWidget {
                         ),
                         child: Center(
                           child: Icon(
-                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            isPlaying ? Icons.pause_rounded : RannaTheme.playIcon,
                             color: RannaTheme.primary,
                             size: 22,
                           ),
@@ -273,7 +273,7 @@ class _CircularProgressPainter extends CustomPainter {
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         -math.pi / 2, // Start from top
-        2 * math.pi * progress,
+        -2 * math.pi * progress, // Fill counter-clockwise for RTL
         false,
         progressPaint,
       );

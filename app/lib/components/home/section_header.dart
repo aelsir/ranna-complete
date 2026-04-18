@@ -51,12 +51,6 @@ class SectionHeader extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.chevron_left,
-                      size: 14,
-                      color: RannaTheme.secondaryForeground,
-                    ),
-                    const SizedBox(width: 2),
                     Text(
                       'عرض الكل',
                       style: TextStyle(
@@ -65,6 +59,12 @@ class SectionHeader extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: RannaTheme.secondaryForeground,
                       ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 14,
+                      color: RannaTheme.secondaryForeground,
                     ),
                   ],
                 ),
