@@ -7,6 +7,7 @@ import {
   useContentTypeDistribution,
   useTopFavorited,
   useUserActivity,
+  useDownloadAnalytics,
 } from "@/lib/api/hooks";
 import {
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -17,7 +18,7 @@ import {
   Users, Music, CheckCircle2, AlertCircle,
   ArrowUpRight, ArrowDownRight, Headphones, Activity,
   Heart, Clock, Flame, PieChart as PieIcon, Smartphone,
-  UserCheck, Sparkles, Trophy, Percent, Timer,
+  UserCheck, Sparkles, Trophy, Percent, Timer, Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ const AnalyticsSection = () => {
   const { data: typeDist, isLoading: typeDistLoading } = useContentTypeDistribution();
   const { data: topFavs, isLoading: topFavsLoading } = useTopFavorited(5);
   const { data: userActivity, isLoading: userActivityLoading } = useUserActivity();
+  const { data: downloads, isLoading: downloadsLoading } = useDownloadAnalytics();
 
   const kpis = [
     {
@@ -655,6 +657,216 @@ const AnalyticsSection = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Row 6: Download Analytics */}
+      <div className="mt-2">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500">
+            <Download className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-fustat font-bold">إحصائيات التحميل</h2>
+            <p className="text-xs text-muted-foreground font-fustat">تحليل تحميلات المقاطع للاستماع بدون إنترنت</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Download KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "إجمالي التحميلات", value: downloads?.totalDownloads ?? 0, color: "text-teal-500", bg: "bg-teal-500/10", icon: Download },
+          { label: "مقاطع فريدة", value: downloads?.uniqueTracksDownloaded ?? 0, color: "text-violet-500", bg: "bg-violet-500/10", icon: Music },
+          { label: "آخر 7 أيام", value: downloads?.downloadsLast7Days ?? 0, color: "text-sky-500", bg: "bg-sky-500/10", icon: Activity },
+          { label: "آخر 30 يوم", value: downloads?.downloadsLast30Days ?? 0, color: "text-amber-500", bg: "bg-amber-500/10", icon: Clock },
+        ].map((kpi, i) => (
+          <motion.div
+            key={kpi.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+          >
+            <Card className="border-border/40 shadow-sm overflow-hidden group hover:border-teal-500/50 transition-colors">
+              <CardContent className="p-5">
+                <div className={`p-2.5 rounded-xl ${kpi.bg} ${kpi.color} w-fit`}>
+                  <kpi.icon className="h-5 w-5" />
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">{kpi.label}</p>
+                  {downloadsLoading ? (
+                    <Skeleton className="h-7 w-20 mt-1" />
+                  ) : (
+                    <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">{kpi.value.toLocaleString("ar-EG")}</h3>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Download Trend Chart + Top Downloaded */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 border-border/40 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+              <Download className="h-4 w-4 text-teal-500" />
+              اتجاهات التحميل
+            </CardTitle>
+            <CardDescription className="text-xs">عدد التحميلات خلال الـ 14 يوماً الماضية</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 h-[300px]">
+            {downloadsLoading ? (
+              <CardSpinner />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={downloads?.dailyTrend || []}>
+                  <defs>
+                    <linearGradient id="colorDownloads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+                    tickFormatter={(str) => {
+                      const date = new Date(str);
+                      return date.toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+                    }}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "rgba(0,0,0,0.8)",
+                      border: "none",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      fontFamily: "Fustat",
+                      color: "#fff"
+                    }}
+                    itemStyle={{ color: "#fff" }}
+                    labelStyle={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}
+                    labelFormatter={(label) => {
+                      const date = new Date(label);
+                      return date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#14b8a6"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorDownloads)"
+                    animationDuration={1500}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Downloaded + Device Split */}
+        <div className="space-y-6">
+          <Card className="border-border/40 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-teal-500" />
+                الأكثر تحميلاً
+              </CardTitle>
+              <CardDescription className="text-xs">أعلى 5 مقاطع من حيث عدد التحميلات</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {downloadsLoading ? (
+                <div className="space-y-2">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-center gap-3 p-3">
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : downloads?.topDownloadedTracks && downloads.topDownloadedTracks.length > 0 ? (
+                <div className="space-y-2">
+                  {downloads.topDownloadedTracks.slice(0, 5).map((t, idx) => (
+                    <div
+                      key={t.trackId}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/10 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm font-fustat ${
+                        idx === 0 ? "bg-teal-500/20 text-teal-500" :
+                        idx === 1 ? "bg-slate-400/20 text-slate-400" :
+                        idx === 2 ? "bg-amber-600/20 text-amber-600" :
+                        "bg-muted/30 text-muted-foreground"
+                      }`}>
+                        {(idx + 1).toLocaleString("ar-EG")}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-fustat font-bold truncate">{t.title}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-fustat shrink-0 gap-1">
+                        <Download className="h-2.5 w-2.5" />
+                        {t.downloadCount.toLocaleString("ar-EG")}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-32 flex items-center justify-center text-xs text-muted-foreground font-fustat">
+                  لا توجد تحميلات حتى الآن
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/40 shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500">
+                  <Smartphone className="h-4 w-4" />
+                </div>
+                <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">أجهزة التحميل</p>
+              </div>
+              {downloadsLoading ? (
+                <div className="space-y-2">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-3 w-8" />
+                      </div>
+                      <Skeleton className="h-1 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : downloads?.downloadsByDevice && downloads.downloadsByDevice.length > 0 ? (
+                <div className="space-y-2">
+                  {downloads.downloadsByDevice.map(({ device, count }) => {
+                    const total = downloads.totalDownloads || 1;
+                    const pct = Math.round((count / total) * 100);
+                    const deviceLabelsMap: Record<string, string> = { ios: "iOS", android: "أندرويد", unknown: "غير معروف" };
+                    return (
+                      <div key={device} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="font-fustat text-muted-foreground">{deviceLabelsMap[device] || device}</span>
+                          <span className="font-bold">{pct}%</span>
+                        </div>
+                        <Progress value={pct} className="h-1 bg-muted/30" indicatorClassName="bg-teal-500" />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground font-fustat mt-4">لا توجد بيانات</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

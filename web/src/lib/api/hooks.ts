@@ -63,6 +63,7 @@ import {
   getUserActivity,
   getAdminCollections,
   getContentTypeCounts,
+  getDownloadAnalytics,
 } from "./queries";
 
 import type { MadhaInsert, MadihInsert, RawiInsert, CollectionInsert } from "@/types/database";
@@ -105,6 +106,7 @@ export const queryKeys = {
   contentTypeDistribution: ["analytics", "contentType"] as const,
   topFavorited: (limit: number) => ["analytics", "topFavorited", limit] as const,
   userActivity: ["analytics", "userActivity"] as const,
+  downloadAnalytics: ["analytics", "downloads"] as const,
 };
 
 // ============================================
@@ -724,5 +726,16 @@ export function useUserActivity() {
     gcTime: 30 * 60 * 1000, // keep in cache 30 min — survives tab switches
     refetchOnWindowFocus: false, // don't refetch just because user switched tabs
     refetchOnMount: false, // don't refetch if data is still fresh
+  });
+}
+
+export function useDownloadAnalytics() {
+  return useQuery({
+    queryKey: queryKeys.downloadAnalytics,
+    queryFn: () => getDownloadAnalytics(14),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }

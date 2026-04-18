@@ -1360,3 +1360,114 @@ export async function getContentHealth() {
     totalCount: total,
   };
 }
+
+// ── Download Analytics ─────────────────────────────────────
+
+export interface DownloadAnalytics {
+  totalDownloads: number;
+  uniqueTracksDownloaded: number;
+  downloadsLast7Days: number;
+  downloadsLast30Days: number;
+  topDownloadedTracks: { trackId: string; title: string; downloadCount: number }[];
+  downloadsByDevice: { device: string; count: number }[];
+  dailyTrend: { date: string; count: number }[];
+}
+
+export async function getDownloadAnalytics(trendDays = 14): Promise<DownloadAnalytics> {
+  // Paginated fetch of all download events
+  type DownloadRow = { track_id: string; device_type: string | null; downloaded_at: string };
+  const rows: DownloadRow[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("download_events")
+      .select("track_id, device_type, downloaded_at")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    rows.push(...(data as unknown as DownloadRow[]));
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+
+  // Trend start
+  const trendStart = new Date(now);
+  trendStart.setDate(now.getDate() - (trendDays - 1));
+  trendStart.setHours(0, 0, 0, 0);
+
+  let last7 = 0;
+  let last30 = 0;
+  const trackCounts = new Map<string, number>();
+  const devices: Record<string, number> = {};
+  const dailyCounts = new Map<string, number>();
+  const uniqueTracks = new Set<string>();
+
+  for (const r of rows) {
+    const t = new Date(r.downloaded_at).getTime();
+    if (t >= sevenDaysAgo.getTime()) last7++;
+    if (t >= thirtyDaysAgo.getTime()) last30++;
+
+    uniqueTracks.add(r.track_id);
+    trackCounts.set(r.track_id, (trackCounts.get(r.track_id) || 0) + 1);
+
+    const d = (r.device_type || "unknown").toLowerCase();
+    devices[d] = (devices[d] || 0) + 1;
+
+    if (t >= trendStart.getTime()) {
+      const day = toLocalDay(r.downloaded_at);
+      dailyCounts.set(day, (dailyCounts.get(day) || 0) + 1);
+    }
+  }
+
+  // Zero-fill daily trend
+  const dailyTrend: { date: string; count: number }[] = [];
+  for (let i = 0; i < trendDays; i++) {
+    const d = new Date(trendStart);
+    d.setDate(trendStart.getDate() + i);
+    const key = d.toLocaleDateString("en-CA");
+    dailyTrend.push({ date: key, count: dailyCounts.get(key) || 0 });
+  }
+
+  // Top 10 downloaded tracks
+  const topTrackIds = Array.from(trackCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  let topDownloadedTracks: { trackId: string; title: string; downloadCount: number }[] = [];
+  if (topTrackIds.length > 0) {
+    const ids = topTrackIds.map(([id]) => id);
+    const { data: tracks } = await supabase
+      .from("madha")
+      .select("id, title")
+      .in("id", ids);
+    type TitleRow = { id: string; title: string };
+    const titleMap = new Map(((tracks || []) as unknown as TitleRow[]).map((t) => [t.id, t.title]));
+    topDownloadedTracks = topTrackIds.map(([trackId, downloadCount]) => ({
+      trackId,
+      title: titleMap.get(trackId) || "—",
+      downloadCount,
+    }));
+  }
+
+  // Device breakdown
+  const downloadsByDevice = Object.entries(devices)
+    .sort((a, b) => b[1] - a[1])
+    .map(([device, count]) => ({ device, count }));
+
+  return {
+    totalDownloads: rows.length,
+    uniqueTracksDownloaded: uniqueTracks.size,
+    downloadsLast7Days: last7,
+    downloadsLast30Days: last30,
+    topDownloadedTracks,
+    downloadsByDevice,
+    dailyTrend,
+  };
+}
