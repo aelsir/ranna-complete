@@ -214,7 +214,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       final now = DateTime.now();
       if (_lastPositionUpdate == null ||
           now.difference(_lastPositionUpdate!) >
-              const Duration(milliseconds: 1000)) {
+              const Duration(milliseconds: 200)) {
         _lastPositionUpdate = now;
         state = state.copyWith(position: pos);
       }
@@ -496,6 +496,9 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   }
 
   Future<void> seekTo(Duration position) async {
+    // Optimistically update UI so the slider responds immediately
+    state = state.copyWith(position: position);
+    _lastPositionUpdate = DateTime.now();
     await _player.seek(position);
   }
 

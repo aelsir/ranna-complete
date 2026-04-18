@@ -251,6 +251,48 @@ final favoriteTracksProvider = FutureProvider<List<MadhaWithRelations>>((ref) as
 });
 
 // ============================================
+// Listening History — "Continue Listening" section
+// ============================================
+
+final listeningHistoryProvider = FutureProvider<List<MadhaWithRelations>>((ref) async {
+  final supabase = ref.read(supabaseProvider);
+  try {
+    final user = supabase.auth.currentUser;
+    if (user == null) return [];
+
+    // Fetch the 10 most recently listened tracks
+    final dynamic historyRows = await supabase
+        .from('listening_history')
+        .select('track_id')
+        .eq('user_id', user.id)
+        .order('listened_at', ascending: false)
+        .limit(10);
+
+    final trackIds = _asList(historyRows).map((r) => r['track_id'] as String).toList();
+    if (trackIds.isEmpty) return [];
+
+    // Fetch full track data via v_tracks
+    final dynamic tracksData = await supabase
+        .from('v_tracks')
+        .select()
+        .inFilter('id', trackIds);
+
+    final tracks = _asList(tracksData).map((e) => MadhaWithRelations.fromJson(e)).toList();
+
+    // Preserve listening history order (most recent first)
+    final byId = {for (final t in tracks) t.id: t};
+    return trackIds
+        .map((id) => byId[id])
+        .whereType<MadhaWithRelations>()
+        .toList();
+  } catch (e, st) {
+    debugPrint('⛔ listeningHistoryProvider error: $e');
+    debugPrint('$st');
+    return [];
+  }
+});
+
+// ============================================
 // Artists (Madiheen) — uses v_artists view
 // ============================================
 

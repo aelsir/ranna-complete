@@ -198,6 +198,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Main content
   // ---------------------------------------------------------------------------
 
+  /// Builds the "Continue Listening" section from the user's actual history.
+  List<Widget> _buildContinueListening() {
+    final historyAsync = ref.watch(listeningHistoryProvider);
+    return historyAsync.when(
+      data: (tracks) {
+        if (tracks.isEmpty) return [];
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SectionHeader(title: 'أكمل الاستماع', onSeeAll: null),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _ContinueListeningGrid(
+                tracks: tracks.take(4).toList(),
+                queue: tracks,
+              ),
+            ),
+          ),
+        ];
+      },
+      loading: () => [],   // Don't block the page while loading
+      error: (_, __) => [], // Silently skip on error
+    );
+  }
+
   Widget _buildContent(BuildContext context, HomeData data) {
     // Reverse the lists to ensure the first items in the collection
     // appear at the rightmost position in RTL layout.
@@ -214,6 +243,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         CupertinoSliverRefreshControl(
           onRefresh: () async {
             ref.invalidate(homeDataProvider);
+            ref.invalidate(listeningHistoryProvider);
             // Wait for the provider to finish refetching
             await ref.read(homeDataProvider.future);
           },
@@ -246,24 +276,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
 
-        // Continue Listening
-        if (data.recentTracks.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: SectionHeader(title: 'أكمل الاستماع', onSeeAll: null),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _ContinueListeningGrid(
-                tracks: data.recentTracks.take(4).toList(),
-                queue: data.recentTracks,
-              ),
-            ),
-          ),
-        ],
+        // Continue Listening (from user's actual listening history)
+        ..._buildContinueListening(),
 
         // Trending Tracks
         if (data.popularTracks.isNotEmpty) ...[

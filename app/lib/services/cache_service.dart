@@ -70,12 +70,14 @@ class CacheService {
   /// Invalidate a specific cache key.
   Future<void> invalidate(String key) async {
     final db = await LocalDb.db;
+    if (db == null) return; // sqflite not available on web
     await db.delete('cached_api_responses', where: 'cache_key = ?', whereArgs: [key]);
   }
 
   /// Clear all cached responses.
   Future<void> clearAll() async {
     final db = await LocalDb.db;
+    if (db == null) return; // sqflite not available on web
     await db.delete('cached_api_responses');
   }
 
@@ -83,6 +85,7 @@ class CacheService {
 
   Future<_CachedRow?> _getCached(String key) async {
     final db = await LocalDb.db;
+    if (db == null) return null; // sqflite not available on web
     final rows = await db.query(
       'cached_api_responses',
       where: 'cache_key = ?',
@@ -99,6 +102,7 @@ class CacheService {
 
   Future<void> _setCache(String key, String json) async {
     final db = await LocalDb.db;
+    if (db == null) return; // sqflite not available on web
     await db.insert(
       'cached_api_responses',
       {

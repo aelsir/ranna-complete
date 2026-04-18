@@ -69,10 +69,10 @@ class PendingActionRow {
 class LocalDb {
   static Database? _db;
 
-  /// Public access to the database for services that need raw queries.
-  static Future<Database> get db async {
+  /// Public access to the raw database (null on web — sqflite not supported).
+  static Future<Database?> get db async {
     if (_db == null) await init();
-    return _db!;
+    return _db; // may be null on web — callers must guard
   }
 
   /// Open or create the database. Call once in main().

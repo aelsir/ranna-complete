@@ -318,71 +318,10 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                               padding: const EdgeInsetsDirectional.symmetric(
                                 horizontal: 24,
                               ),
-                              child: Column(
-                                children: [
-                                  SliderTheme(
-                                    data: SliderThemeData(
-                                      trackHeight: 4,
-                                      trackShape: const RoundedRectSliderTrackShape(),
-                                      activeTrackColor: Colors.white,
-                                      inactiveTrackColor: RannaTheme.primaryForeground
-                                          .withValues(alpha: 0.15),
-                                      thumbColor: Colors.white,
-                                      thumbShape: const RoundSliderThumbShape(
-                                        enabledThumbRadius: 10,
-                                      ),
-                                      overlayShape: const RoundSliderOverlayShape(
-                                        overlayRadius: 20,
-                                      ),
-                                      overlayColor: Colors.white.withValues(alpha: 0.12),
-                                    ),
-                                    child: Slider(
-                                      value: position.inSeconds.toDouble().clamp(
-                                        0,
-                                        duration.inSeconds.toDouble().clamp(
-                                          0,
-                                          double.infinity,
-                                        ),
-                                      ),
-                                      min: 0,
-                                      max: duration.inSeconds > 0
-                                          ? duration.inSeconds.toDouble()
-                                          : 1,
-                                      onChanged: (value) {
-                                        notifier.seekTo(Duration(seconds: value.toInt()));
-                                      },
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsetsDirectional.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        // Current time on right (RTL), total on left
-                                        Text(
-                                          formatDuration(position.inSeconds),
-                                          style: TextStyle(
-                                            fontFamily: RannaTheme.fontFustat,
-                                            fontSize: 11,
-                                            color: RannaTheme.primaryForeground
-                                                .withValues(alpha: 0.40),
-                                          ),
-                                        ),
-                                        Text(
-                                          formatDuration(duration.inSeconds),
-                                          style: TextStyle(
-                                            fontFamily: RannaTheme.fontFustat,
-                                            fontSize: 11,
-                                            color: RannaTheme.primaryForeground
-                                                .withValues(alpha: 0.40),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              child: _ProgressSlider(
+                                position: position,
+                                duration: duration,
+                                onSeek: notifier.seekTo,
                               ),
                             ),
 
@@ -716,6 +655,104 @@ class _ScrollingTitleState extends State<ScrollingTitle> {
         style: widget.style,
         maxLines: 1,
       ),
+    );
+  }
+}
+
+/// Interactive progress slider that uses local drag state to prevent
+/// the thumb from bouncing back during seek operations.
+class _ProgressSlider extends StatefulWidget {
+  final Duration position;
+  final Duration duration;
+  final Future<void> Function(Duration) onSeek;
+
+  const _ProgressSlider({
+    required this.position,
+    required this.duration,
+    required this.onSeek,
+  });
+
+  @override
+  State<_ProgressSlider> createState() => _ProgressSliderState();
+}
+
+class _ProgressSliderState extends State<_ProgressSlider> {
+  bool _isDragging = false;
+  double _dragValue = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxMs = widget.duration.inMilliseconds > 0
+        ? widget.duration.inMilliseconds.toDouble()
+        : 1.0;
+
+    // While dragging, show the local drag value; otherwise follow the stream.
+    final currentValue = _isDragging
+        ? _dragValue
+        : widget.position.inMilliseconds.toDouble().clamp(0.0, maxMs);
+
+    // Time label: show drag position during drag, otherwise real position
+    final displayMs = _isDragging ? _dragValue.toInt() : widget.position.inMilliseconds;
+    final displaySeconds = (displayMs / 1000).round();
+
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderThemeData(
+            trackHeight: 4,
+            trackShape: const RoundedRectSliderTrackShape(),
+            activeTrackColor: Colors.white,
+            inactiveTrackColor:
+                RannaTheme.primaryForeground.withValues(alpha: 0.15),
+            thumbColor: Colors.white,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+            overlayColor: Colors.white.withValues(alpha: 0.12),
+          ),
+          child: Slider(
+            value: currentValue.toDouble().clamp(0.0, maxMs),
+            min: 0,
+            max: maxMs,
+            onChangeStart: (value) {
+              setState(() {
+                _isDragging = true;
+                _dragValue = value;
+              });
+            },
+            onChanged: (value) {
+              setState(() => _dragValue = value);
+            },
+            onChangeEnd: (value) {
+              setState(() => _isDragging = false);
+              widget.onSeek(Duration(milliseconds: value.toInt()));
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                formatDuration(displaySeconds),
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 11,
+                  color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                ),
+              ),
+              Text(
+                formatDuration(widget.duration.inSeconds),
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 11,
+                  color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
