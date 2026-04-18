@@ -1,0 +1,4 @@
+Version: 1.0.3+7
+Date: 2026-04-18
+What's New:
+Adding data gathering event to the app.

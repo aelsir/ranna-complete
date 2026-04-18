@@ -57,6 +57,12 @@ class SyncService {
             case 'user_play':
               await supabase.from('user_plays').insert(payload);
 
+            case 'download_event':
+              await supabase.from('download_events').insert(payload);
+
+            case 'increment_download_count':
+              await supabase.rpc('increment_download_count', params: payload);
+
             default:
               debugPrint('⚠️ SyncService: unknown action type: ${action.actionType}');
           }

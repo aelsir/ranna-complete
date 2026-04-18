@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../db/local_db.dart';
 import '../models/madha.dart';
@@ -96,6 +98,9 @@ class DownloadService {
       // Save to SQLite
       await LocalDb.saveDownload(track.id, localPath, metadataJson, fileSize);
 
+      // Log download event to Supabase for analytics (fire-and-forget)
+      unawaited(_logDownloadEvent(track.id));
+
       debugPrint('✅ Downloaded: ${track.title} (${_formatBytes(fileSize)})');
       return localPath;
     } on DioException catch (e) {
@@ -147,5 +152,45 @@ class DownloadService {
   String _formatBytes(int bytes) {
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  /// Detect the device_type for download analytics.
+  String get _deviceType {
+    try {
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isAndroid) return 'android';
+    } catch (_) {}
+    return 'unknown';
+  }
+
+  /// Log a download event to Supabase for admin analytics.
+  /// Mirrors the pattern used by _logPlayEvent in audio_player_service.
+  /// On failure, queues the action for later sync.
+  Future<void> _logDownloadEvent(String trackId) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+
+      // 1. Log the download event
+      final eventData = <String, dynamic>{
+        'track_id': trackId,
+        'device_type': _deviceType,
+      };
+      if (userId != null) eventData['user_id'] = userId;
+      try {
+        await supabase.from('download_events').insert(eventData);
+      } catch (_) {
+        await LocalDb.enqueueAction('download_event', eventData);
+      }
+
+      // 2. Increment download_count on the track
+      try {
+        await supabase.rpc('increment_download_count', params: {'p_track_id': trackId});
+      } catch (_) {
+        await LocalDb.enqueueAction('increment_download_count', {'p_track_id': trackId});
+      }
+    } catch (_) {
+      // Non-critical — never interrupt the download flow
+    }
   }
 }
