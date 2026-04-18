@@ -54,6 +54,9 @@ class SyncService {
                 onConflict: 'user_id,track_id',
               );
 
+            case 'user_play':
+              await supabase.from('user_plays').insert(payload);
+
             default:
               debugPrint('⚠️ SyncService: unknown action type: ${action.actionType}');
           }

@@ -188,6 +188,11 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   DateTime? _lastPositionUpdate;
   StreamSubscription<ja.ProcessingState>? _processingStateSub;
 
+  /// Tracks the current play session so we can record duration + completion
+  /// to `user_plays` when the track ends or the user switches to another track.
+  /// Mirrors the web app's `playStartRef` in `PlayerContext.tsx`.
+  ({String trackId, DateTime startTime})? _playStart;
+
   AudioPlayerService(this._ref)
       : _player = audioHandler.player,
         super(const PlayerState()) {
@@ -241,6 +246,12 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   }
 
   void _onTrackCompleted() {
+    // Record the completed play to `user_plays` BEFORE advancing.
+    // Clear `_playStart` so `_loadAndPlay` doesn't re-record this play as
+    // partial when auto-advancing to the next track.
+    unawaited(_recordCurrentPlay(true));
+    _playStart = null;
+
     if (state.hasNext) {
       playNext();
     } else {
@@ -295,6 +306,15 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   }
 
   Future<void> _loadAndPlay(String trackId) async {
+    // If a different track was playing, log it as a partial play BEFORE we
+    // replace the audio source. `_onTrackCompleted` clears `_playStart` to
+    // null so that path doesn't re-record here.
+    if (_playStart != null && _playStart!.trackId != trackId) {
+      // Fire-and-forget — never block track loading on analytics
+      unawaited(_recordCurrentPlay(false));
+      _playStart = null;
+    }
+
     try {
       final track = _getCachedTrack(trackId);
 
@@ -317,6 +337,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
           debugPrint('▶️ Playing offline: $localPath');
           await _player.setAudioSource(ja.AudioSource.file(localPath));
           await _player.play();
+          _playStart = (trackId: trackId, startTime: DateTime.now());
           _logPlayEvent(trackId);
           return;
         }
@@ -334,6 +355,7 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       );
       await _player.play();
 
+      _playStart = (trackId: trackId, startTime: DateTime.now());
       // Log play event for trending analytics (fire-and-forget)
       _logPlayEvent(trackId);
     } catch (e) {
@@ -384,6 +406,58 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       }
     } catch (_) {
       // Non-critical — don't interrupt playback
+    }
+  }
+
+  /// Detect the device_type for `user_plays` analytics.
+  /// Values match the buckets used by the admin dashboard device breakdown.
+  String get _deviceType {
+    if (kIsWeb) return 'web';
+    try {
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isAndroid) return 'android';
+      if (Platform.isMacOS) return 'macos';
+      if (Platform.isWindows) return 'windows';
+      if (Platform.isLinux) return 'linux';
+    } catch (_) {
+      // Platform unavailable on some targets
+    }
+    return 'unknown';
+  }
+
+  /// Record the currently-playing track to `user_plays` for analytics.
+  ///
+  /// Writes rows that power the admin dashboard's completion-rate,
+  /// avg-duration, device-split, 14-day-trend, and unique-listener cards.
+  /// Mirrors `recordCurrentPlay` in the web app's `PlayerContext.tsx`.
+  ///
+  /// - Captures `_playStart` synchronously so we're safe against races.
+  /// - Skips sessions shorter than 3 seconds (fumbles / accidental taps).
+  /// - On network failure, queues to `pending_actions` for later sync.
+  /// - Caller must clear `_playStart` after a completed play to prevent
+  ///   a subsequent track-switch from double-recording as partial.
+  Future<void> _recordCurrentPlay(bool completed) async {
+    final start = _playStart;
+    if (start == null) return;
+    final elapsed = DateTime.now().difference(start.startTime).inSeconds;
+    if (elapsed < 3) return;
+
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    final data = <String, dynamic>{
+      'track_id': start.trackId,
+      'duration_seconds': elapsed,
+      'completed': completed,
+      'device_type': _deviceType,
+      'played_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (userId != null) data['user_id'] = userId;
+
+    try {
+      await supabase.from('user_plays').insert(data);
+    } catch (_) {
+      await LocalDb.enqueueAction('user_play', data);
     }
   }
 
@@ -508,6 +582,11 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
 
   @override
   void dispose() {
+    // Record any in-progress play as partial before tearing down.
+    // Fire-and-forget — dispose must remain synchronous.
+    if (_playStart != null) {
+      unawaited(_recordCurrentPlay(false));
+    }
     _positionSub?.cancel();
     _durationSub?.cancel();
     _playerStateSub?.cancel();
