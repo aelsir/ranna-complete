@@ -1308,12 +1308,12 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               <Badge variant="secondary" className="text-xs">{selectedRuwat.size} محدد</Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative z-10">
             {isContentSection && !isEditMode && (
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 text-xs font-fustat"
+                className="!gap-1.5 text-xs font-fustat"
                 onClick={() => setIsFindReplaceOpen(true)}
               >
                 <Search className="h-3.5 w-3.5" />
@@ -1337,14 +1337,14 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               </Button>
             )}
             {isContentSection && (
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-fustat" onClick={() => setIsBulkUploadOpen(true)}>
+              <Button variant="outline" size="sm" className="!gap-1.5 text-xs font-fustat" onClick={() => setIsBulkUploadOpen(true)}>
                 <Upload className="h-3.5 w-3.5" />
                 {sectionLabels?.uploadBulk || "رفع مجمّع"}
               </Button>
             )}
             <Button
               size="sm"
-              className="gap-1.5 bg-primary hover:bg-primary/90 text-xs font-fustat"
+              className="!gap-1.5 bg-primary hover:bg-primary/90 text-xs font-fustat"
               onClick={() => {
                 if (isContentSection) {
                   setNewTrack({ ...newTrack, contentType: activeContentType || "madha" });
@@ -1367,7 +1367,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         {/* Search + Filters */}
         {activeSection !== "analytics" && (
           <div className="px-6 py-3 border-b border-border bg-card/50 space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative z-10">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
