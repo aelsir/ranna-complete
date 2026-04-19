@@ -1337,19 +1337,14 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               </Button>
             )}
             {isContentSection && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-xs"
-                onClick={() => setIsBulkUploadOpen(true)}
-              >
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs font-fustat" onClick={() => setIsBulkUploadOpen(true)}>
                 <Upload className="h-3.5 w-3.5" />
                 {sectionLabels?.uploadBulk || "رفع مجمّع"}
               </Button>
             )}
             <Button
               size="sm"
-              className="gap-1.5 bg-primary hover:bg-primary/90 text-xs"
+              className="gap-1.5 bg-primary hover:bg-primary/90 text-xs font-fustat"
               onClick={() => {
                 if (isContentSection) {
                   setNewTrack({ ...newTrack, contentType: activeContentType || "madha" });
@@ -1416,7 +1411,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                   options={[{ value: "", label: "الكل" }, ...artists.map((a) => ({ value: a.id, label: a.name }))]}
                   placeholder="الكل"
                   searchPlaceholder="ابحث عن مادح..."
-                  triggerClassName="h-8 text-xs"
+                  triggerClassName="h-8 text-xs font-fustat"
                 />
               </div>
               <div className="w-44">
@@ -1427,7 +1422,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                   options={[{ value: "", label: "الكل" }, ...narrators.map((n) => ({ value: n.id, label: n.name }))]}
                   placeholder="الكل"
                   searchPlaceholder="ابحث عن راوي..."
-                  triggerClassName="h-8 text-xs"
+                  triggerClassName="h-8 text-xs font-fustat"
                 />
               </div>
               <div className="w-40">
@@ -1438,7 +1433,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                   options={[{ value: "", label: "الكل" }, ...tariqas.map((tq) => ({ value: tq.name, label: tq.name }))]}
                   placeholder="الكل"
                   searchPlaceholder="ابحث عن طريقة..."
-                  triggerClassName="h-8 text-xs"
+                  triggerClassName="h-8 text-xs font-fustat"
                 />
               </div>
               <div className="w-36">
@@ -2138,8 +2133,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingTrack(null)} disabled={updateMadhaMutation.isPending}>إلغاء</Button>
-            <Button onClick={handleSaveTrack} disabled={updateMadhaMutation.isPending} className="gap-1.5">
+            <Button variant="outline" onClick={() => setEditingTrack(null)} disabled={updateMadhaMutation.isPending} className="font-fustat">إلغاء</Button>
+            <Button onClick={handleSaveTrack} disabled={updateMadhaMutation.isPending} className="gap-1.5 font-fustat">
               <Save className="h-3.5 w-3.5" />
               {updateMadhaMutation.isPending ? "جاري الحفظ..." : "حفظ"}
             </Button>
@@ -2433,8 +2428,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
               setNewTrack({});
               clearDraft();
               setIsAddDialogOpen(false);
-            }} disabled={createMadhaMutation.isPending}>إلغاء</Button>
-            <Button onClick={handleAddTrack} disabled={createMadhaMutation.isPending} className="gap-1.5 w-full sm:w-auto">
+            }} disabled={createMadhaMutation.isPending} className="font-fustat">إلغاء</Button>
+            <Button onClick={handleAddTrack} disabled={createMadhaMutation.isPending} className="gap-1.5 w-full sm:w-auto font-fustat">
               <Upload className="h-3.5 w-3.5" />
               {createMadhaMutation.isPending ? "جاري الإضافة..." : "رفع المدحة"}
             </Button>
@@ -2593,8 +2588,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsPlaylistDialogOpen(false)} disabled={createCollectionMutation.isPending}>إلغاء</Button>
-            <Button onClick={handleAddPlaylist} disabled={createCollectionMutation.isPending} className="gap-1.5">
+            <Button variant="outline" onClick={() => setIsPlaylistDialogOpen(false)} disabled={createCollectionMutation.isPending} className="font-fustat">إلغاء</Button>
+            <Button onClick={handleAddPlaylist} disabled={createCollectionMutation.isPending} className="gap-1.5 font-fustat">
               <Plus className="h-3.5 w-3.5" />
               {createCollectionMutation.isPending ? "جاري الإنشاء..." : "إنشاء القائمة"}
             </Button>
@@ -2755,8 +2750,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingPlaylist(null)} disabled={updateCollectionMutation.isPending}>إلغاء</Button>
-            <Button onClick={handleSavePlaylist} disabled={updateCollectionMutation.isPending} className="gap-1.5">
+            <Button variant="outline" onClick={() => setEditingPlaylist(null)} disabled={updateCollectionMutation.isPending} className="font-fustat">إلغاء</Button>
+            <Button onClick={handleSavePlaylist} disabled={updateCollectionMutation.isPending} className="gap-1.5 font-fustat">
               <Save className="h-3.5 w-3.5" />
               {updateCollectionMutation.isPending ? "جاري الحفظ..." : "حفظ"}
             </Button>
@@ -2829,8 +2824,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingMadih(null)} disabled={updateMadihMutation.isPending}>إلغاء</Button>
-            <Button disabled={updateMadihMutation.isPending} className="gap-1.5" onClick={() => {
+            <Button variant="outline" onClick={() => setEditingMadih(null)} disabled={updateMadihMutation.isPending} className="font-fustat">إلغاء</Button>
+            <Button disabled={updateMadihMutation.isPending} className="gap-1.5 font-fustat" onClick={() => {
               if (!editingMadih) return;
               updateMadihMutation.mutate({ id: editingMadih.id, updates: {
                 name: editingMadih.name,
@@ -2900,8 +2895,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setIsAddMadihDialogOpen(false); setNewMadih({}); }}>إلغاء</Button>
-            <Button disabled={!newMadih.name || createMadihMutation.isPending} className="gap-1.5" onClick={() => {
+            <Button variant="outline" onClick={() => { setIsAddMadihDialogOpen(false); setNewMadih({}); }} className="font-fustat">إلغاء</Button>
+            <Button disabled={!newMadih.name || createMadihMutation.isPending} className="gap-1.5 font-fustat" onClick={() => {
               createMadihMutation.mutate(newMadih, {
                 onSuccess: () => { setIsAddMadihDialogOpen(false); setNewMadih({}); toast({ title: "تمت الإضافة", description: "تم إضافة المادح بنجاح" }); },
                 onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },
@@ -2969,8 +2964,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingRawi(null)} disabled={updateRawiMutation.isPending}>إلغاء</Button>
-            <Button disabled={updateRawiMutation.isPending} className="gap-1.5" onClick={() => {
+            <Button variant="outline" onClick={() => setEditingRawi(null)} disabled={updateRawiMutation.isPending} className="font-fustat">إلغاء</Button>
+            <Button disabled={updateRawiMutation.isPending} className="gap-1.5 font-fustat" onClick={() => {
               if (!editingRawi) return;
               updateRawiMutation.mutate({ id: editingRawi.id, updates: {
                 name: editingRawi.name,
@@ -3028,8 +3023,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setIsAddRawiDialogOpen(false); setNewRawi({}); }}>إلغاء</Button>
-            <Button disabled={!newRawi.name || createRawiMutation.isPending} className="gap-1.5" onClick={() => {
+            <Button variant="outline" onClick={() => { setIsAddRawiDialogOpen(false); setNewRawi({}); }} className="font-fustat">إلغاء</Button>
+            <Button disabled={!newRawi.name || createRawiMutation.isPending} className="gap-1.5 font-fustat" onClick={() => {
               createRawiMutation.mutate(newRawi, {
                 onSuccess: () => { setIsAddRawiDialogOpen(false); setNewRawi({}); toast({ title: "تمت الإضافة", description: "تم إضافة الراوي بنجاح" }); },
                 onError: (err) => { toast({ title: "خطأ", description: (err as Error).message, variant: "destructive" }); },

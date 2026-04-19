@@ -226,10 +226,10 @@ export function InlineEditTable({
                     options={artists.map((a) => ({ value: a.id, label: a.name }))}
                     placeholder="اختر المادح"
                     searchPlaceholder="ابحث عن مادح..."
-                    triggerClassName="h-8 text-xs"
+                    triggerClassName="h-8 text-xs font-fustat"
                   />
                 ) : (
-                  <span className="text-muted-foreground truncate block">
+                  <span className="text-muted-foreground truncate block font-fustat">
                     {track.artistName}
                   </span>
                 )}
@@ -253,10 +253,10 @@ export function InlineEditTable({
                     options={narrators.map((n) => ({ value: n.id, label: n.name }))}
                     placeholder="اختر الراوي"
                     searchPlaceholder="ابحث عن راوي..."
-                    triggerClassName="h-8 text-xs"
+                    triggerClassName="h-8 text-xs font-fustat"
                   />
                 ) : (
-                  <span className="text-muted-foreground truncate block">
+                  <span className="text-muted-foreground truncate block font-fustat">
                     {track.narratorName}
                   </span>
                 )}

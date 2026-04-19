@@ -50,7 +50,7 @@ export function SearchableSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between font-normal text-sm h-10",
+            "w-full justify-between font-fustat text-sm h-10 font-normal",
             !value && "text-muted-foreground",
             triggerClassName
           )}
