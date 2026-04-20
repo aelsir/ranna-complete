@@ -58,18 +58,34 @@ export async function getApprovedMadhaatCount(): Promise<number> {
   return count || 0;
 }
 
-/** Lightweight fetch of ALL approved tracks for playlist picker (dashboard only). */
+/** Lightweight fetch of ALL approved tracks for playlist picker (dashboard only).
+ *  NOTE: Supabase has a hard default of 1000 rows per request. The while-loop
+ *  below pages through the full table to ensure no tracks are missed regardless
+ *  of library size. Do not replace this with a single .select() call. */
 export async function getAllMadhaatMinimal(): Promise<
   { id: string; title: string; madih: string | null; madih_id: string | null; rawi_id: string | null; created_at: string }[]
 > {
-  const { data, error } = await supabase
-    .from("madha")
-    .select("id, title, madih, madih_id, rawi_id, created_at")
-    .eq("status", "approved")
-    .order("created_at", { ascending: false });
+  const allData: { id: string; title: string; madih: string | null; madih_id: string | null; rawi_id: string | null; created_at: string }[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
 
-  if (error) throw error;
-  return data || [];
+  while (true) {
+    const { data, error } = await supabase
+      .from("madha")
+      .select("id, title, madih, madih_id, rawi_id, created_at")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    allData.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return allData;
 }
 
 /** Lightweight fetch of ALL tracks with fields needed for find & replace and bulk-upload inheritance. */
