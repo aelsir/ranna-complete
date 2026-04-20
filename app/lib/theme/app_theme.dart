@@ -26,14 +26,19 @@ class RannaTheme {
 
   /// background: 160 10% 97%
   static const Color background = Color(0xFFF5F7F5);
+
   /// foreground: 184 43% 15%
   static const Color foreground = Color(0xFF162F31);
+
   /// card: pure white
   static const Color card = Color(0xFFFFFFFF);
+
   /// muted: 180 12% 93%
   static const Color muted = Color(0xFFE8EDED);
+
   /// muted-foreground: 184 20% 46%
   static const Color mutedForeground = Color(0xFF5E8385);
+
   /// border: 180 12% 88%
   static const Color border = Color(0xFFD9E1E1);
   static const Color input = Color(0xFFE0E8E8);
@@ -44,30 +49,56 @@ class RannaTheme {
   // ===========================================================================
 
   static List<BoxShadow> get shadowSm => [
-        BoxShadow(color: primary.withValues(alpha: 0.04), blurRadius: 3, offset: const Offset(0, 1)),
-      ];
+    BoxShadow(
+      color: primary.withValues(alpha: 0.04),
+      blurRadius: 3,
+      offset: const Offset(0, 1),
+    ),
+  ];
 
   static List<BoxShadow> get shadowMd => [
-        BoxShadow(color: primary.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4)),
-      ];
+    BoxShadow(
+      color: primary.withValues(alpha: 0.08),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   static List<BoxShadow> get shadowLg => [
-        BoxShadow(color: primary.withValues(alpha: 0.12), blurRadius: 40, offset: const Offset(0, 12)),
-      ];
+    BoxShadow(
+      color: primary.withValues(alpha: 0.12),
+      blurRadius: 40,
+      offset: const Offset(0, 12),
+    ),
+  ];
 
   static List<BoxShadow> get shadowCard => [
-        BoxShadow(color: primary.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, 4)),
-      ];
+    BoxShadow(
+      color: primary.withValues(alpha: 0.06),
+      blurRadius: 20,
+      offset: const Offset(0, 4),
+    ),
+  ];
 
   static List<BoxShadow> get shadowFloat => shadowLg;
 
   static List<BoxShadow> get shadowGlowSecondary => [
-        BoxShadow(color: secondary.withValues(alpha: 0.35), blurRadius: 24, offset: const Offset(0, 4), spreadRadius: -4),
-      ];
+    BoxShadow(
+      color: secondary.withValues(alpha: 0.35),
+      blurRadius: 24,
+      offset: const Offset(0, 4),
+      spreadRadius: -4,
+    ),
+  ];
 
   static List<BoxShadow> get shadowGlowAccent => [
-        BoxShadow(color: accent.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 4), spreadRadius: -4),
-      ];
+    BoxShadow(
+      color: accent.withValues(alpha: 0.3),
+      blurRadius: 20,
+      offset: const Offset(0, 4),
+      spreadRadius: -4,
+    ),
+  ];
 
   // ===========================================================================
   // Border Radius
@@ -129,14 +160,39 @@ class RannaTheme {
       displaySmall: TextStyle(fontFamily: fontFustat, color: foreground),
 
       // Headline — Fustat bold/extrabold for section titles
-      headlineLarge: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.w800),
-      headlineMedium: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.w700),
-      headlineSmall: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.w800,
+      ),
+      headlineMedium: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.w700,
+      ),
+      headlineSmall: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.bold,
+      ),
 
       // Title — Fustat bold for card titles, app bar
-      titleLarge: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.bold, fontSize: 20),
-      titleMedium: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.bold),
-      titleSmall: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.bold,
+        fontSize: 20,
+      ),
+      titleMedium: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.bold,
+      ),
+      titleSmall: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.w600,
+      ),
 
       // Body — Noto Naskh Arabic for readable Arabic prose
       bodyLarge: TextStyle(fontFamily: fontNotoNaskh, color: foreground),
@@ -144,9 +200,21 @@ class RannaTheme {
       bodySmall: TextStyle(fontFamily: fontNotoNaskh, color: mutedForeground),
 
       // Label — Fustat bold for buttons, chips, nav labels
-      labelLarge: TextStyle(fontFamily: fontFustat, color: foreground, fontWeight: FontWeight.bold),
-      labelMedium: TextStyle(fontFamily: fontFustat, color: mutedForeground, fontWeight: FontWeight.bold),
-      labelSmall: TextStyle(fontFamily: fontFustat, color: mutedForeground, fontWeight: FontWeight.bold),
+      labelLarge: TextStyle(
+        fontFamily: fontFustat,
+        color: foreground,
+        fontWeight: FontWeight.bold,
+      ),
+      labelMedium: TextStyle(
+        fontFamily: fontFustat,
+        color: mutedForeground,
+        fontWeight: FontWeight.bold,
+      ),
+      labelSmall: TextStyle(
+        fontFamily: fontFustat,
+        color: mutedForeground,
+        fontWeight: FontWeight.bold,
+      ),
     );
   }
 
@@ -205,7 +273,10 @@ class RannaTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: foreground),
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: foreground,
+        ),
         iconTheme: const IconThemeData(color: foreground),
       ),
       cardTheme: CardThemeData(
@@ -224,25 +295,41 @@ class RannaTheme {
         surfaceTintColor: Colors.transparent,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return textTheme.labelSmall?.copyWith(color: foreground, fontWeight: FontWeight.bold, fontSize: 10);
+            return textTheme.labelSmall?.copyWith(
+              color: foreground,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            );
           }
-          return textTheme.labelSmall?.copyWith(color: mutedForeground, fontSize: 10);
+          return textTheme.labelSmall?.copyWith(
+            color: mutedForeground,
+            fontSize: 10,
+          );
         }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: secondary,
           foregroundColor: secondaryForeground,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusFull)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusFull),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           elevation: 0,
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: primary, textStyle: textTheme.labelLarge),
+        style: TextButton.styleFrom(
+          foregroundColor: primary,
+          textStyle: textTheme.labelLarge,
+        ),
       ),
-      iconButtonTheme: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: foreground)),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: foreground),
+      ),
       iconTheme: const IconThemeData(color: foreground, size: 24),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -258,9 +345,15 @@ class RannaTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radius2xl),
-          borderSide: BorderSide(color: primary.withValues(alpha: 0.2), width: 2),
+          borderSide: BorderSide(
+            color: primary.withValues(alpha: 0.2),
+            width: 2,
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: accent,
@@ -270,14 +363,23 @@ class RannaTheme {
         trackHeight: 4,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
       ),
-      dividerTheme: DividerThemeData(color: border.withValues(alpha: 0.3), thickness: 1, space: 0),
+      dividerTheme: DividerThemeData(
+        color: border.withValues(alpha: 0.3),
+        thickness: 1,
+        space: 0,
+      ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: foreground,
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMd)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
         behavior: SnackBarBehavior.floating,
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: accent, linearTrackColor: muted),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: accent,
+        linearTrackColor: muted,
+      ),
     );
   }
   // ===========================================================================
@@ -287,9 +389,9 @@ class RannaTheme {
   /// A directional version of the play arrow icon that automatically points
   /// left in RTL (Arabic) contexts and right in LTR contexts.
   static IconData get playIcon => IconData(
-        Icons.play_arrow_rounded.codePoint,
-        fontFamily: Icons.play_arrow_rounded.fontFamily,
-        fontPackage: Icons.play_arrow_rounded.fontPackage,
-        matchTextDirection: true,
-      );
+    Icons.play_arrow_rounded.codePoint,
+    fontFamily: Icons.play_arrow_rounded.fontFamily,
+    fontPackage: Icons.play_arrow_rounded.fontPackage,
+    matchTextDirection: true,
+  );
 }

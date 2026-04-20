@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, Bell, Moon, Globe, ChevronLeft, LogIn, Heart, Clock, Headphones, Settings, Shield, HelpCircle, LogOut } from "lucide-react";
+import { User, Lock, Bell, ChevronLeft, LogIn, Heart, Clock, Headphones, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/Navbar";
+import SignInSheet from "@/components/auth/SignInSheet";
+import { useAuth } from "@/context/AuthContext";
 
 const menuSections = [
   {
@@ -38,6 +41,25 @@ const item = {
 
 const MyAccountPage = () => {
   const navigate = useNavigate();
+  const { user, isAnonymous, loading, signOut } = useAuth();
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const isRealUser = !!user && !isAnonymous;
+  const displayName = isRealUser
+    ? user.user_metadata?.display_name || user.email?.split("@")[0] || "حسابي"
+    : "زائر";
+  const avatarLabel = isRealUser ? (displayName[0] || "?").toUpperCase() : "ز";
+  const subtitle = isRealUser ? user.email ?? "" : "لم يتم تسجيل الدخول";
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
     <div>
@@ -61,22 +83,27 @@ const MyAccountPage = () => {
         >
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-primary/20">
-              <AvatarImage src="" />
+              <AvatarImage src={user?.user_metadata?.avatar_url ?? ""} />
               <AvatarFallback className="bg-primary/10 text-primary font-fustat text-xl font-bold">
-                ز
+                {avatarLabel}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="font-fustat text-lg font-bold text-foreground">زائر</p>
-              <p className="text-sm text-muted-foreground font-noto-naskh">لم يتم تسجيل الدخول</p>
+              <p className="font-fustat text-lg font-bold text-foreground truncate">{displayName}</p>
+              <p className="text-sm text-muted-foreground font-noto-naskh truncate" dir={isRealUser ? "ltr" : "rtl"}>
+                {subtitle}
+              </p>
             </div>
-            <Button
-              onClick={() => {/* Will link to Supabase auth */}}
-              className="rounded-xl bg-primary text-primary-foreground font-fustat text-sm px-5 h-10 hover:bg-primary/90"
-            >
-              <LogIn className="h-4 w-4 ml-2" />
-              تسجيل الدخول
-            </Button>
+            {!isRealUser && (
+              <Button
+                onClick={() => setSignInOpen(true)}
+                disabled={loading}
+                className="rounded-xl bg-primary text-primary-foreground font-fustat text-sm px-5 h-10 hover:bg-primary/90"
+              >
+                <LogIn className="h-4 w-4 ml-2" />
+                تسجيل الدخول
+              </Button>
+            )}
           </div>
         </motion.div>
 
@@ -117,15 +144,16 @@ const MyAccountPage = () => {
           ))}
         </motion.div>
 
-        {/* Logout (disabled for now) */}
+        {/* Logout — enabled only for real (non-anonymous) users. */}
         <motion.div variants={item} initial="hidden" animate="show" className="mt-6">
           <Button
             variant="ghost"
-            disabled
+            disabled={!isRealUser || signingOut}
+            onClick={handleSignOut}
             className="w-full rounded-2xl h-12 font-fustat text-sm text-destructive hover:bg-destructive/10 border border-border/60"
           >
             <LogOut className="h-4 w-4 ml-2" />
-            تسجيل الخروج
+            {signingOut ? "جاري تسجيل الخروج..." : "تسجيل الخروج"}
           </Button>
         </motion.div>
 
@@ -133,6 +161,8 @@ const MyAccountPage = () => {
           رنّة — نسخة ١.٠
         </p>
       </div>
+
+      <SignInSheet open={signInOpen} onOpenChange={setSignInOpen} />
     </div>
   );
 };

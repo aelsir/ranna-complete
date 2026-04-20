@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
@@ -14,6 +16,7 @@ class AccountScreen extends ConsumerStatefulWidget {
 
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   bool _notificationsEnabled = true;
+  bool _signingOut = false;
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +118,18 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Widget _buildProfileCard(BuildContext context) {
+    final auth = ref.watch(authNotifierProvider);
+    final isRealUser = auth.user != null && !auth.isAnonymous;
+    final email = auth.user?.email ?? '';
+    final displayName = isRealUser
+        ? (auth.user?.userMetadata?['display_name'] as String?) ??
+            (email.contains('@') ? email.split('@').first : 'حسابي')
+        : 'زائر';
+    final avatarLabel = isRealUser && displayName.isNotEmpty
+        ? displayName.characters.first.toUpperCase()
+        : 'ز';
+    final subtitle = isRealUser ? email : 'لم يتم تسجيل الدخول';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -137,7 +152,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
             child: Center(
               child: Text(
-                'ز',
+                avatarLabel,
                 style: TextStyle(fontFamily: RannaTheme.fontFustat,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -154,7 +169,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'زائر',
+                  displayName,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontFamily: RannaTheme.fontFustat,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -163,7 +179,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'لم يتم تسجيل الدخول',
+                  subtitle,
+                  overflow: TextOverflow.ellipsis,
+                  textDirection: isRealUser
+                      ? TextDirection.ltr
+                      : TextDirection.rtl,
                   style: TextStyle(fontFamily: RannaTheme.fontNotoNaskh,
                     fontSize: 13,
                     color: RannaTheme.mutedForeground,
@@ -173,39 +193,38 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
           ),
 
-          // Login button
-          Material(
-            color: RannaTheme.primary,
-            borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
-            child: InkWell(
+          // Login button (only for anonymous / no-session users)
+          if (!isRealUser)
+            Material(
+              color: RannaTheme.primary,
               borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
-              onTap: () {
-                // TODO: Navigate to login
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.login_rounded,
-                      size: 18,
-                      color: RannaTheme.primaryForeground,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'دخول',
-                      style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+                onTap: () => context.push('/auth'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.login_rounded,
+                        size: 18,
                         color: RannaTheme.primaryForeground,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Text(
+                        'دخول',
+                        style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: RannaTheme.primaryForeground,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     )
@@ -382,6 +401,18 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
+    final auth = ref.watch(authNotifierProvider);
+    final isRealUser = auth.user != null && !auth.isAnonymous;
+    // Dim the button for anonymous users — logout is meaningless (would just
+    // re-bootstrap a new anon session anyway).
+    final enabled = isRealUser && !_signingOut;
+    final color = enabled
+        ? RannaTheme.destructive
+        : RannaTheme.destructive.withValues(alpha: 0.5);
+    final borderColor = enabled
+        ? RannaTheme.destructive.withValues(alpha: 0.3)
+        : RannaTheme.destructive.withValues(alpha: 0.15);
+
     return SizedBox(
       width: double.infinity,
       child: Material(
@@ -389,31 +420,39 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
         child: InkWell(
           borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
-          onTap: null, // Disabled
+          onTap: enabled ? _handleSignOut : null,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
-              border: Border.all(
-                color: RannaTheme.destructive.withValues(alpha: 0.3),
-              ),
+              border: Border.all(color: borderColor),
             ),
             child: Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.logout_rounded,
-                    size: 20,
-                    color: RannaTheme.destructive.withValues(alpha: 0.5),
-                  ),
+                  if (_signingOut)
+                    SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: color,
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.logout_rounded,
+                      size: 20,
+                      color: color,
+                    ),
                   const SizedBox(width: 8),
                   Text(
-                    'تسجيل الخروج',
+                    _signingOut ? 'جاري تسجيل الخروج...' : 'تسجيل الخروج',
                     style: TextStyle(fontFamily: RannaTheme.fontFustat,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: RannaTheme.destructive.withValues(alpha: 0.5),
+                      color: color,
                     ),
                   ),
                 ],
@@ -423,6 +462,15 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSignOut() async {
+    setState(() => _signingOut = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signOut();
+    } finally {
+      if (mounted) setState(() => _signingOut = false);
+    }
   }
 }
 

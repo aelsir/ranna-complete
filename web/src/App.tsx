@@ -22,6 +22,7 @@ import AllTariqasPage from "./pages/AllTariqasPage";
 import AllFunoonPage from "./pages/AllFunoonPage";
 import DashboardPage from "./pages/DashboardPage";
 import MyAccountPage from "./pages/MyAccountPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import ListeningHistoryPage from "./pages/ListeningHistoryPage";
 import ListeningStatsPage from "./pages/ListeningStatsPage";
 import TrackPage from "./pages/TrackPage";
@@ -32,6 +33,7 @@ import MiniPlayer from "./components/MiniPlayer";
 import FullPlayer from "./components/FullPlayer";
 import ContentShell from "./components/ContentShell";
 import InstallPrompt from "./components/InstallPrompt";
+import FavoritesMerge from "./hooks/useFavoritesMerge";
 
 // Initialize PostHog on module load
 initAnalytics();
@@ -51,6 +53,7 @@ const App = () => (
   <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <FavoritesMerge />
       <TooltipProvider>
         <PlayerProvider>
           <Toaster />
@@ -73,6 +76,7 @@ const App = () => (
               <Route path="/funoon" element={<AllFunoonPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/account" element={<MyAccountPage />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/listening-history" element={<ListeningHistoryPage />} />
               <Route path="/listening-stats" element={<ListeningStatsPage />} />
               <Route path="/font-test" element={<FontTestPage />} />

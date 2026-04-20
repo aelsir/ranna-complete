@@ -71,7 +71,14 @@ enabled = true
 # in emails.
 site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000", "http://localhost:*", "http://localhost:*/**"]
+additional_redirect_urls = [
+  "https://127.0.0.1:3000",
+  "http://localhost:*",
+  "http://localhost:*/**",
+  "http://localhost:3000/auth/callback",
+  "https://ranna.aelsir.sd/auth/callback",
+  "sd.aelsir.ranna://auth/callback",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
@@ -81,6 +88,9 @@ enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
+# Allow/disallow anonymous sign-ins (creates an auth.users row with is_anonymous=true).
+# Required for the app's "anonymous-first" UX where every first-open user gets a server identity.
+enable_anonymous_sign_ins = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 

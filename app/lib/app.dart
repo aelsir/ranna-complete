@@ -17,6 +17,9 @@ import 'package:ranna/screens/all_narrators_screen.dart';
 import 'package:ranna/screens/all_tariqas_screen.dart';
 import 'package:ranna/screens/all_funoon_screen.dart';
 import 'package:ranna/screens/track_deeplink_screen.dart';
+import 'package:ranna/screens/auth_screen.dart';
+import 'package:ranna/screens/auth_callback_screen.dart';
+import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/components/player/mini_player.dart';
 import 'package:ranna/components/player/full_player.dart';
 import 'package:ranna/services/audio_player_service.dart';
@@ -28,6 +31,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     routes: [
+      // Top-level routes OUTSIDE the shell (no bottom nav).
+      // Used for auth flows so the sign-in screen fills the viewport.
+      GoRoute(
+        path: '/auth',
+        builder: (context, state) => const AuthScreen(),
+      ),
+      GoRoute(
+        path: '/auth/callback',
+        builder: (context, state) => const AuthCallbackScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ShellScaffold(navigationShell: navigationShell),
@@ -115,6 +128,17 @@ class ShellScaffold extends ConsumerWidget {
     // Auto-sync queued actions when coming back online
     ref.listen<bool>(isOnlineProvider, (prev, next) {
       if (prev == false && next == true) {
+        SyncService.syncPendingActions();
+      }
+    });
+
+    // Auto-sync queued actions when the user identity changes (anon bootstrap
+    // completes, or anon → email upgrade). Any favorites/plays that were
+    // queued under the previous user_id flush under the new identity.
+    ref.listen<AuthState>(authNotifierProvider, (prev, next) {
+      final prevId = prev?.user?.id;
+      final nextId = next.user?.id;
+      if (nextId != null && nextId != prevId) {
         SyncService.syncPendingActions();
       }
     });

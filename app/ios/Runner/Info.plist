@@ -81,5 +81,20 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Custom URL scheme for Supabase magic-link auth callbacks.
+	     Lets `sd.aelsir.ranna://auth/callback?...` open the app. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>sd.aelsir.ranna</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sd.aelsir.ranna</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

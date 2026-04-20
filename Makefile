@@ -46,11 +46,11 @@ dev-app: sync
 
 ## Install the Flutter app in release mode on a connected iPhone (works independently)
 release-app: sync
-	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json && flutter install --release
+	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json --no-tree-shake-icons && flutter install --release
 
 ## Build the iOS app for App Store / TestFlight distribution
 build-ipa: sync
-	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store
+	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store --no-tree-shake-icons
 
 ## Build Android App Bundle (.aab) for Google Play Store with Version Bumping
 build-aab:

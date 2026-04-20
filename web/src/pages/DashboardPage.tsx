@@ -187,19 +187,23 @@ function CompletionRing({ status }: { status: "complete" | "partial" | "basic" }
 }
 
 function DashboardLogin() {
-  const { signIn } = useAuth();
+  const { signInWithMagicLink } = useAuth();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signInWithMagicLink(email);
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) {
+      setError(error.message);
+    } else {
+      setSent(true);
+    }
   };
 
   return (
@@ -211,46 +215,71 @@ function DashboardLogin() {
           </div>
           <div>
             <h1 className="font-fustat font-bold text-xl text-foreground">لوحة التحكم</h1>
-            <p className="text-xs text-muted-foreground">سجّل دخولك للمتابعة</p>
+            <p className="text-xs text-muted-foreground">
+              {sent ? "تحقّق من بريدك الإلكتروني" : "سجّل دخولك للمتابعة"}
+            </p>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-fustat text-muted-foreground mb-1 block">البريد الإلكتروني</label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@ranna.app"
-              required
-              autoFocus
-            />
+        {sent ? (
+          <div className="text-center space-y-3">
+            <p className="text-sm font-fustat text-muted-foreground">
+              أرسلنا رابط تسجيل الدخول إلى
+            </p>
+            <p className="text-sm font-fustat font-bold text-foreground" dir="ltr">
+              {email}
+            </p>
+            <p className="text-xs font-fustat text-muted-foreground pt-4">
+              افتح الرابط من نفس المتصفح لإكمال الدخول.
+            </p>
           </div>
-          <div>
-            <label className="text-xs font-fustat text-muted-foreground mb-1 block">كلمة المرور</label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
-          {error && (
-            <p className="text-xs text-destructive font-fustat">{error}</p>
-          )}
-          <Button type="submit" className="w-full gap-2" disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? "جاري الدخول..." : "دخول"}
-          </Button>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">
+                البريد الإلكتروني
+              </label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@ranna.app"
+                required
+                autoFocus
+              />
+            </div>
+            {error && <p className="text-xs text-destructive font-fustat">{error}</p>}
+            <Button type="submit" className="w-full gap-2" disabled={loading}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "جاري الإرسال..." : "أرسل الرابط"}
+            </Button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DashboardUnauthorized({ signOut }: { signOut: () => Promise<void> }) {
+  return (
+    <div dir="rtl" className="flex items-center justify-center min-h-screen bg-background">
+      <div className="w-full max-w-sm mx-auto p-8 text-center space-y-4">
+        <div className="mx-auto h-12 w-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
+          <LogOut className="h-6 w-6 text-destructive" />
+        </div>
+        <h1 className="font-fustat font-bold text-xl text-foreground">غير مصرح</h1>
+        <p className="text-sm font-fustat text-muted-foreground">
+          هذا الحساب ليس لديه صلاحية الوصول إلى لوحة التحكم.
+        </p>
+        <Button variant="outline" className="w-full" onClick={() => signOut()}>
+          تسجيل الخروج
+        </Button>
       </div>
     </div>
   );
 }
 
 const DashboardPage = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, isAnonymous, isAdmin, loading: authLoading, signOut } = useAuth();
 
   if (authLoading) {
     return (
@@ -260,8 +289,14 @@ const DashboardPage = () => {
     );
   }
 
-  if (!user) {
+  // Anon or no session at all → show the login form.
+  if (!user || isAnonymous) {
     return <DashboardLogin />;
+  }
+
+  // Signed-in but not an admin → show "not authorized" rather than leaking UI.
+  if (!isAdmin) {
+    return <DashboardUnauthorized signOut={signOut} />;
   }
 
   return <DashboardContent signOut={signOut} />;

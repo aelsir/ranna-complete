@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+// Hide supabase_flutter's AuthState so our `auth_notifier.dart` export wins.
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/models/madih.dart';
 import 'package:ranna/models/rawi.dart';
@@ -10,6 +11,7 @@ import 'package:ranna/models/tariqa.dart';
 import 'package:ranna/models/fan.dart';
 import 'package:ranna/models/collection.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/services/cache_service.dart';
 import 'package:ranna/utils/lyrics.dart';
 
@@ -256,9 +258,13 @@ final favoriteTracksProvider = FutureProvider<List<MadhaWithRelations>>((ref) as
 
 final listeningHistoryProvider = FutureProvider<List<MadhaWithRelations>>((ref) async {
   final supabase = ref.read(supabaseProvider);
+  // Re-fetch whenever the auth identity changes (anon bootstrap, login,
+  // logout + re-anon). Without this watch, the provider would cache the
+  // empty "null user" result indefinitely.
+  final authUser = ref.watch(authNotifierProvider.select((s) => s.user));
   try {
-    final user = supabase.auth.currentUser;
-    if (user == null) return [];
+    if (authUser == null) return [];
+    final user = supabase.auth.currentUser ?? authUser;
 
     // Fetch the 10 most recently listened tracks
     final dynamic historyRows = await supabase

@@ -39,6 +39,16 @@
                 <data android:scheme="http" android:host="ranna.aelsir.sd" />
                 <data android:scheme="https" />
             </intent-filter>
+
+            <!-- Custom scheme for Supabase magic-link callback.
+                 Primary flow for auth because it works without App Links
+                 verification (no digital-asset-links file required). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sd.aelsir.ranna" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
