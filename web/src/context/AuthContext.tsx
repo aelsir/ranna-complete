@@ -122,13 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.is_anonymous]);
 
-  const signInWithMagicLink = async (email: string) => {
-    // If the user is currently anonymous, upgrade via updateUser so Supabase
-    // preserves the UUID. Otherwise send a plain magic link.
-    if (user?.is_anonymous) {
-      const { error } = await supabase.auth.updateUser({ email });
-      return { error: error as Error | null };
-    }
+  const sendPlainMagicLink = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -137,6 +131,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     return { error: error as Error | null };
+  };
+
+  const signInWithMagicLink = async (email: string) => {
+    // If the user is currently anonymous, try upgrading via updateUser so
+    // Supabase preserves the UUID and carries anon data forward.
+    if (user?.is_anonymous) {
+      const { error } = await supabase.auth.updateUser({ email });
+      if (!error) return { error: null };
+
+      // Fallback: the email is already bound to a different auth.users row
+      // (common for admins/superusers who signed up before this flow
+      // existed). Send a plain magic link so they can sign into their
+      // existing account instead of surfacing a hard error.
+      const msg = (error.message || "").toLowerCase();
+      const emailAlreadyInUse =
+        msg.includes("already been registered") ||
+        msg.includes("already registered") ||
+        msg.includes("already exists") ||
+        msg.includes("email address is already") ||
+        msg.includes("user already registered");
+      if (emailAlreadyInUse) {
+        return sendPlainMagicLink(email);
+      }
+      return { error: error as Error | null };
+    }
+    return sendPlainMagicLink(email);
   };
 
   const signOut = async () => {

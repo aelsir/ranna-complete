@@ -146,17 +146,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<({Object? error})> signInWithMagicLink(String email) async {
     try {
       if (state.isAnonymous) {
-        await _client.auth.updateUser(UserAttributes(email: email));
-      } else {
-        await _client.auth.signInWithOtp(
-          email: email,
-          emailRedirectTo: 'sd.aelsir.ranna://auth/callback',
-        );
+        try {
+          await _client.auth.updateUser(UserAttributes(email: email));
+          return (error: null);
+        } catch (e) {
+          // If the email is already bound to another auth.users row (common
+          // for admins who pre-existed this flow), fall back to a plain
+          // magic-link so the user can sign into THAT existing account.
+          if (_isEmailAlreadyInUse(e)) {
+            await _sendPlainMagicLink(email);
+            return (error: null);
+          }
+          rethrow;
+        }
       }
+      await _sendPlainMagicLink(email);
       return (error: null);
     } catch (e) {
       return (error: e);
     }
+  }
+
+  Future<void> _sendPlainMagicLink(String email) {
+    return _client.auth.signInWithOtp(
+      email: email,
+      emailRedirectTo: 'sd.aelsir.ranna://auth/callback',
+    );
+  }
+
+  bool _isEmailAlreadyInUse(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('already been registered') ||
+        msg.contains('already registered') ||
+        msg.contains('already exists') ||
+        msg.contains('email address is already') ||
+        msg.contains('user already registered') ||
+        msg.contains('email_exists');
   }
 
   /// Sign out and immediately bootstrap a fresh anonymous session. Users are
