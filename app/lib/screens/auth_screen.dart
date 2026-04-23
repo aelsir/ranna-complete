@@ -137,7 +137,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             onPressed: () => context.canPop() ? context.pop() : context.go('/account'),
           ),
           title: Text(
-            'تسجيل الدخول',
+            'تسجيل حساب جديد',
             style: TextStyle(
               fontFamily: RannaTheme.fontFustat,
               fontSize: 18,

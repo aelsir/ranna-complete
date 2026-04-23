@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +9,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/theme/app_theme.dart';
+
+final _loginEmailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+const _loginCooldownSeconds = 60;
 
 class AccountScreen extends ConsumerStatefulWidget {
   const AccountScreen({super.key});
@@ -17,6 +23,59 @@ class AccountScreen extends ConsumerStatefulWidget {
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   bool _notificationsEnabled = true;
   bool _signingOut = false;
+
+  // Inline login (email only) — for returning users who just want a magic
+  // link without re-entering profile data. New users tap "إنشاء حساب جديد"
+  // which pushes the full /auth registration form.
+  final _loginEmailController = TextEditingController();
+  bool _loginLoading = false;
+  bool _loginSent = false;
+  String? _loginError;
+  int _loginCooldown = 0;
+  Timer? _loginCooldownTimer;
+
+  @override
+  void dispose() {
+    _loginEmailController.dispose();
+    _loginCooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLoginCooldown() {
+    _loginCooldownTimer?.cancel();
+    setState(() => _loginCooldown = _loginCooldownSeconds);
+    _loginCooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        _loginCooldown--;
+        if (_loginCooldown <= 0) t.cancel();
+      });
+    });
+  }
+
+  Future<void> _handleInlineLogin() async {
+    final email = _loginEmailController.text.trim();
+    setState(() => _loginError = null);
+    if (!_loginEmailRe.hasMatch(email)) {
+      setState(() => _loginError = 'بريد إلكتروني غير صحيح');
+      return;
+    }
+    setState(() => _loginLoading = true);
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .signInWithMagicLink(email);
+    if (!mounted) return;
+    setState(() => _loginLoading = false);
+    if (result.error != null) {
+      setState(() => _loginError = result.error.toString());
+      return;
+    }
+    setState(() => _loginSent = true);
+    _startLoginCooldown();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +100,74 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Profile card
-            _buildProfileCard(context),
-            const SizedBox(height: 28),
+            // Anon users get a drastically simplified screen: avatar + inline
+            // login + "create account" link. No menu, no logout.
+            if (!isRealUser) ...[
+              const SizedBox(height: 12),
+              _buildAnonAuthView(context),
+            ] else ...[
+              // Profile card
+              _buildProfileCard(context),
+              const SizedBox(height: 28),
+              ..._buildAuthedMenus(context),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildAnonAuthView(BuildContext context) {
+    return Column(
+      children: [
+        // Avatar (guest)
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: RannaTheme.primary.withValues(alpha: 0.1),
+            border: Border.all(
+              color: RannaTheme.primary.withValues(alpha: 0.2),
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              'ز',
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+                color: RannaTheme.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'زائر',
+          style: TextStyle(
+            fontFamily: RannaTheme.fontFustat,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: RannaTheme.foreground,
+          ),
+        ),
+        const SizedBox(height: 32),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: _buildInlineLogin(context),
+        ),
+      ],
+    )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .slideY(begin: 0.04, end: 0, duration: 300.ms, curve: Curves.easeOut);
+  }
+
+  List<Widget> _buildAuthedMenus(BuildContext context) {
+    return [
             // Activity section
             _buildSectionTitle('نشاطي', 0),
             const SizedBox(height: 8),
@@ -74,16 +197,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             _buildSectionTitle('الإعدادات', 4),
             const SizedBox(height: 8),
             _buildMenuContainer([
-              // Profile-edit entry is only meaningful when the user has a
-              // real identity. Anonymous users haven't signed up yet.
-              if (isRealUser)
-                _MenuItemData(
-                  icon: Icons.person_rounded,
-                  label: 'بيانات الحساب',
-                  description: 'الاسم والدولة ورقم الجوال',
-                  delay: 5,
-                  onTap: () => context.push('/account/edit'),
-                ),
+              _MenuItemData(
+                icon: Icons.person_rounded,
+                label: 'بيانات الحساب',
+                description: 'الاسم والدولة ورقم الجوال',
+                delay: 5,
+                onTap: () => context.push('/account/edit'),
+              ),
               _MenuItemData(
                 icon: Icons.notifications_rounded,
                 label: 'الإشعارات',
@@ -112,10 +232,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
+    ];
   }
 
   Widget _buildProfileCard(BuildContext context) {
@@ -138,100 +255,280 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
         border: Border.all(color: RannaTheme.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Avatar
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: RannaTheme.primary.withValues(alpha: 0.2),
-                width: 2,
-              ),
-            ),
-            child: Center(
-              child: Text(
-                avatarLabel,
-                style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: RannaTheme.primary,
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: RannaTheme.primary.withValues(alpha: 0.2),
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    avatarLabel,
+                    style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: RannaTheme.primary,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
+              const SizedBox(width: 16),
 
-          // Name and subtitle
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: RannaTheme.foreground,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  overflow: TextOverflow.ellipsis,
-                  textDirection: isRealUser
-                      ? TextDirection.ltr
-                      : TextDirection.rtl,
-                  style: TextStyle(fontFamily: RannaTheme.fontNotoNaskh,
-                    fontSize: 13,
-                    color: RannaTheme.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Login button (only for anonymous / no-session users)
-          if (!isRealUser)
-            Material(
-              color: RannaTheme.primary,
-              borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
-                onTap: () => context.push('/auth'),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.login_rounded,
-                        size: 18,
-                        color: RannaTheme.primaryForeground,
+              // Name and subtitle
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: RannaTheme.fontFustat,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: RannaTheme.foreground,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'دخول',
-                        style: TextStyle(fontFamily: RannaTheme.fontFustat,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: RannaTheme.primaryForeground,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      overflow: TextOverflow.ellipsis,
+                      textDirection: isRealUser
+                          ? TextDirection.ltr
+                          : TextDirection.rtl,
+                      style: TextStyle(fontFamily: RannaTheme.fontNotoNaskh,
+                        fontSize: 13,
+                        color: RannaTheme.mutedForeground,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
+          ),
+
         ],
       ),
     )
         .animate()
         .fadeIn(duration: 300.ms)
         .slideY(begin: 0.05, end: 0, duration: 300.ms, curve: Curves.easeOut);
+  }
+
+  Widget _buildInlineLogin(BuildContext context) {
+    if (_loginSent) {
+      final email = _loginEmailController.text.trim();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+            ),
+            child: const Icon(
+              Icons.mark_email_read_rounded,
+              size: 20,
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'تحقّق من بريدك الإلكتروني',
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: RannaTheme.foreground,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                color: RannaTheme.mutedForeground,
+              ),
+              children: [
+                const TextSpan(text: 'أرسلنا رابط الدخول إلى '),
+                TextSpan(
+                  text: email,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: _loginCooldown > 0
+                ? null
+                : () {
+                    setState(() {
+                      _loginSent = false;
+                      _loginError = null;
+                    });
+                  },
+            child: Text(
+              _loginCooldown > 0
+                  ? 'إعادة الإرسال بعد $_loginCooldown ث'
+                  : 'إرسال إلى بريد آخر',
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'دخول ببريدك الإلكتروني',
+          style: TextStyle(
+            fontFamily: RannaTheme.fontFustat,
+            fontSize: 12,
+            color: RannaTheme.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _loginEmailController,
+          keyboardType: TextInputType.emailAddress,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.left,
+          enabled: !_loginLoading,
+          onSubmitted: (_) => _handleInlineLogin(),
+          style: TextStyle(
+            fontFamily: RannaTheme.fontFustat,
+            fontSize: 14,
+          ),
+          decoration: InputDecoration(
+            hintText: 'example@ranna.app',
+            hintStyle: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 13,
+              color: RannaTheme.mutedForeground,
+            ),
+            prefixIcon: const Icon(Icons.email_rounded, size: 18),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 14,
+            ),
+            filled: true,
+            fillColor: RannaTheme.background,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+              borderSide: BorderSide(
+                color: RannaTheme.border.withValues(alpha: 0.4),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+              borderSide: BorderSide(
+                color: RannaTheme.border.withValues(alpha: 0.3),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+              borderSide: const BorderSide(
+                color: RannaTheme.primary,
+                width: 1.5,
+              ),
+            ),
+          ),
+        ),
+        if (_loginError != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            _loginError!,
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 11,
+              color: RannaTheme.destructive,
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: RannaTheme.primary,
+            borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+              onTap: _loginLoading ? null : _handleInlineLogin,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: _loginLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'دخول',
+                          style: TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: RannaTheme.primaryForeground,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 12,
+                color: RannaTheme.mutedForeground,
+              ),
+              children: [
+                const TextSpan(text: 'أول مرة هنا؟ '),
+                TextSpan(
+                  text: 'إنشاء حساب جديد',
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: RannaTheme.primary,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => context.push('/auth'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildSectionTitle(String title, int animIndex) {

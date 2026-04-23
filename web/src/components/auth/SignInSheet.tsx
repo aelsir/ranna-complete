@@ -24,10 +24,14 @@ interface SignInSheetProps {
 }
 
 /**
- * Arabic-RTL magic-link sign-in modal. Collects display name, country,
- * phone (optional) + email and calls `signInWithMagicLink(email, profile)`
- * from AuthContext — which either attaches email+metadata to the current
- * anonymous user (preserving UUID) or sends a plain magic-link OTP.
+ * Arabic-RTL registration modal. This sheet is specifically for NEW users
+ * signing up for رنّة — returning users use the inline email login on
+ * `MyAccountPage`. Collects display name, country, phone (optional) +
+ * email and calls `signInWithMagicLink(email, profile)` from AuthContext.
+ *
+ * If the email turns out to be already registered, the context falls
+ * back to a plain magic link (profile metadata discarded) so the user
+ * still lands in their existing account.
  *
  * Re-send is rate-limited to 60 seconds to match Supabase's rate limiter.
  */
@@ -117,10 +121,10 @@ const SignInSheet = ({ open, onOpenChange }: SignInSheetProps) => {
       <DialogContent dir="rtl" className="sm:max-w-md font-fustat max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-fustat font-bold text-lg">
-            احفظ تفضيلاتك ومفضّلاتك
+            تسجيل حساب جديد في رنّة
           </DialogTitle>
           <DialogDescription className="font-fustat text-xs">
-            سنرسل لك رابط دخول — لا حاجة لكلمة مرور.
+            احفظ تفضيلاتك ومفضّلاتك عبر أجهزتك — لا حاجة لكلمة مرور.
           </DialogDescription>
         </DialogHeader>
 
@@ -260,7 +264,7 @@ const SignInSheet = ({ open, onOpenChange }: SignInSheetProps) => {
 
             <Button type="submit" className="w-full gap-2 font-fustat" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? "جاري الإرسال..." : "أرسل الرابط"}
+              {loading ? "جاري الإرسال..." : "أنشئ الحساب وأرسل الرابط"}
             </Button>
           </form>
         )}

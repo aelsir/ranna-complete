@@ -1,0 +1,4 @@
+Version: 2.0.0+13
+Date: 2026-04-23
+What's New:
+Shipping the user authentication to help the user have their data stored.

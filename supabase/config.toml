@@ -118,7 +118,10 @@ subject = "أهلاً بك في رنّة — فعّل حسابك"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.email_change]
-subject = "أكّد بريدك الإلكتروني — رنّة"
+# Sent on any `updateUser({ email })` call — which covers BOTH: (1) new users
+# attaching email to an anonymous session (signup), and (2) real users
+# changing their email later. Copy in the template must work for both.
+subject = "تأكيد بريدك الإلكتروني — رنّة"
 content_path = "./supabase/templates/email_change.html"
 
 [auth.email.template.recovery]
