@@ -21,7 +21,6 @@ import {
   getFeaturedMadhaat,
   getPopularMadhaat,
   getTrendingTracks,
-  logPlayEvent,
   getApprovedMadiheen,
   getMadiheenWithMadhaat,
   getMadihById,
@@ -39,7 +38,6 @@ import {
   getUserFavorites,
   toggleFavorite,
   getListeningHistory,
-  addToListeningHistory,
   getHomePageData,
   createMadha,
   updateMadha,
@@ -262,12 +260,7 @@ export function useTrendingTracks(daysWindow = 7, limit = 10) {
   });
 }
 
-/** Fire-and-forget: log a play event for trending analytics. */
-export function useLogPlayEvent() {
-  return useMutation({
-    mutationFn: (madhaId: string) => logPlayEvent(madhaId),
-  });
-}
+
 
 // ============================================
 // Madiheen hooks
@@ -443,20 +436,7 @@ export function useListeningHistory(userId: string | undefined) {
   });
 }
 
-export function useAddToListeningHistory(userId: string | undefined) {
-  const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (madhaId: string) => addToListeningHistory(userId!, madhaId),
-    onSuccess: () => {
-      if (userId) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.listeningHistory(userId),
-        });
-      }
-    },
-  });
-}
 
 // ============================================
 // Home page hook
