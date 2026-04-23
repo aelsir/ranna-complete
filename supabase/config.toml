@@ -103,10 +103,27 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = true
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# ------------------------------------------------------------------
+# Branded RTL email templates. Mirror these subjects + HTML in the
+# Supabase Cloud Dashboard (Auth → Email Templates) — the `content_path`
+# field here only applies to `supabase start` local dev.
+# ------------------------------------------------------------------
+
+[auth.email.template.magic_link]
+subject = "رابط تسجيل الدخول إلى رنّة"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "أهلاً بك في رنّة — فعّل حسابك"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.email_change]
+subject = "أكّد بريدك الإلكتروني — رنّة"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.recovery]
+subject = "استعادة الوصول إلى حسابك — رنّة"
+content_path = "./supabase/templates/recovery.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
