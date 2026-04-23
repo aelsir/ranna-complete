@@ -364,45 +364,17 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     }
   }
 
-  /// Logs a play event to Supabase for trending calculations,
-  /// increments play_count, and records listening history.
-  /// If Supabase is unreachable, queues actions for later sync.
+  /// Increments play_count on the track.
+  /// If Supabase is unreachable, queues the action for later sync.
+  /// Trending and listening history are now derived from user_plays.
   void _logPlayEvent(String trackId) async {
     try {
       final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
 
-      // 1. Log play event (trending analytics)
-      final playData = <String, dynamic>{'track_id': trackId};
-      if (userId != null) playData['user_id'] = userId;
-      try {
-        await supabase.from('play_events').insert(playData);
-      } catch (_) {
-        await LocalDb.enqueueAction('play_event', playData);
-      }
-
-      // 2. Increment play_count on the track
       try {
         await supabase.rpc('increment_play_count', params: {'p_madha_id': trackId});
       } catch (_) {
         await LocalDb.enqueueAction('increment_play_count', {'p_madha_id': trackId});
-      }
-
-      // 3. Record listening history (if authenticated)
-      if (userId != null) {
-        final historyData = {
-          'user_id': userId,
-          'track_id': trackId,
-          'listened_at': DateTime.now().toUtc().toIso8601String(),
-        };
-        try {
-          await supabase.from('listening_history').upsert(
-            historyData,
-            onConflict: 'user_id,track_id',
-          );
-        } catch (_) {
-          await LocalDb.enqueueAction('listening_history', historyData);
-        }
       }
     } catch (_) {
       // Non-critical — don't interrupt playback

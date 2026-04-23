@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useRef, useEffect, ReactNode, useCallback, useMemo } from "react";
 import { trackEvent } from "@/lib/analytics";
-import { recordPlay, addToListeningHistory, logPlayEvent } from "@/lib/api/queries";
+import { recordPlay } from "@/lib/api/queries";
 import { supabase } from "@/lib/supabase";
 
 interface PlayerContextType {
@@ -94,7 +94,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [sleepEndTime, setSleepEndTime] = useState<number | null>(null);
 
   const lastSaveRef = useRef<number>(0);
-  const playStartRef = useRef<{ trackId: string; startTime: number; historyLogged: boolean } | null>(null);
+  const playStartRef = useRef<{ trackId: string; startTime: number } | null>(null);
 
   /**
    * Record the currently-playing track to the `user_plays` analytics table.
@@ -286,29 +286,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (!nowPlayingId) return;
 
     // Record play start for duration tracking
-    playStartRef.current = { trackId: nowPlayingId, startTime: Date.now(), historyLogged: false };
-
-    // Fire-and-forget: log play event for trending
-    logPlayEvent(nowPlayingId).catch(() => {});
+    playStartRef.current = { trackId: nowPlayingId, startTime: Date.now() };
 
     // PostHog event
     trackEvent("track_played", { track_id: nowPlayingId });
 
-    // Log listening history after 5 seconds (avoid accidental taps)
-    const historyTimer = setTimeout(async () => {
-      if (playStartRef.current?.trackId === nowPlayingId && !playStartRef.current.historyLogged) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user?.id) {
-            addToListeningHistory(session.user.id, nowPlayingId).catch(() => {});
-            playStartRef.current.historyLogged = true;
-          }
-        } catch {}
-      }
-    }, 5000);
-
     return () => {
-      clearTimeout(historyTimer);
       // Track is changing (or provider unmounting). If onEnded already
       // recorded a completed play it cleared playStartRef.current — so this
       // cleanup only fires for tracks the user switched away from mid-play.

@@ -42,17 +42,8 @@ class SyncService {
                   .eq('user_id', payload['user_id'] as String)
                   .eq('track_id', payload['track_id'] as String);
 
-            case 'play_event':
-              await supabase.from('play_events').insert(payload);
-
             case 'increment_play_count':
               await supabase.rpc('increment_play_count', params: payload);
-
-            case 'listening_history':
-              await supabase.from('listening_history').upsert(
-                payload,
-                onConflict: 'user_id,track_id',
-              );
 
             case 'user_play':
               await supabase.from('user_plays').insert(payload);

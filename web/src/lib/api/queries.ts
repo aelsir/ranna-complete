@@ -365,17 +365,7 @@ export async function getTrendingTracks(
   return getPopularMadhaat(limit);
 }
 
-/**
- * Log a play event for trending analytics. Fire-and-forget.
- */
-export async function logPlayEvent(madhaId: string): Promise<void> {
-  const userId = supabase.auth.getUser
-    ? (await supabase.auth.getUser()).data.user?.id
-    : null;
-  const row: Record<string, string> = { track_id: madhaId };
-  if (userId) row.user_id = userId;
-  await supabase.from("play_events").insert(row).throwOnError();
-}
+// logPlayEvent removed — trending is now derived from user_plays
 
 // ============================================
 // Madiheen (artists/performers)
@@ -712,9 +702,9 @@ const MAX_HISTORY_ITEMS = 10;
 export async function getListeningHistory(
   userId: string
 ): Promise<MadhaWithRelations[]> {
-  // Get history IDs in order, then fetch from v_tracks
+  // Use v_recent_listens view (derived from user_plays)
   const { data: historyData, error: historyError } = await supabase
-    .from("listening_history")
+    .from("v_recent_listens")
     .select("track_id")
     .eq("user_id", userId)
     .order("listened_at", { ascending: false })
@@ -738,21 +728,7 @@ export async function getListeningHistory(
     .filter(Boolean) as unknown as MadhaWithRelations[];
 }
 
-export async function addToListeningHistory(
-  userId: string,
-  madhaId: string
-): Promise<void> {
-  const { error } = await supabase.from("listening_history").upsert(
-    {
-      user_id: userId,
-      track_id: madhaId,
-      listened_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,track_id" }
-  );
-
-  if (error) throw error;
-}
+// addToListeningHistory removed — listening history is now derived from user_plays
 
 // ============================================
 // User Plays (analytics)
@@ -882,7 +858,7 @@ export async function deleteMadhaat(ids: string[]): Promise<void> {
     await deleteFromStorage(urlsToDelete).catch(console.error);
   }
 
-  // Related records (user_favorites, listening_history, user_plays, collection_items) 
+  // Related records (user_favorites, user_plays, collection_items) 
   // should ideally cascade, but we delete from madha table directly
   const { error } = await supabase.from("madha").delete().in("id", ids);
   if (error) throw error;
@@ -1188,11 +1164,8 @@ export interface TrendingTrack {
 }
 
 /** Top N tracks by play count in the last `days` days.
- *  Uses the SECURITY DEFINER RPC `get_trending_tracks` so it bypasses RLS
- *  (the play_events table lacks an admin SELECT policy, so a direct query
- *  would come back empty for non-superuser roles). Play counts are then
- *  supplemented from play_events; if that read is blocked by RLS, we still
- *  render the ranked list without the numeric count. */
+ *  Uses the SECURITY DEFINER RPC `get_trending_tracks` so it bypasses RLS.
+ *  Play counts are supplemented from user_plays. */
 export async function getTrendingThisWeek(days = 7, limit = 5): Promise<TrendingTrack[]> {
   // 1. Get the ranked track list via the RPC (bypasses RLS).
   const { data: rpcData, error: rpcErr } = await supabase.rpc("get_trending_tracks", {
@@ -1205,7 +1178,7 @@ export async function getTrendingThisWeek(days = 7, limit = 5): Promise<Trending
   const tracks = (rpcData || []) as unknown as TrackRow[];
   if (tracks.length === 0) return [];
 
-  // 2. Supplement with play counts from play_events (may be blocked by RLS — that's fine).
+  // 2. Supplement with play counts from user_plays.
   const counts = new Map<string, number>();
   try {
     const start = new Date();
@@ -1218,12 +1191,12 @@ export async function getTrendingThisWeek(days = 7, limit = 5): Promise<Trending
     let offset = 0;
     while (true) {
       const { data, error } = await supabase
-        .from("play_events")
+        .from("user_plays")
         .select("track_id")
         .in("track_id", ids)
         .gte("played_at", start.toISOString())
         .range(offset, offset + PAGE_SIZE - 1);
-      if (error) break; // likely RLS; degrade gracefully
+      if (error) break;
       if (!data || data.length === 0) break;
       events.push(...(data as unknown as { track_id: string }[]));
       if (data.length < PAGE_SIZE) break;

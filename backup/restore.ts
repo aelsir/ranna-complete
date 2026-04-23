@@ -58,7 +58,6 @@ const TABLES: {
   { name: "madha", onConflict: "id", stripColumns: ["user_id", "reviewed_by"] },
   { name: "collections", onConflict: "id", stripColumns: ["user_id"] },
   { name: "collection_items", onConflict: "collection_id,madha_id", stripColumns: [] },
-  { name: "play_events", onConflict: "id", stripColumns: ["user_id"] },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────

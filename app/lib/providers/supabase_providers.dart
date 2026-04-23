@@ -268,7 +268,7 @@ final listeningHistoryProvider = FutureProvider<List<MadhaWithRelations>>((ref) 
 
     // Fetch the 10 most recently listened tracks
     final dynamic historyRows = await supabase
-        .from('listening_history')
+        .from('v_recent_listens')
         .select('track_id')
         .eq('user_id', user.id)
         .order('listened_at', ascending: false)

@@ -91,8 +91,6 @@ const DB_TABLES = [
   "user_profiles",
   "user_favorites",
   "user_plays",
-  "listening_history",
-  "play_events",
   "user_roles",
   "pending_imports",
   // Stripe tables (less critical but included)

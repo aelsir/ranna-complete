@@ -56,11 +56,7 @@ export type Database = {
         Insert: UserPlayInsert;
         Update: Partial<UserPlayInsert>;
       };
-      listening_history: {
-        Row: ListeningHistory;
-        Insert: ListeningHistoryInsert;
-        Update: Partial<ListeningHistoryInsert>;
-      };
+      // listening_history table removed — use v_recent_listens view instead
       pending_imports: {
         Row: PendingImport;
         Insert: PendingImportInsert;
@@ -354,21 +350,8 @@ export interface UserPlayInsert {
   device_type?: string | null;
 }
 
-// ============================================
-// Listening History
-// ============================================
-
-export interface ListeningHistory {
-  id: string;
-  user_id: string;
-  madha_id: string;
-  listened_at: string;
-}
-
-export interface ListeningHistoryInsert {
-  user_id: string;
-  madha_id: string;
-}
+// ListeningHistory table removed — listening history is now derived
+// from user_plays via the v_recent_listens database view.
 
 // ============================================
 // Pending Imports
