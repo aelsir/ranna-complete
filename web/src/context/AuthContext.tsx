@@ -16,11 +16,23 @@ interface AuthContextType {
   isAdmin: boolean;
   /**
    * Send a magic-link email. If the user is currently anonymous, this calls
-   * `updateUser({ email })` which ADDS an email identity to the existing anon
-   * user — preserving their UUID and any server-side data. Otherwise falls
-   * back to a plain magic-link sign-in.
+   * `updateUser({ email, data })` which ADDS an email identity to the
+   * existing anon user — preserving their UUID and any server-side data.
+   * Optional `profile` fields (displayName, country, phoneNumber) are
+   * stored on `auth.users.raw_user_meta_data` and copied into
+   * `user_profiles` in the callback page.
+   *
+   * If the email is already bound to another account, falls back to a plain
+   * magic link (metadata discarded — the existing account's profile wins).
    */
-  signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
+  signInWithMagicLink: (
+    email: string,
+    profile?: {
+      displayName?: string;
+      country?: string;
+      phoneNumber?: string;
+    },
+  ) => Promise<{ error: Error | null }>;
   /**
    * Sign out and immediately bootstrap a fresh anonymous session so the user
    * is never in a null-session state (favorites/history keep working anon).
@@ -133,17 +145,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signInWithMagicLink = async (email: string) => {
+  const buildMetadata = (profile?: {
+    displayName?: string;
+    country?: string;
+    phoneNumber?: string;
+  }): Record<string, string> | undefined => {
+    if (!profile) return undefined;
+    const out: Record<string, string> = {};
+    const name = profile.displayName?.trim();
+    if (name) out.display_name = name;
+    const country = profile.country?.trim();
+    if (country) out.country = country;
+    const phone = profile.phoneNumber?.trim();
+    if (phone) out.phone_number = phone;
+    return Object.keys(out).length > 0 ? out : undefined;
+  };
+
+  const signInWithMagicLink = async (
+    email: string,
+    profile?: {
+      displayName?: string;
+      country?: string;
+      phoneNumber?: string;
+    },
+  ) => {
     // If the user is currently anonymous, try upgrading via updateUser so
     // Supabase preserves the UUID and carries anon data forward.
     if (user?.is_anonymous) {
-      const { error } = await supabase.auth.updateUser({ email });
+      const data = buildMetadata(profile);
+      const { error } = await supabase.auth.updateUser({
+        email,
+        ...(data ? { data } : {}),
+      });
       if (!error) return { error: null };
 
       // Fallback: the email is already bound to a different auth.users row
       // (common for admins/superusers who signed up before this flow
       // existed). Send a plain magic link so they can sign into their
-      // existing account instead of surfacing a hard error.
+      // existing account instead of surfacing a hard error. Their typed
+      // metadata is dropped — they shouldn't overwrite another account's
+      // profile by typing at a login prompt.
       const msg = (error.message || "").toLowerCase();
       const emailAlreadyInUse =
         msg.includes("already been registered") ||

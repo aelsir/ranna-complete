@@ -32,9 +32,9 @@ const Navbar = () => {
           <Button variant="ghost" onClick={() => navigate("/favorites")} className="rounded-full font-fustat text-sm text-muted-foreground px-4 h-8">
             مُختاراتي
           </Button>
-          {/* <Button variant="ghost" onClick={() => navigate("/account")} className="rounded-full font-fustat text-sm text-muted-foreground px-4 h-8">
+          <Button variant="ghost" onClick={() => navigate("/account")} className="rounded-full font-fustat text-sm text-muted-foreground px-4 h-8">
             زاويتي
-          </Button> */}
+          </Button>
         </div>
       </div>
     </nav>

@@ -6,7 +6,7 @@ const tabs = [
   { label: "السَّاحة", icon: Home, path: "/" },
   { label: "فتّش", icon: Search, path: "/search" },
   { label: "مُختاراتي", icon: Heart, path: "/favorites" },
-  // { label: "زاويتي", icon: UserCircle, path: "/account" },
+  { label: "زاويتي", icon: UserCircle, path: "/account" },
 ];
 
 const BottomTabs = () => {

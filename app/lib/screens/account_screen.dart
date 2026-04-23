@@ -20,6 +20,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authNotifierProvider);
+    final isRealUser = auth.user != null && !auth.isAnonymous;
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -71,18 +74,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             _buildSectionTitle('الإعدادات', 4),
             const SizedBox(height: 8),
             _buildMenuContainer([
-              _MenuItemData(
-                icon: Icons.person_rounded,
-                label: 'بيانات الحساب',
-                description: 'الاسم والبريد الإلكتروني',
-                delay: 5,
-              ),
-              _MenuItemData(
-                icon: Icons.lock_rounded,
-                label: 'كلمة المرور',
-                description: 'تغيير كلمة المرور',
-                delay: 6,
-              ),
+              // Profile-edit entry is only meaningful when the user has a
+              // real identity. Anonymous users haven't signed up yet.
+              if (isRealUser)
+                _MenuItemData(
+                  icon: Icons.person_rounded,
+                  label: 'بيانات الحساب',
+                  description: 'الاسم والدولة ورقم الجوال',
+                  delay: 5,
+                  onTap: () => context.push('/account/edit'),
+                ),
               _MenuItemData(
                 icon: Icons.notifications_rounded,
                 label: 'الإشعارات',
@@ -301,7 +302,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
-          onTap: item.isToggle ? null : () {},
+          onTap: item.isToggle ? null : item.onTap,
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 0),
             child: Row(
@@ -480,6 +481,7 @@ class _MenuItemData {
   final String description;
   final int delay;
   final bool isToggle;
+  final VoidCallback? onTap;
 
   const _MenuItemData({
     required this.icon,
@@ -487,5 +489,6 @@ class _MenuItemData {
     required this.description,
     required this.delay,
     this.isToggle = false,
+    this.onTap,
   });
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User, Lock, Bell, ChevronLeft, LogIn, Heart, Clock, Headphones, LogOut } from "lucide-react";
+import { User, Bell, ChevronLeft, LogIn, Heart, Clock, Headphones, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -10,24 +10,50 @@ import Navbar from "@/components/Navbar";
 import SignInSheet from "@/components/auth/SignInSheet";
 import { useAuth } from "@/context/AuthContext";
 
-const menuSections = [
-  {
-    title: "نشاطي",
-    items: [
-      { icon: Heart, label: "مُختاراتي", desc: "المدائح المحفوظة", path: "/favorites" },
-      { icon: Clock, label: "سجل الاستماع", desc: "آخر ما استمعت إليه", path: "/listening-history" },
-      { icon: Headphones, label: "إحصائيات الاستماع", desc: "عدد مرات التشغيل والمدة", path: "/listening-stats" },
-    ],
-  },
-  {
-    title: "الإعدادات",
-    items: [
-      { icon: User, label: "بيانات الحساب", desc: "الاسم، البريد الإلكتروني" },
-      { icon: Lock, label: "كلمة المرور", desc: "تغيير كلمة المرور" },
-      { icon: Bell, label: "الإشعارات", desc: "تفضيلات التنبيهات", toggle: true },
-    ],
-  },
-];
+type MenuItem = {
+  icon: typeof Heart;
+  label: string;
+  desc: string;
+  path?: string;
+  toggle?: boolean;
+};
+
+type MenuSection = {
+  title: string;
+  items: MenuItem[];
+};
+
+function buildMenuSections(opts: { isRealUser: boolean }): MenuSection[] {
+  const settingsItems: MenuItem[] = [
+    // Profile-edit entry is only meaningful once the user has a real
+    // identity. Anonymous users haven't signed up yet.
+    ...(opts.isRealUser
+      ? [
+          {
+            icon: User,
+            label: "بيانات الحساب",
+            desc: "الاسم والدولة ورقم الجوال",
+            path: "/account/edit",
+          } satisfies MenuItem,
+        ]
+      : []),
+    { icon: Bell, label: "الإشعارات", desc: "تفضيلات التنبيهات", toggle: true },
+  ];
+  return [
+    {
+      title: "نشاطي",
+      items: [
+        { icon: Heart, label: "مُختاراتي", desc: "المدائح المحفوظة", path: "/favorites" },
+        { icon: Clock, label: "سجل الاستماع", desc: "آخر ما استمعت إليه", path: "/listening-history" },
+        { icon: Headphones, label: "إحصائيات الاستماع", desc: "عدد مرات التشغيل والمدة", path: "/listening-stats" },
+      ],
+    },
+    {
+      title: "الإعدادات",
+      items: settingsItems,
+    },
+  ];
+}
 
 const container = {
   hidden: {},
@@ -51,6 +77,8 @@ const MyAccountPage = () => {
     : "زائر";
   const avatarLabel = isRealUser ? (displayName[0] || "?").toUpperCase() : "ز";
   const subtitle = isRealUser ? user.email ?? "" : "لم يتم تسجيل الدخول";
+
+  const menuSections = buildMenuSections({ isRealUser });
 
   const handleSignOut = async () => {
     setSigningOut(true);

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/theme/app_theme.dart';
 
@@ -23,6 +25,31 @@ class AuthCallbackScreen extends ConsumerStatefulWidget {
 class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
   Timer? _timeoutTimer;
   bool _timedOut = false;
+  bool _profileSynced = false;
+
+  /// Copy `display_name` + `country` from `raw_user_meta_data` into
+  /// `user_profiles` right after the session upgrades. Phone stays in
+  /// metadata only — no column for it. Non-blocking: user is already
+  /// authenticated, this is best-effort sync.
+  Future<void> _syncProfileFromMetadata(User user) async {
+    if (_profileSynced) return;
+    _profileSynced = true;
+    try {
+      final meta = user.userMetadata ?? const {};
+      final update = <String, dynamic>{'id': user.id};
+      final name = (meta['display_name'] as String?)?.trim();
+      if (name != null && name.isNotEmpty) update['display_name'] = name;
+      final country = (meta['country'] as String?)?.trim();
+      if (country != null && country.isNotEmpty) update['country'] = country;
+      // Only upsert if there's something to sync beyond the id.
+      if (update.length <= 1) return;
+      await Supabase.instance.client
+          .from('user_profiles')
+          .upsert(update, onConflict: 'id');
+    } catch (e) {
+      debugPrint('[auth_callback] profile sync failed: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -41,9 +68,14 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // React to auth state — once we have a non-anonymous session, navigate.
+    // React to auth state — once we have a non-anonymous session, sync
+    // profile metadata then navigate.
     ref.listen<AuthState>(authNotifierProvider, (prev, next) {
-      if (next.user != null && !next.isAnonymous && mounted) {
+      final user = next.user;
+      if (user != null && !next.isAnonymous && mounted) {
+        // Fire-and-forget: navigation doesn't wait for the upsert so a
+        // slow/failed DB write never blocks the user.
+        unawaited(_syncProfileFromMetadata(user));
         context.go('/account');
       }
     });

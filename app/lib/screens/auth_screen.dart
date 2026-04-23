@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:ranna/constants/countries.dart';
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/theme/app_theme.dart';
 
@@ -27,7 +28,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   static const _cooldownSeconds = 60;
 
   final _emailController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  String _country = defaultCountryCode;
   bool _sent = false;
   bool _loading = false;
   String? _error;
@@ -37,6 +41,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   void dispose() {
     _emailController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
   }
@@ -63,9 +69,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _error = null;
     });
     final email = _emailController.text.trim();
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
     final result = await ref
         .read(authNotifierProvider.notifier)
-        .signInWithMagicLink(email);
+        .signInWithMagicLink(
+          email,
+          displayName: name.isEmpty ? null : name,
+          country: _country,
+          phoneNumber: phone.isEmpty ? null : phone,
+        );
     if (!mounted) return;
     setState(() => _loading = false);
     if (result.error != null) {
@@ -74,6 +87,40 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
     setState(() => _sent = true);
     _startCooldown();
+  }
+
+  InputDecoration _fieldDecoration({
+    required String label,
+    String? hint,
+    IconData? icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 13),
+      hintText: hint,
+      hintStyle: TextStyle(
+        fontFamily: RannaTheme.fontFustat,
+        fontSize: 13,
+        color: RannaTheme.mutedForeground,
+      ),
+      prefixIcon: icon == null ? null : Icon(icon, size: 20),
+      filled: true,
+      fillColor: RannaTheme.card,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+        borderSide:
+            BorderSide(color: RannaTheme.border.withValues(alpha: 0.4)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+        borderSide:
+            BorderSide(color: RannaTheme.border.withValues(alpha: 0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+        borderSide: const BorderSide(color: RannaTheme.primary, width: 1.5),
+      ),
+    );
   }
 
   @override
@@ -99,9 +146,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           ),
         ),
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: _sent ? _buildSentState() : _buildFormState(),
+        body: SafeArea(
+          child: _sent
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                  child: _buildSentState(),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                  child: _buildFormState(),
+                ),
         ),
       ),
     );
@@ -113,9 +167,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
-            'أدخل بريدك الإلكتروني',
+            'احفظ تفضيلاتك ومفضّلاتك',
             style: TextStyle(
               fontFamily: RannaTheme.fontFustat,
               fontSize: 22,
@@ -125,45 +179,103 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'سنرسل لك رابط دخول. لا حاجة لكلمة مرور.',
+            'سنرسل لك رابط دخول — لا حاجة لكلمة مرور.',
             style: TextStyle(
               fontFamily: RannaTheme.fontFustat,
               fontSize: 13,
               color: RannaTheme.mutedForeground,
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          // Display name
+          TextFormField(
+            controller: _nameController,
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.right,
+            style: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 15),
+            decoration: _fieldDecoration(
+              label: 'الاسم',
+              icon: Icons.person_rounded,
+            ),
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (v.isEmpty) return 'الاسم مطلوب';
+              if (v.length < 2) return 'الاسم قصير جداً';
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+          // Country
+          DropdownButtonFormField<String>(
+            initialValue: _country,
+            isExpanded: true,
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 15,
+              color: RannaTheme.foreground,
+            ),
+            decoration: _fieldDecoration(
+              label: 'الدولة',
+              icon: Icons.public_rounded,
+            ),
+            items: [
+              ...countriesPriority.map(
+                (c) => DropdownMenuItem(
+                  value: c.code,
+                  child: Text(c.label),
+                ),
+              ),
+              // Visual divider between priority and rest
+              const DropdownMenuItem(
+                enabled: false,
+                child: Divider(height: 1),
+              ),
+              ...countriesRest.map(
+                (c) => DropdownMenuItem(
+                  value: c.code,
+                  child: Text(c.label),
+                ),
+              ),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _country = v);
+            },
+          ),
+          const SizedBox(height: 14),
+          // Phone (optional)
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            textDirection: TextDirection.ltr,
+            textAlign: TextAlign.left,
+            style: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 15),
+            decoration: _fieldDecoration(
+              label: 'رقم الجوال (اختياري)',
+              hint: '+249...',
+              icon: Icons.phone_rounded,
+            ),
+            validator: (value) {
+              final v = (value ?? '').trim();
+              if (v.isEmpty) return null; // optional
+              if (!RegExp(r'^\+?[0-9\s\-()]{6,20}$').hasMatch(v)) {
+                return 'رقم غير صحيح';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+          // Email
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             textDirection: TextDirection.ltr,
             textAlign: TextAlign.left,
-            autofocus: true,
             style: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 15),
-            decoration: InputDecoration(
-              labelText: 'البريد الإلكتروني',
-              labelStyle: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 13),
-              hintText: 'example@ranna.app',
-              hintStyle: TextStyle(
-                fontFamily: RannaTheme.fontFustat,
-                fontSize: 13,
-                color: RannaTheme.mutedForeground,
-              ),
-              prefixIcon: const Icon(Icons.email_rounded, size: 20),
-              filled: true,
-              fillColor: RannaTheme.card,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-                borderSide: BorderSide(color: RannaTheme.border.withValues(alpha: 0.4)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-                borderSide: BorderSide(color: RannaTheme.border.withValues(alpha: 0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-                borderSide: const BorderSide(color: RannaTheme.primary, width: 1.5),
-              ),
+            decoration: _fieldDecoration(
+              label: 'البريد الإلكتروني',
+              hint: 'example@ranna.app',
+              icon: Icons.email_rounded,
             ),
             validator: (value) {
               final v = (value ?? '').trim();
@@ -186,7 +298,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          Text(
+            'سنحفظ تفضيلاتك ومفضّلاتك لتعود إليها من أي جهاز.',
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 12,
+              color: RannaTheme.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
@@ -202,7 +323,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ? const SizedBox(
                       height: 18,
                       width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : Text(
                       'أرسل الرابط',

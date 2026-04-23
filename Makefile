@@ -48,19 +48,28 @@ dev-app: sync
 release-app: sync
 	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json --no-tree-shake-icons && flutter install --release
 
-## Build the iOS app for App Store / TestFlight distribution
-build-ipa: sync
-	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store --no-tree-shake-icons
-
 ## Build Android App Bundle (.aab) for Google Play Store with Version Bumping
 build-aab:
 	@bash scripts/build_android.sh
-
-## Build Android APK for direct distribution
-build-apk: sync
-	cd app && flutter build apk --release --dart-define-from-file=env.json
 
 ## Upload to App Store Connect (TestFlight & App Store)
 ## Usage: make upload-ios (Interactive version bump + upload)
 upload-ios:
 	@bash scripts/upload_ios.sh
+
+## Upload to Google Play (Internal/Beta/Production)
+## Usage: make upload-android (Interactive version bump + upload)
+upload-android:
+	@bash scripts/upload_android.sh
+
+
+
+## Not very useful for now
+
+## Build the iOS app for App Store / TestFlight distribution
+build-ipa: sync
+	cd app && flutter build ipa --release --dart-define-from-file=env.json --export-method app-store --no-tree-shake-icons
+
+## Build Android APK for direct distribution
+build-apk: sync
+	cd app && flutter build apk --release --dart-define-from-file=env.json

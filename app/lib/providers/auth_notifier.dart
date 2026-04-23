@@ -139,20 +139,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Request a magic-link email.
   ///
-  /// - Anonymous user → `updateUser({email})` attaches an email identity to
-  ///   the existing anon user. Supabase preserves the UUID so all prior anon
-  ///   data (favorites, plays, history) carries over automatically.
-  /// - Otherwise → plain `signInWithOtp`.
-  Future<({Object? error})> signInWithMagicLink(String email) async {
+  /// - Anonymous user → `updateUser({email, data})` attaches an email
+  ///   identity to the existing anon user. Supabase preserves the UUID so
+  ///   all prior anon data (favorites, plays, history) carries over.
+  ///   Profile fields (displayName, country, phoneNumber) are stored on
+  ///   `auth.users.raw_user_meta_data` and copied into `user_profiles` in
+  ///   the callback page.
+  /// - Returning user (email already registered) → `signInWithOtp` without
+  ///   metadata; the existing account's profile is canonical.
+  /// - Non-anonymous caller → plain `signInWithOtp`.
+  Future<({Object? error})> signInWithMagicLink(
+    String email, {
+    String? displayName,
+    String? country,
+    String? phoneNumber,
+  }) async {
     try {
       if (state.isAnonymous) {
+        final data = _buildMetadata(
+          displayName: displayName,
+          country: country,
+          phoneNumber: phoneNumber,
+        );
         try {
-          await _client.auth.updateUser(UserAttributes(email: email));
+          await _client.auth.updateUser(
+            UserAttributes(
+              email: email,
+              data: data.isEmpty ? null : data,
+            ),
+          );
           return (error: null);
         } catch (e) {
           // If the email is already bound to another auth.users row (common
           // for admins who pre-existed this flow), fall back to a plain
           // magic-link so the user can sign into THAT existing account.
+          // Their typed metadata is dropped — they shouldn't overwrite
+          // another account's profile by typing at a login prompt.
           if (_isEmailAlreadyInUse(e)) {
             await _sendPlainMagicLink(email);
             return (error: null);
@@ -165,6 +187,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       return (error: e);
     }
+  }
+
+  /// Strip null/empty values so we never overwrite existing metadata with
+  /// blanks on subsequent calls.
+  Map<String, dynamic> _buildMetadata({
+    String? displayName,
+    String? country,
+    String? phoneNumber,
+  }) {
+    final map = <String, dynamic>{};
+    final trimmedName = displayName?.trim();
+    if (trimmedName != null && trimmedName.isNotEmpty) {
+      map['display_name'] = trimmedName;
+    }
+    final trimmedCountry = country?.trim();
+    if (trimmedCountry != null && trimmedCountry.isNotEmpty) {
+      map['country'] = trimmedCountry;
+    }
+    final trimmedPhone = phoneNumber?.trim();
+    if (trimmedPhone != null && trimmedPhone.isNotEmpty) {
+      map['phone_number'] = trimmedPhone;
+    }
+    return map;
   }
 
   Future<void> _sendPlainMagicLink(String email) {

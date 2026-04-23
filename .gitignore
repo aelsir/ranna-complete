@@ -34,3 +34,7 @@ deno.lock
 
 # misc
 .obsidian
+# Private keys (Apple & Google signing)
+app/private_keys/
+*.p8
+google-play-service-account.json

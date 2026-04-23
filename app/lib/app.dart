@@ -9,6 +9,7 @@ import 'package:ranna/screens/home_screen.dart';
 import 'package:ranna/screens/search_screen.dart';
 import 'package:ranna/screens/favorites_screen.dart';
 import 'package:ranna/screens/account_screen.dart';
+import 'package:ranna/screens/edit_profile_screen.dart';
 import 'package:ranna/screens/browse_screen.dart';
 import 'package:ranna/screens/profile_screen.dart';
 import 'package:ranna/screens/playlist_screen.dart';
@@ -51,7 +52,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               path: '/',
               builder: (context, state) => const HomeScreen(),
               routes: [
-                GoRoute(path: 'account', builder: (context, state) => const AccountScreen()),
                 GoRoute(path: 'browse', builder: (context, state) => const BrowseScreen()),
                 GoRoute(
                   path: 'profile/:type/:id',
@@ -82,6 +82,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Tab 2: Favorites
           StatefulShellBranch(routes: [
             GoRoute(path: '/favorites', builder: (context, state) => const FavoritesScreen()),
+          ]),
+          // Tab 3: Account (زاويتي)
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/account',
+              builder: (context, state) => const AccountScreen(),
+              routes: [
+                GoRoute(
+                  path: 'edit',
+                  builder: (context, state) => const EditProfileScreen(),
+                ),
+              ],
+            ),
           ]),
         ],
       ),
@@ -292,6 +305,7 @@ class _FloatingBottomNav extends ConsumerWidget {
     _TabData(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'السَّاحة'),
     _TabData(icon: Icons.search_outlined, activeIcon: Icons.search_rounded, label: 'فتّش'),
     _TabData(icon: Icons.favorite_outline_rounded, activeIcon: Icons.favorite_rounded, label: 'مُختاراتي'),
+    _TabData(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'زاويتي'),
   ];
 
   @override

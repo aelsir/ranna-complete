@@ -22,6 +22,7 @@ import AllTariqasPage from "./pages/AllTariqasPage";
 import AllFunoonPage from "./pages/AllFunoonPage";
 import DashboardPage from "./pages/DashboardPage";
 import MyAccountPage from "./pages/MyAccountPage";
+import EditProfilePage from "./pages/EditProfilePage";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 import ListeningHistoryPage from "./pages/ListeningHistoryPage";
 import ListeningStatsPage from "./pages/ListeningStatsPage";
@@ -76,6 +77,7 @@ const App = () => (
               <Route path="/funoon" element={<AllFunoonPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/account" element={<MyAccountPage />} />
+              <Route path="/account/edit" element={<EditProfilePage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/listening-history" element={<ListeningHistoryPage />} />
               <Route path="/listening-stats" element={<ListeningStatsPage />} />

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import type { User } from "@supabase/supabase-js";
 
 /**
  * Handler route for magic-link redirects (`/auth/callback`).
@@ -13,10 +14,37 @@ import { useAuth } from "@/context/AuthContext";
  * session. We just poll `session.user.is_anonymous` until it's false (=
  * email identity attached), then redirect to the account page.
  */
+/**
+ * Copy `display_name` + `country` from `raw_user_meta_data` into
+ * `user_profiles` right after the session upgrades. Phone stays in
+ * metadata only. Non-blocking: user is already authenticated.
+ */
+async function syncProfileFromMetadata(user: User): Promise<void> {
+  try {
+    const meta = user.user_metadata ?? {};
+    const update: Record<string, string> = { id: user.id };
+    const name = typeof meta.display_name === "string" ? meta.display_name.trim() : "";
+    if (name) update.display_name = name;
+    const country = typeof meta.country === "string" ? meta.country.trim() : "";
+    if (country) update.country = country;
+    // Only upsert when there's something beyond the id.
+    if (Object.keys(update).length <= 1) return;
+    const { error } = await supabase
+      .from("user_profiles")
+      .upsert(update, { onConflict: "id" });
+    if (error) {
+      console.error("[auth_callback] profile sync failed", error);
+    }
+  } catch (e) {
+    console.error("[auth_callback] profile sync threw", e);
+  }
+}
+
 const AuthCallbackPage = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
+  const syncedRef = useRef(false);
 
   // Touch `supabase` to keep tree-shaker happy — the import side-effect
   // wires up the auto session recovery.
@@ -27,6 +55,12 @@ const AuthCallbackPage = () => {
   useEffect(() => {
     if (loading) return;
     if (user && !user.is_anonymous) {
+      // Fire-and-forget: navigation doesn't wait for the upsert so a
+      // slow/failed DB write never blocks the user.
+      if (!syncedRef.current) {
+        syncedRef.current = true;
+        void syncProfileFromMetadata(user);
+      }
       // Email identity successfully attached — head home.
       navigate("/account", { replace: true });
     }
