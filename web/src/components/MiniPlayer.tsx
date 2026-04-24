@@ -16,7 +16,7 @@ const ProgressRing = ({ progress, size = 48, stroke = 3 }: { progress: number; s
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <svg width={size} height={size} className="absolute inset-0 -rotate-90">
+    <svg width={size} height={size} className="absolute inset-0 -rotate-90 scale-x-[-1]">
       {/* Background track */}
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-primary-foreground/10" />
       {/* Progress arc */}
@@ -134,19 +134,19 @@ const MiniPlayer = () => {
             <div className="flex items-center gap-2 px-3 py-2.5">
               {/* Right (RTL): Play/Pause with circular progress */}
               <div className="relative shrink-0 h-12 w-12">
-                <ProgressRing progress={progress} size={48} stroke={2.5} />
+                <ProgressRing progress={progress} size={48} stroke={6} />
                 <button
                   onClick={togglePlay}
-                  className="absolute inset-[3px] flex items-center justify-center rounded-full bg-primary-foreground active:scale-90 transition-transform"
+                  className="absolute inset-[6px] flex items-center justify-center rounded-full bg-primary-foreground active:scale-90 transition-transform"
                 >
                   <AnimatePresence mode="wait">
                     {isPlaying ? (
                       <motion.div key="pause" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                        <Pause className="h-5 w-5 text-primary" fill="currentColor" />
+                        <Pause className="h-4 w-4 text-primary" fill="currentColor" />
                       </motion.div>
                     ) : (
                       <motion.div key="play" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.7, opacity: 0 }} transition={{ duration: 0.12 }}>
-                        <RtlPlay className="h-5 w-5 text-primary" fill="currentColor" />
+                        <RtlPlay className="h-4 w-4 text-primary" fill="currentColor" />
                       </motion.div>
                     )}
                   </AnimatePresence>

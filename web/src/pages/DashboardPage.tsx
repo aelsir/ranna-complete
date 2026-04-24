@@ -187,7 +187,7 @@ function CompletionRing({ status }: { status: "complete" | "partial" | "basic" }
 }
 
 function DashboardLogin() {
-  const { signInWithMagicLink } = useAuth();
+  const { loginWithMagicLink } = useAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -197,9 +197,11 @@ function DashboardLogin() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await signInWithMagicLink(email);
+    const { error, userNotFound } = await loginWithMagicLink(email);
     setLoading(false);
-    if (error) {
+    if (userNotFound) {
+      setError("لا يوجد حساب بهذا البريد");
+    } else if (error) {
       setError(error.message);
     } else {
       setSent(true);

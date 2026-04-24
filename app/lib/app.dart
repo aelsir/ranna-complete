@@ -31,12 +31,33 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
+    // Deep-link scheme rewrite: Supabase magic-link emails redirect to
+    // `sd.aelsir.ranna://auth/callback?code=...`. GoRouter receives the raw
+    // URL including the scheme, which doesn't match any registered route.
+    // Strip scheme+host and keep path+query so it resolves to `/auth/callback`.
+    redirect: (context, state) {
+      final uriStr = state.uri.toString();
+      if (uriStr.startsWith('sd.aelsir.ranna://')) {
+        final uri = Uri.parse(uriStr);
+        final path = uri.path.isEmpty ? '' : uri.path;
+        final host = uri.host;
+        final query = uri.hasQuery ? '?${uri.query}' : '';
+        return '/$host$path$query';
+      }
+      return null;
+    },
     routes: [
       // Top-level routes OUTSIDE the shell (no bottom nav).
       // Used for auth flows so the sign-in screen fills the viewport.
       GoRoute(
         path: '/auth',
-        builder: (context, state) => const AuthScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final initialEmail = extra is Map<String, dynamic>
+              ? extra['initialEmail'] as String?
+              : null;
+          return AuthScreen(initialEmail: initialEmail);
+        },
       ),
       GoRoute(
         path: '/auth/callback',

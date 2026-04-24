@@ -27,7 +27,9 @@ class MiniPlayer extends ConsumerWidget {
     final isPlaying = ref.watch(isPlayingProvider);
     final progress = ref.watch(audioPlayerProvider.select((s) => s.progress));
     final notifier = ref.read(audioPlayerProvider.notifier);
-    final isFav = ref.watch(favoritesProvider.select((s) => s.contains(track.id)));
+    final isFav = ref.watch(
+      favoritesProvider.select((s) => s.contains(track.id)),
+    );
     final hasLyrics = track.lyrics != null && track.lyrics!.isNotEmpty;
 
     return GestureDetector(
@@ -51,28 +53,32 @@ class MiniPlayer extends ConsumerWidget {
               GestureDetector(
                 onTap: () => notifier.togglePlay(),
                 child: SizedBox(
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   child: CustomPaint(
                     painter: _CircularProgressPainter(
                       progress: progress,
                       progressColor: RannaTheme.accent,
-                      trackColor: RannaTheme.primaryForeground.withValues(alpha: 0.10),
-                      strokeWidth: 2.5,
+                      trackColor: RannaTheme.primaryForeground.withValues(
+                        alpha: 0.10,
+                      ),
+                      strokeWidth: 6,
                     ),
                     child: Center(
                       child: Container(
-                        width: 36,
-                        height: 36,
+                        width: 30,
+                        height: 30,
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
                           child: Icon(
-                            isPlaying ? Icons.pause_rounded : RannaTheme.playIcon,
+                            isPlaying
+                                ? Icons.pause_rounded
+                                : RannaTheme.playIcon,
                             color: RannaTheme.primary,
-                            size: 22,
+                            size: 14,
                           ),
                         ),
                       ),
@@ -128,7 +134,9 @@ class MiniPlayer extends ConsumerWidget {
                 ),
               _MiniDownloadButton(track: track),
               _MiniActionButton(
-                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                icon: isFav
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
                 color: isFav
                     ? RannaTheme.accent
                     : RannaTheme.primaryForeground.withValues(alpha: 0.40),
@@ -164,9 +172,7 @@ class _MiniActionButton extends StatelessWidget {
       child: SizedBox(
         width: 36,
         height: 36,
-        child: Center(
-          child: Icon(icon, size: 22, color: color),
-        ),
+        child: Center(child: Icon(icon, size: 22, color: color)),
       ),
     );
   }
@@ -179,7 +185,9 @@ class _MiniDownloadButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDownloaded = ref.watch(downloadedTrackIdsProvider).contains(track.id);
+    final isDownloaded = ref
+        .watch(downloadedTrackIdsProvider)
+        .contains(track.id);
     final progress = ref.watch(activeDownloadsProvider)[track.id];
     final isDownloading = progress != null;
 
@@ -188,7 +196,11 @@ class _MiniDownloadButton extends ConsumerWidget {
         width: 36,
         height: 36,
         child: Center(
-          child: Icon(Icons.check_circle_rounded, size: 22, color: RannaTheme.accent),
+          child: Icon(
+            Icons.check_circle_rounded,
+            size: 22,
+            color: RannaTheme.accent,
+          ),
         ),
       );
     }
@@ -205,7 +217,9 @@ class _MiniDownloadButton extends ConsumerWidget {
               value: progress > 0 ? progress : null,
               strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation(RannaTheme.accent),
-              backgroundColor: RannaTheme.primaryForeground.withValues(alpha: 0.1),
+              backgroundColor: RannaTheme.primaryForeground.withValues(
+                alpha: 0.1,
+              ),
             ),
           ),
         ),
@@ -273,7 +287,9 @@ class _CircularProgressPainter extends CustomPainter {
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         -math.pi / 2, // Start from top
-        -2 * math.pi * progress, // Fill counter-clockwise for RTL
+        2 *
+            math.pi *
+            progress, // Positive = clockwise in code; RTL Directionality mirrors it → appears anti-clockwise on screen
         false,
         progressPaint,
       );

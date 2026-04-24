@@ -31,6 +31,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   bool _loginLoading = false;
   bool _loginSent = false;
   String? _loginError;
+  bool _loginUserNotFound = false;
   int _loginCooldown = 0;
   Timer? _loginCooldownTimer;
 
@@ -58,7 +59,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   Future<void> _handleInlineLogin() async {
     final email = _loginEmailController.text.trim();
-    setState(() => _loginError = null);
+    setState(() {
+      _loginError = null;
+      _loginUserNotFound = false;
+    });
     if (!_loginEmailRe.hasMatch(email)) {
       setState(() => _loginError = 'بريد إلكتروني غير صحيح');
       return;
@@ -66,9 +70,15 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     setState(() => _loginLoading = true);
     final result = await ref
         .read(authNotifierProvider.notifier)
-        .signInWithMagicLink(email);
+        .loginWithMagicLink(email);
     if (!mounted) return;
     setState(() => _loginLoading = false);
+    if (result.userNotFound) {
+      // Not registered yet — show an error with a clickable signup link
+      // instead of auto-navigating to the signup form.
+      setState(() => _loginUserNotFound = true);
+      return;
+    }
     if (result.error != null) {
       setState(() => _loginError = result.error.toString());
       return;
@@ -415,9 +425,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           textAlign: TextAlign.left,
           enabled: !_loginLoading,
           onSubmitted: (_) => _handleInlineLogin(),
+          onChanged: (_) {
+            if (_loginUserNotFound) {
+              setState(() => _loginUserNotFound = false);
+            }
+          },
+          cursorColor: RannaTheme.primary,
           style: TextStyle(
             fontFamily: RannaTheme.fontFustat,
             fontSize: 14,
+            color: RannaTheme.foreground,
           ),
           decoration: InputDecoration(
             hintText: 'example@ranna.app',
@@ -455,7 +472,40 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
           ),
         ),
-        if (_loginError != null) ...[
+        if (_loginUserNotFound) ...[
+          const SizedBox(height: 6),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                height: 1.6,
+                color: RannaTheme.destructive,
+              ),
+              children: [
+                const TextSpan(text: 'لا يوجد حساب بهذا البريد. اضغط على '),
+                TextSpan(
+                  text: 'رابط إنشاء حساب جديد',
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: RannaTheme.primary,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => context.push(
+                          '/auth',
+                          extra: {
+                            'initialEmail':
+                                _loginEmailController.text.trim(),
+                          },
+                        ),
+                ),
+                const TextSpan(text: ' لفتح حساب في رنّة.'),
+              ],
+            ),
+          ),
+        ] else if (_loginError != null) ...[
           const SizedBox(height: 6),
           Text(
             _loginError!,

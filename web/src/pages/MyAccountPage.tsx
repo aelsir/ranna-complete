@@ -82,8 +82,9 @@ const item = {
 
 const MyAccountPage = () => {
   const navigate = useNavigate();
-  const { user, isAnonymous, loading, signOut, signInWithMagicLink } = useAuth();
+  const { user, isAnonymous, loading, signOut, loginWithMagicLink } = useAuth();
   const [signUpOpen, setSignUpOpen] = useState(false);
+  const [signUpPrefillEmail, setSignUpPrefillEmail] = useState("");
   const [signingOut, setSigningOut] = useState(false);
 
   // Inline login (email only) — for returning users who just want a magic
@@ -93,6 +94,7 @@ const MyAccountPage = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginSent, setLoginSent] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginUserNotFound, setLoginUserNotFound] = useState(false);
   const [loginCooldown, setLoginCooldown] = useState(0);
 
   useEffect(() => {
@@ -122,14 +124,22 @@ const MyAccountPage = () => {
   const handleInlineLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoginError(null);
+    setLoginUserNotFound(false);
     const trimmed = loginEmail.trim();
     if (!EMAIL_RE.test(trimmed)) {
       setLoginError("بريد إلكتروني غير صحيح");
       return;
     }
     setLoginLoading(true);
-    const { error } = await signInWithMagicLink(trimmed);
+    const { error, userNotFound } = await loginWithMagicLink(trimmed);
     setLoginLoading(false);
+    if (userNotFound) {
+      // Not registered yet — show an error with a clickable signup link
+      // rather than auto-opening the signup sheet.
+      setLoginUserNotFound(true);
+      setSignUpPrefillEmail(trimmed);
+      return;
+    }
     if (error) {
       setLoginError(error.message);
       return;
@@ -203,18 +213,33 @@ const MyAccountPage = () => {
                   <Input
                     type="email"
                     value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onChange={(e) => {
+                      setLoginEmail(e.target.value);
+                      if (loginUserNotFound) setLoginUserNotFound(false);
+                    }}
                     placeholder="example@ranna.app"
                     className="pr-9 font-fustat h-11"
                     dir="ltr"
                     disabled={loading || loginLoading}
                   />
                 </div>
-                {loginError && (
+                {loginUserNotFound ? (
+                  <p className="text-xs text-destructive font-fustat text-right leading-relaxed">
+                    لا يوجد حساب بهذا البريد. اضغط على{" "}
+                    <button
+                      type="button"
+                      onClick={() => setSignUpOpen(true)}
+                      className="font-bold text-primary hover:underline"
+                    >
+                      رابط إنشاء حساب جديد
+                    </button>
+                    {" "}لفتح حساب في رنّة.
+                  </p>
+                ) : loginError ? (
                   <p className="text-xs text-destructive font-fustat text-right">
                     {loginError}
                   </p>
-                )}
+                ) : null}
                 <Button
                   type="submit"
                   disabled={loading || loginLoading}
@@ -321,7 +346,11 @@ const MyAccountPage = () => {
         )}
       </div>
 
-      <SignInSheet open={signUpOpen} onOpenChange={setSignUpOpen} />
+      <SignInSheet
+        open={signUpOpen}
+        onOpenChange={setSignUpOpen}
+        initialEmail={signUpPrefillEmail}
+      />
     </div>
   );
 };

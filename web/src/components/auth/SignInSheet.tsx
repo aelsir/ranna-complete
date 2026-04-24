@@ -21,6 +21,9 @@ import {
 interface SignInSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Optional: prefill the email input (e.g., when redirected from a failed
+   * login attempt for an unregistered email). */
+  initialEmail?: string;
 }
 
 /**
@@ -39,8 +42,8 @@ const COOLDOWN_SECONDS = 60;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE_RE = /^\+?[0-9\s\-()]{6,20}$/;
 
-const SignInSheet = ({ open, onOpenChange }: SignInSheetProps) => {
-  const { signInWithMagicLink } = useAuth();
+const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => {
+  const { signUpWithMagicLink } = useAuth();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY_CODE);
@@ -58,7 +61,7 @@ const SignInSheet = ({ open, onOpenChange }: SignInSheetProps) => {
   // Reset state whenever the modal opens fresh.
   useEffect(() => {
     if (open) {
-      setEmail("");
+      setEmail(initialEmail ?? "");
       setDisplayName("");
       setCountry(DEFAULT_COUNTRY_CODE);
       setPhoneNumber("");
@@ -68,7 +71,7 @@ const SignInSheet = ({ open, onOpenChange }: SignInSheetProps) => {
       setFieldErrors({});
       setCooldown(0);
     }
-  }, [open]);
+  }, [open, initialEmail]);
 
   // Cooldown tick.
   useEffect(() => {
@@ -102,7 +105,7 @@ const SignInSheet = ({ open, onOpenChange }: SignInSheetProps) => {
     setError(null);
     if (!validate()) return;
     setLoading(true);
-    const { error: err } = await signInWithMagicLink(email.trim(), {
+    const { error: err } = await signUpWithMagicLink(email.trim(), {
       displayName: displayName.trim(),
       country,
       phoneNumber: phoneNumber.trim() || undefined,

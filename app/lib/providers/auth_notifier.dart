@@ -137,52 +137,58 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Request a magic-link email.
+  /// Request a login magic link for an EXISTING account.
   ///
-  /// - Anonymous user → `updateUser({email, data})` attaches an email
-  ///   identity to the existing anon user. Supabase preserves the UUID so
-  ///   all prior anon data (favorites, plays, history) carries over.
-  ///   Profile fields (displayName, country, phoneNumber) are stored on
-  ///   `auth.users.raw_user_meta_data` and copied into `user_profiles` in
-  ///   the callback page.
-  /// - Returning user (email already registered) → `signInWithOtp` without
-  ///   metadata; the existing account's profile is canonical.
-  /// - Non-anonymous caller → plain `signInWithOtp`.
-  Future<({Object? error})> signInWithMagicLink(
+  /// Uses `signInWithOtp(shouldCreateUser: false)` so Supabase:
+  ///   - fires the `magic_link` template, and
+  ///   - returns USER_NOT_FOUND for unregistered emails — callers should
+  ///     guide the user to the signup form instead of silently creating a
+  ///     ghost account.
+  Future<({Object? error, bool userNotFound})> loginWithMagicLink(
+    String email,
+  ) async {
+    try {
+      await _client.auth.signInWithOtp(
+        email: email,
+        emailRedirectTo: 'sd.aelsir.ranna://auth/callback',
+        shouldCreateUser: false,
+      );
+      return (error: null, userNotFound: false);
+    } catch (e) {
+      if (_isUserNotFound(e)) {
+        return (error: e, userNotFound: true);
+      }
+      return (error: e, userNotFound: false);
+    }
+  }
+
+  /// Register a NEW account via magic link. Uses
+  /// `signInWithOtp(shouldCreateUser: true, data)` so Supabase fires the
+  /// `confirmation` (Confirm signup) template for new emails and falls back
+  /// to `magic_link` if the email already exists (returning user who tried
+  /// to sign up — they land in their existing account).
+  ///
+  /// NOTE: This does NOT preserve the anonymous UUID — the anon session is
+  /// discarded and replaced on magic-link click. Any anon data (favorites,
+  /// listening history) must be migrated client-side via `SyncService`.
+  Future<({Object? error})> signUpWithMagicLink(
     String email, {
-    String? displayName,
+    required String displayName,
     String? country,
     String? phoneNumber,
   }) async {
     try {
-      if (state.isAnonymous) {
-        final data = _buildMetadata(
-          displayName: displayName,
-          country: country,
-          phoneNumber: phoneNumber,
-        );
-        try {
-          await _client.auth.updateUser(
-            UserAttributes(
-              email: email,
-              data: data.isEmpty ? null : data,
-            ),
-          );
-          return (error: null);
-        } catch (e) {
-          // If the email is already bound to another auth.users row (common
-          // for admins who pre-existed this flow), fall back to a plain
-          // magic-link so the user can sign into THAT existing account.
-          // Their typed metadata is dropped — they shouldn't overwrite
-          // another account's profile by typing at a login prompt.
-          if (_isEmailAlreadyInUse(e)) {
-            await _sendPlainMagicLink(email);
-            return (error: null);
-          }
-          rethrow;
-        }
-      }
-      await _sendPlainMagicLink(email);
+      final data = _buildMetadata(
+        displayName: displayName,
+        country: country,
+        phoneNumber: phoneNumber,
+      );
+      await _client.auth.signInWithOtp(
+        email: email,
+        emailRedirectTo: 'sd.aelsir.ranna://auth/callback',
+        shouldCreateUser: true,
+        data: data.isEmpty ? null : data,
+      );
       return (error: null);
     } catch (e) {
       return (error: e);
@@ -212,21 +218,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return map;
   }
 
-  Future<void> _sendPlainMagicLink(String email) {
-    return _client.auth.signInWithOtp(
-      email: email,
-      emailRedirectTo: 'sd.aelsir.ranna://auth/callback',
-    );
-  }
-
-  bool _isEmailAlreadyInUse(Object error) {
+  bool _isUserNotFound(Object error) {
     final msg = error.toString().toLowerCase();
-    return msg.contains('already been registered') ||
-        msg.contains('already registered') ||
-        msg.contains('already exists') ||
-        msg.contains('email address is already') ||
-        msg.contains('user already registered') ||
-        msg.contains('email_exists');
+    // Supabase returns "Signups not allowed for otp" when
+    // shouldCreateUser=false and no user exists. Also handle the newer
+    // `user_not_found` error code / message variants.
+    return msg.contains('signups not allowed') ||
+        msg.contains('user not found') ||
+        msg.contains('user_not_found') ||
+        msg.contains('otp_disabled') ||
+        msg.contains('not registered');
   }
 
   /// Sign out and immediately bootstrap a fresh anonymous session. Users are

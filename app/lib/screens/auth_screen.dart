@@ -18,7 +18,10 @@ import 'package:ranna/theme/app_theme.dart';
 ///
 /// Success state: "check your inbox" with 60 s cooldown on re-send.
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key});
+  /// Optional prefilled email (passed from inline-login when the entered
+  /// address wasn't registered and we redirect the user to signup).
+  final String? initialEmail;
+  const AuthScreen({super.key, this.initialEmail});
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -37,6 +40,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   String? _error;
   int _cooldown = 0;
   Timer? _cooldownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialEmail != null && widget.initialEmail!.isNotEmpty) {
+      _emailController.text = widget.initialEmail!;
+    }
+  }
 
   @override
   void dispose() {
@@ -73,9 +84,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final phone = _phoneController.text.trim();
     final result = await ref
         .read(authNotifierProvider.notifier)
-        .signInWithMagicLink(
+        .signUpWithMagicLink(
           email,
-          displayName: name.isEmpty ? null : name,
+          displayName: name,
           country: _country,
           phoneNumber: phone.isEmpty ? null : phone,
         );
@@ -192,7 +203,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             controller: _nameController,
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.right,
-            style: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 15),
+            cursorColor: RannaTheme.primary,
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 15,
+              color: RannaTheme.foreground,
+            ),
             decoration: _fieldDecoration(
               label: 'الاسم',
               icon: Icons.person_rounded,
@@ -249,7 +265,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             keyboardType: TextInputType.phone,
             textDirection: TextDirection.ltr,
             textAlign: TextAlign.left,
-            style: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 15),
+            cursorColor: RannaTheme.primary,
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 15,
+              color: RannaTheme.foreground,
+            ),
             decoration: _fieldDecoration(
               label: 'رقم الجوال (اختياري)',
               hint: '+249...',
@@ -271,7 +292,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             keyboardType: TextInputType.emailAddress,
             textDirection: TextDirection.ltr,
             textAlign: TextAlign.left,
-            style: TextStyle(fontFamily: RannaTheme.fontFustat, fontSize: 15),
+            cursorColor: RannaTheme.primary,
+            style: TextStyle(
+              fontFamily: RannaTheme.fontFustat,
+              fontSize: 15,
+              color: RannaTheme.foreground,
+            ),
             decoration: _fieldDecoration(
               label: 'البريد الإلكتروني',
               hint: 'example@ranna.app',

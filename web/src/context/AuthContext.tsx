@@ -15,20 +15,35 @@ interface AuthContextType {
   /** True when the user has the `admin` or `superuser` role in `user_roles`. */
   isAdmin: boolean;
   /**
-   * Send a magic-link email. If the user is currently anonymous, this calls
-   * `updateUser({ email, data })` which ADDS an email identity to the
-   * existing anon user — preserving their UUID and any server-side data.
-   * Optional `profile` fields (displayName, country, phoneNumber) are
-   * stored on `auth.users.raw_user_meta_data` and copied into
-   * `user_profiles` in the callback page.
-   *
-   * If the email is already bound to another account, falls back to a plain
-   * magic link (metadata discarded — the existing account's profile wins).
+   * Request a login magic link for an EXISTING account. Uses
+   * `signInWithOtp({ shouldCreateUser: false })` so Supabase:
+   *   - fires the `magic_link` template, and
+   *   - returns `USER_NOT_FOUND` for unregistered emails — callers should
+   *     guide the user to the signup form instead of silently creating a
+   *     ghost account.
    */
-  signInWithMagicLink: (
+  loginWithMagicLink: (
     email: string,
-    profile?: {
-      displayName?: string;
+  ) => Promise<{ error: Error | null; userNotFound?: boolean }>;
+  /**
+   * Register a NEW account via magic link. Uses
+   * `signInWithOtp({ shouldCreateUser: true, data })` so Supabase fires
+   * the `confirmation` (Confirm signup) template for new emails and falls
+   * back to `magic_link` if the email already exists (returning user who
+   * tried to sign up — they just land in their existing account).
+   *
+   * Profile fields (displayName, country, phoneNumber) are stored on
+   * `auth.users.raw_user_meta_data` and copied into `user_profiles` on
+   * the callback page.
+   *
+   * NOTE: This does NOT preserve the anonymous UUID — the anon session is
+   * discarded and replaced on magic-link click. Any anon data (favorites,
+   * listening history) must be migrated client-side via `FavoritesMerge`.
+   */
+  signUpWithMagicLink: (
+    email: string,
+    profile: {
+      displayName: string;
       country?: string;
       phoneNumber?: string;
     },
@@ -134,23 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.is_anonymous]);
 
-  const sendPlainMagicLink = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        shouldCreateUser: true,
-      },
-    });
-    return { error: error as Error | null };
-  };
-
-  const buildMetadata = (profile?: {
+  const buildMetadata = (profile: {
     displayName?: string;
     country?: string;
     phoneNumber?: string;
-  }): Record<string, string> | undefined => {
-    if (!profile) return undefined;
+  }): Record<string, string> => {
     const out: Record<string, string> = {};
     const name = profile.displayName?.trim();
     if (name) out.display_name = name;
@@ -158,46 +161,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (country) out.country = country;
     const phone = profile.phoneNumber?.trim();
     if (phone) out.phone_number = phone;
-    return Object.keys(out).length > 0 ? out : undefined;
+    return out;
   };
 
-  const signInWithMagicLink = async (
+  // Supabase returns a localized-ish error message when `shouldCreateUser`
+  // is false and the email isn't registered. Both strings have been stable
+  // across recent versions, but guard with code check too.
+  const isUserNotFoundError = (error: { message?: string; code?: string; status?: number }): boolean => {
+    const msg = (error.message || "").toLowerCase();
+    return (
+      error.code === "otp_disabled" ||
+      error.code === "user_not_found" ||
+      msg.includes("signups not allowed") ||
+      msg.includes("user not found") ||
+      msg.includes("not registered")
+    );
+  };
+
+  const loginWithMagicLink = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: false,
+      },
+    });
+    if (error && isUserNotFoundError(error)) {
+      return { error: error as Error, userNotFound: true };
+    }
+    return { error: error as Error | null };
+  };
+
+  const signUpWithMagicLink = async (
     email: string,
-    profile?: {
-      displayName?: string;
+    profile: {
+      displayName: string;
       country?: string;
       phoneNumber?: string;
     },
   ) => {
-    // If the user is currently anonymous, try upgrading via updateUser so
-    // Supabase preserves the UUID and carries anon data forward.
-    if (user?.is_anonymous) {
-      const data = buildMetadata(profile);
-      const { error } = await supabase.auth.updateUser({
-        email,
-        ...(data ? { data } : {}),
-      });
-      if (!error) return { error: null };
-
-      // Fallback: the email is already bound to a different auth.users row
-      // (common for admins/superusers who signed up before this flow
-      // existed). Send a plain magic link so they can sign into their
-      // existing account instead of surfacing a hard error. Their typed
-      // metadata is dropped — they shouldn't overwrite another account's
-      // profile by typing at a login prompt.
-      const msg = (error.message || "").toLowerCase();
-      const emailAlreadyInUse =
-        msg.includes("already been registered") ||
-        msg.includes("already registered") ||
-        msg.includes("already exists") ||
-        msg.includes("email address is already") ||
-        msg.includes("user already registered");
-      if (emailAlreadyInUse) {
-        return sendPlainMagicLink(email);
-      }
-      return { error: error as Error | null };
-    }
-    return sendPlainMagicLink(email);
+    const data = buildMetadata(profile);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: true,
+        data,
+      },
+    });
+    return { error: error as Error | null };
   };
 
   const signOut = async () => {
@@ -221,7 +233,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAnonymous,
         isAdmin,
-        signInWithMagicLink,
+        loginWithMagicLink,
+        signUpWithMagicLink,
         signOut,
       }}
     >
