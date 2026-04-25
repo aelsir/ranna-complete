@@ -94,11 +94,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: ListView(
-          padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 40),
-          children: [
+      child: ListView(
+        padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 40),
+        children: [
             // Title
             Text(
               'زاويتي',
@@ -123,7 +121,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ],
           ],
         ),
-      ),
     );
   }
 
