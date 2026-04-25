@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,6 +8,8 @@ import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/providers/auth_notifier.dart';
+import 'package:ranna/providers/follows_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -90,7 +94,7 @@ class ProfileScreen extends ConsumerWidget {
       body: tracksAsync.when(
         loading: () => CustomScrollView(
           slivers: [
-            _buildAppBar(context, resolvedName, resolvedImageUrl),
+            _buildAppBar(context: context, imageUrl: resolvedImageUrl),
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (_, _) => const ShimmerTrackRow(),
@@ -111,15 +115,23 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  SliverAppBar _buildAppBar(
-    BuildContext context,
-    String name,
-    String imageUrl,
-  ) {
+  /// Hero image with a bottom-up fade into the page background — mirrors
+  /// the web design where the photo blends seamlessly into the page rather
+  /// than ending in a hard horizon. Title and track count are rendered
+  /// below the hero in `_buildBody`, not overlaid on the image.
+  SliverAppBar _buildAppBar({
+    required BuildContext context,
+    required String imageUrl,
+    String? name,
+    String? roleLabel,
+    int? trackCount,
+  }) {
     return SliverAppBar(
-      expandedHeight: 264,
+      expandedHeight: 280,
       pinned: true,
-      backgroundColor: RannaTheme.primary,
+      stretch: true,
+      backgroundColor: RannaTheme.background,
+      surfaceTintColor: Colors.transparent,
       leading: Padding(
         padding: const EdgeInsets.all(8.0),
         child: GestureDetector(
@@ -144,20 +156,6 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
       flexibleSpace: FlexibleSpaceBar(
-        centerTitle: false,
-        titlePadding: const EdgeInsetsDirectional.only(
-          start: 64,
-          bottom: 16,
-          end: 16,
-        ),
-        title: Text(
-          name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
         background: Stack(
           fit: StackFit.expand,
           children: [
@@ -165,24 +163,59 @@ class ProfileScreen extends ConsumerWidget {
               RannaImage(
                 url: imageUrl,
                 width: double.infinity,
-                height: 264,
+                height: 280,
                 fit: BoxFit.cover,
                 fallbackWidget: Container(color: RannaTheme.primary),
               )
             else
               Container(color: RannaTheme.primary),
+            // White-to-transparent fade at bottom that bleeds the photo
+            // into the page background. Mirrors web's `bg-gradient-to-t
+            // from-background via-background/30 to-transparent`.
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
+                  stops: const [0.0, 0.45, 1.0],
                   colors: [
-                    RannaTheme.primary.withValues(alpha: 0.7),
+                    RannaTheme.background,
+                    RannaTheme.background.withValues(alpha: 0.3),
                     Colors.transparent,
                   ],
                 ),
               ),
             ),
+            if (name != null)
+              Positioned(
+                bottom: 16,
+                right: 20,
+                left: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: RannaTheme.foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$roleLabel - ${toArabicNum(trackCount ?? 0)} مدحة',
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontNotoNaskh,
+                        fontSize: 13,
+                        color: RannaTheme.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -196,33 +229,31 @@ class ProfileScreen extends ConsumerWidget {
     String imageUrl,
     List<MadhaWithRelations> tracks,
   ) {
+    final roleLabel = type == 'artist' ? 'مادح' : 'راوي';
+    final followType = type == 'artist' ? 'artist' : 'author';
+
     return CustomScrollView(
       slivers: [
-        _buildAppBar(context, name, imageUrl),
+        _buildAppBar(
+          context: context,
+          imageUrl: imageUrl,
+          name: name,
+          roleLabel: roleLabel,
+          trackCount: tracks.length,
+        ),
 
-        // Action row
+        // Action row: Play button on the right (start in RTL), Follow on left.
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
+            padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 8),
             child: Row(
               children: [
-                ElevatedButton.icon(
-                  onPressed: tracks.isEmpty
-                      ? null
-                      : () => _playAll(ref, tracks),
-                  icon: Icon(RannaTheme.playIcon),
-                  label: const Text('تشغيل الكل'),
+                _PlayAllButton(
+                  enabled: tracks.isNotEmpty,
+                  onTap: () => _playAll(ref, tracks),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  '${toArabicNum(tracks.length)} مدحة',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: RannaTheme.mutedForeground,
-                  ),
-                ),
+                const Spacer(),
+                _FollowButton(targetType: followType, targetId: id),
               ],
             ),
           ),
@@ -259,5 +290,242 @@ class ProfileScreen extends ConsumerWidget {
     ref
         .read(audioPlayerProvider.notifier)
         .playTrack(tracks.first.id, queue: tracks.map((t) => t.id).toList());
+  }
+}
+
+// =============================================================================
+// Action-row components
+// =============================================================================
+
+/// Circular play-all button. Icon-only — the track count beside the title
+/// already communicates "play these N tracks", so the "تشغيل الكل" text is
+/// redundant here.
+class _PlayAllButton extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PlayAllButton({required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled ? RannaTheme.secondary : RannaTheme.muted;
+    return Material(
+      color: color,
+      shape: const CircleBorder(),
+      elevation: enabled ? 4 : 0,
+      shadowColor: RannaTheme.secondary.withValues(alpha: 0.3),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: enabled ? onTap : null,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(
+            // RTL-aware play glyph already chosen by the theme.
+            RannaTheme.playIcon,
+            size: 24,
+            color: enabled
+                ? RannaTheme.secondaryForeground
+                : RannaTheme.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Outlined Follow / Following toggle. Tapping flips the state with an
+/// optimistic update + Supabase write. On the unfollowed → followed
+/// transition we run a small celebration: a haptic tap + a burst of three
+/// faded sparkles radiating from the button.
+class _FollowButton extends ConsumerStatefulWidget {
+  final String targetType; // 'artist' | 'author' | 'tariqa' | 'fan'
+  final String targetId;
+
+  const _FollowButton({required this.targetType, required this.targetId});
+
+  @override
+  ConsumerState<_FollowButton> createState() => _FollowButtonState();
+}
+
+class _FollowButtonState extends ConsumerState<_FollowButton> {
+  /// Bumped each time we follow (NOT each time we unfollow). Drives the
+  /// `.animate(target: 1)` re-run on the celebration overlay.
+  int _celebrateTick = 0;
+  bool _busy = false;
+
+  Future<void> _onTap() async {
+    if (_busy) return;
+
+    // Gate: following requires a real (email-bound) account. Anonymous users
+    // are routed to the account tab, which presents the inline login + the
+    // "إنشاء حساب جديد" signup link side by side. We surface a snackbar so
+    // the redirect isn't silent.
+    final auth = ref.read(authNotifierProvider);
+    final isRealUser = auth.user != null && !auth.isAnonymous;
+    if (!isRealUser) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'سجّل دخولك للمتابعة',
+            style: TextStyle(fontFamily: RannaTheme.fontFustat),
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.go('/account');
+      return;
+    }
+
+    setState(() => _busy = true);
+    final wasFollowing = ref.read(
+      isFollowingProvider((type: widget.targetType, id: widget.targetId)),
+    );
+    try {
+      final nowFollowing = await ref
+          .read(followsProvider.notifier)
+          .toggle(widget.targetType, widget.targetId);
+      if (!mounted) return;
+      if (nowFollowing && !wasFollowing) {
+        // Celebrate.
+        HapticFeedback.lightImpact();
+        setState(() => _celebrateTick++);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تعذّر تحديث المتابعة. حاول لاحقاً.',
+            style: TextStyle(fontFamily: RannaTheme.fontFustat),
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFollowing = ref.watch(
+      isFollowingProvider((type: widget.targetType, id: widget.targetId)),
+    );
+    final label = isFollowing ? 'تتابعه' : 'تابـــــع';
+    final fg = isFollowing ? RannaTheme.primaryForeground : RannaTheme.primary;
+    final bg = isFollowing ? RannaTheme.primary : Colors.transparent;
+    final borderColor = RannaTheme.primary;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        // ── Sparkle celebration burst (3 staggered icons) ──
+        if (_celebrateTick > 0) ...[
+          _Sparkle(
+            tick: _celebrateTick,
+            offset: const Offset(-44, -22),
+            delay: const Duration(milliseconds: 0),
+          ),
+          _Sparkle(
+            tick: _celebrateTick,
+            offset: const Offset(44, -28),
+            delay: const Duration(milliseconds: 90),
+          ),
+          _Sparkle(
+            tick: _celebrateTick,
+            offset: const Offset(0, -50),
+            delay: const Duration(milliseconds: 50),
+          ),
+        ],
+
+        // ── The button itself ──
+        AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                border: Border.all(color: borderColor, width: 1.5),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                  onTap: _onTap,
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(14, 6, 14, 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isFollowing) ...[
+                          Icon(Icons.check_rounded, size: 18, color: fg),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: fg,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            )
+            // Tiny scale bounce when state flips (re-runs whenever
+            // `isFollowing`'s string key changes).
+            .animate(key: ValueKey('follow-$isFollowing-${widget.targetId}'))
+            .scaleXY(
+              begin: 0.94,
+              end: 1.0,
+              duration: 180.ms,
+              curve: Curves.easeOutBack,
+            ),
+      ],
+    );
+  }
+}
+
+/// One sparkle in the celebration burst — appears, drifts outward, fades.
+class _Sparkle extends StatelessWidget {
+  final int tick;
+  final Offset offset;
+  final Duration delay;
+
+  const _Sparkle({
+    required this.tick,
+    required this.offset,
+    required this.delay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Transform.translate(
+        offset: offset,
+        child:
+            Icon(Icons.auto_awesome_rounded, size: 18, color: RannaTheme.accent)
+                .animate(key: ValueKey('sparkle-$tick-${offset.dx}'))
+                .fadeIn(duration: 120.ms, delay: delay)
+                .scaleXY(
+                  begin: 0.4,
+                  end: 1.0,
+                  duration: 280.ms,
+                  delay: delay,
+                  curve: Curves.easeOutBack,
+                )
+                .then()
+                .fadeOut(duration: 280.ms)
+                .moveY(begin: 0, end: -10, duration: 280.ms),
+      ),
+    );
   }
 }

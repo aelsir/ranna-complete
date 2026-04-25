@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/theme/app_theme.dart';
 
@@ -21,7 +23,15 @@ class AccountScreen extends ConsumerStatefulWidget {
 }
 
 class _AccountScreenState extends ConsumerState<AccountScreen> {
+  // Mirrors `user_profiles.email_notifications` AND `push_notifications` —
+  // we keep them as a single toggle for now (one combined opt-in for the
+  // weekly digest + per-track push). Hydrated on first build for signed-in
+  // users; defaults to `true` for anon users until they sign up.
   bool _notificationsEnabled = true;
+  bool _notificationsHydrated = false;
+  bool _notificationsSaving = false;
+  String? _hydratedForUserId;
+
   bool _signingOut = false;
 
   // Inline login (email only) — for returning users who just want a magic
@@ -87,10 +97,94 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     _startLoginCooldown();
   }
 
+  /// Loads `email_notifications` + `push_notifications` from `user_profiles`
+  /// once per signed-in user. Skipped for anonymous users (their toggle
+  /// remains on the local default and is meaningless without a real account
+  /// to deliver notifications to). Re-runs on user-id change so anon→email
+  /// upgrade picks up the row created by the `handle_new_user` trigger.
+  Future<void> _hydrateNotificationsIfNeeded() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    if (_hydratedForUserId == user.id) return;
+    _hydratedForUserId = user.id;
+    try {
+      final row = await Supabase.instance.client
+          .from('user_profiles')
+          .select('email_notifications, push_notifications')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (!mounted) return;
+      // Treat the toggle as "any notification channel enabled". When either
+      // is true we show ON; flipping the toggle writes the same value to both.
+      final email = (row?['email_notifications'] as bool?) ?? true;
+      final push = (row?['push_notifications'] as bool?) ?? true;
+      setState(() {
+        _notificationsEnabled = email || push;
+        _notificationsHydrated = true;
+      });
+    } catch (e) {
+      debugPrint('⛔ hydrate notifications failed: $e');
+      if (mounted) setState(() => _notificationsHydrated = true);
+    }
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return; // anon — local-only flip is meaningless
+
+    final previous = _notificationsEnabled;
+    setState(() {
+      _notificationsEnabled = value;
+      _notificationsSaving = true;
+    });
+
+    try {
+      await Supabase.instance.client
+          .from('user_profiles')
+          .update({
+            'email_notifications': value,
+            'push_notifications': value,
+          })
+          .eq('id', user.id);
+      if (!mounted) return;
+      setState(() => _notificationsSaving = false);
+    } catch (e) {
+      debugPrint('⛔ toggleNotifications failed: $e');
+      if (!mounted) return;
+      // Revert.
+      setState(() {
+        _notificationsEnabled = previous;
+        _notificationsSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تعذّر تحديث الإشعارات. حاول لاحقاً.',
+            style: TextStyle(fontFamily: RannaTheme.fontFustat),
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
     final isRealUser = auth.user != null && !auth.isAnonymous;
+
+    // Hydrate notification prefs lazily on first build for signed-in users.
+    if (isRealUser && !_notificationsHydrated) {
+      // Fire-and-forget — must not block the build.
+      // ignore: discarded_futures
+      _hydrateNotificationsIfNeeded();
+    }
+    // Reset when user changes (sign-out → re-anon, or anon → real).
+    if (!isRealUser && _hydratedForUserId != null) {
+      _hydratedForUserId = null;
+      _notificationsHydrated = false;
+    }
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -694,9 +788,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     height: 24,
                     child: Switch.adaptive(
                       value: _notificationsEnabled,
-                      onChanged: (val) {
-                        setState(() => _notificationsEnabled = val);
-                      },
+                      onChanged: _notificationsSaving ? null : _toggleNotifications,
                       activeTrackColor: RannaTheme.primary,
                     ),
                   )
