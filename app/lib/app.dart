@@ -10,6 +10,8 @@ import 'package:ranna/screens/search_screen.dart';
 import 'package:ranna/screens/favorites_screen.dart';
 import 'package:ranna/screens/account_screen.dart';
 import 'package:ranna/screens/edit_profile_screen.dart';
+import 'package:ranna/screens/listening_history_screen.dart';
+import 'package:ranna/screens/listening_stats_screen.dart';
 import 'package:ranna/screens/browse_screen.dart';
 import 'package:ranna/screens/profile_screen.dart';
 import 'package:ranna/screens/playlist_screen.dart';
@@ -113,6 +115,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 GoRoute(
                   path: 'edit',
                   builder: (context, state) => const EditProfileScreen(),
+                ),
+                GoRoute(
+                  path: 'listening-history',
+                  builder: (context, state) => const ListeningHistoryScreen(),
+                ),
+                GoRoute(
+                  path: 'listening-stats',
+                  builder: (context, state) => const ListeningStatsScreen(),
                 ),
               ],
             ),
@@ -392,7 +402,7 @@ class _AnimatedTab extends StatelessWidget {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isActive ? 16 : 12,
+          horizontal: isActive ? 12 : 8,
           vertical: isActive ? 10 : 8,
         ),
         decoration: BoxDecoration(

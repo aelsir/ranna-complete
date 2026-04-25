@@ -184,18 +184,21 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 label: 'مُختاراتي',
                 description: 'المدائح المفضلة',
                 delay: 1,
+                onTap: () => context.go('/favorites'),
               ),
               _MenuItemData(
                 icon: Icons.history_rounded,
                 label: 'سجل الاستماع',
                 description: 'آخر ما استمعت إليه',
                 delay: 2,
+                onTap: () => context.push('/account/listening-history'),
               ),
               _MenuItemData(
                 icon: Icons.bar_chart_rounded,
                 label: 'إحصائيات الاستماع',
                 description: 'تتبع نشاطك',
                 delay: 3,
+                onTap: () => context.push('/account/listening-stats'),
               ),
             ]),
             const SizedBox(height: 28),
@@ -699,7 +702,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   )
                 else
                   Icon(
-                    Icons.chevron_left_rounded,
+                    Icons.chevron_right_rounded,
                     size: 20,
                     color: RannaTheme.mutedForeground,
                   ),
@@ -738,7 +741,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               ),
             ),
             const Spacer(),
-            Icon(Icons.chevron_left_rounded, size: 20, color: RannaTheme.mutedForeground),
+            Icon(Icons.chevron_right_rounded, size: 20, color: RannaTheme.mutedForeground),
           ],
         ),
       ),

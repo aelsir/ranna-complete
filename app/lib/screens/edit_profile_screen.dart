@@ -161,42 +161,45 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: RannaTheme.background,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_rounded,
-                color: RannaTheme.foreground),
-            onPressed: () =>
-                context.canPop() ? context.pop() : context.go('/account'),
-          ),
-          title: Text(
-            'بيانات الحساب',
-            style: TextStyle(
-              fontFamily: RannaTheme.fontFustat,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: RannaTheme.foreground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header (back button + title) — matches listening pages ──
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 20, 8),
+            child: Row(
+              children: [
+                _CircleBackButton(),
+                const SizedBox(width: 12),
+                Text(
+                  'بيانات الحساب',
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: RannaTheme.foreground,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        body: SafeArea(
-          child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: RannaTheme.primary),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        // Email (read-only)
-                        _readOnlyField(
+
+          // ── Body ──
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: RannaTheme.primary),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          // Email (read-only)
+                          _readOnlyField(
                           label: 'البريد الإلكتروني',
                           value: email,
                           icon: Icons.email_rounded,
@@ -327,11 +330,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   ),
                           ),
                         ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-        ),
+        ],
       ),
     );
   }
@@ -417,6 +421,37 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Circular back button matching the artist/profile screen pattern.
+/// In RTL the right-pointing chevron visually means "back" (toward the
+/// reading-direction start).
+class _CircleBackButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/account');
+        }
+      },
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: RannaTheme.muted.withValues(alpha: 0.8),
+        ),
+        child: const Icon(
+          Icons.keyboard_arrow_right_rounded,
+          size: 24,
+          color: RannaTheme.foreground,
+        ),
       ),
     );
   }

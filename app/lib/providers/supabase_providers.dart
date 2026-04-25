@@ -298,6 +298,151 @@ final listeningHistoryProvider = FutureProvider<List<MadhaWithRelations>>((ref) 
   }
 });
 
+/// Single play event tied to its track + when it was played.
+/// Powers the dedicated "سجل الاستماع" page where each play is shown
+/// individually (vs. `listeningHistoryProvider` which dedupes per track for
+/// the home "Continue Listening" rail).
+class ListeningHistoryEntry {
+  final MadhaWithRelations track;
+  final DateTime playedAt;
+  const ListeningHistoryEntry({required this.track, required this.playedAt});
+}
+
+final fullListeningHistoryProvider =
+    FutureProvider<List<ListeningHistoryEntry>>((ref) async {
+  final supabase = ref.read(supabaseProvider);
+  final authUser = ref.watch(authNotifierProvider.select((s) => s.user));
+  try {
+    if (authUser == null) return [];
+    final user = supabase.auth.currentUser ?? authUser;
+
+    // Pull the 50 most recent play events for this user (NOT deduped — a
+    // user replaying a track three times shows three rows, each with its
+    // own timestamp).
+    final dynamic playRows = await supabase
+        .from('user_plays')
+        .select('track_id, played_at')
+        .eq('user_id', user.id)
+        .order('played_at', ascending: false)
+        .limit(50);
+
+    final plays = _asList(playRows);
+    if (plays.isEmpty) return [];
+
+    final trackIds = plays
+        .map((r) => r['track_id'] as String?)
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    final dynamic tracksData = await supabase
+        .from('v_tracks')
+        .select()
+        .inFilter('id', trackIds);
+
+    final byId = {
+      for (final t in _asList(tracksData))
+        t['id'] as String: MadhaWithRelations.fromJson(t),
+    };
+
+    return plays
+        .map((p) {
+          final track = byId[p['track_id']];
+          final playedAt = DateTime.tryParse(p['played_at'] as String? ?? '');
+          if (track == null || playedAt == null) return null;
+          return ListeningHistoryEntry(track: track, playedAt: playedAt);
+        })
+        .whereType<ListeningHistoryEntry>()
+        .toList();
+  } catch (e, st) {
+    debugPrint('⛔ fullListeningHistoryProvider error: $e');
+    debugPrint('$st');
+    return [];
+  }
+});
+
+/// Platform-wide analytics summary for the إحصائيات الاستماع page.
+/// Mirrors the web's `getAnalyticsSummary` — these are GLOBAL stats across
+/// all users, not per-user. (The web page is labeled per-user but actually
+/// shows global; we're matching that behavior intentionally.)
+class AnalyticsSummary {
+  final int totalPlays;
+  final int totalDurationSeconds;
+  final int totalTracks;
+  const AnalyticsSummary({
+    required this.totalPlays,
+    required this.totalDurationSeconds,
+    required this.totalTracks,
+  });
+}
+
+final analyticsSummaryProvider = FutureProvider<AnalyticsSummary>((ref) async {
+  final supabase = ref.read(supabaseProvider);
+  try {
+    // Approved track count — exact head count, no rows transferred.
+    final tracksResp = await supabase
+        .from('tracks')
+        .select('id')
+        .eq('status', 'approved')
+        .count(CountOption.exact);
+    final trackCount = tracksResp.count;
+
+    // Paginate user_plays in 1000-row chunks to compute count + duration sum.
+    // Capped at 10 pages (10k plays) so this stays bounded as the table grows.
+    const pageSize = 1000;
+    const maxPages = 10;
+    int totalPlays = 0;
+    int totalDuration = 0;
+    for (int page = 0; page < maxPages; page++) {
+      final from = page * pageSize;
+      final to = from + pageSize - 1;
+      final dynamic rows = await supabase
+          .from('user_plays')
+          .select('duration_seconds')
+          .range(from, to);
+      final list = _asList(rows);
+      if (list.isEmpty) break;
+      totalPlays += list.length;
+      for (final r in list) {
+        final d = r['duration_seconds'];
+        if (d is int) totalDuration += d;
+      }
+      if (list.length < pageSize) break;
+    }
+
+    return AnalyticsSummary(
+      totalPlays: totalPlays,
+      totalDurationSeconds: totalDuration,
+      totalTracks: trackCount,
+    );
+  } catch (e, st) {
+    debugPrint('⛔ analyticsSummaryProvider error: $e');
+    debugPrint('$st');
+    return const AnalyticsSummary(
+      totalPlays: 0,
+      totalDurationSeconds: 0,
+      totalTracks: 0,
+    );
+  }
+});
+
+/// Top 5 most-played tracks platform-wide. Used by the إحصائيات page.
+final popularTracksProvider =
+    FutureProvider<List<MadhaWithRelations>>((ref) async {
+  final supabase = ref.read(supabaseProvider);
+  try {
+    final dynamic rows = await supabase
+        .from('v_tracks')
+        .select()
+        .order('play_count', ascending: false)
+        .limit(5);
+    return _asList(rows).map((e) => MadhaWithRelations.fromJson(e)).toList();
+  } catch (e) {
+    debugPrint('⛔ popularTracksProvider error: $e');
+    return [];
+  }
+});
+
 // ============================================
 // Artists (Madiheen) — uses v_artists view
 // ============================================
