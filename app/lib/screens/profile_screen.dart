@@ -206,7 +206,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$roleLabel - ${toArabicNum(trackCount ?? 0)} مدحة',
+                      '$roleLabel · ${toArabicNum(trackCount ?? 0)} مدحة',
                       style: TextStyle(
                         fontFamily: RannaTheme.fontNotoNaskh,
                         fontSize: 13,
