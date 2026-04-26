@@ -24,9 +24,11 @@ class ListeningStatsScreen extends ConsumerWidget {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: ListView(
-        padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 120),
-        children: [
+      child: Scaffold(
+        backgroundColor: RannaTheme.card,
+        body: ListView(
+          padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 120),
+          children: [
           // ── Header ──
           Row(
             children: [
@@ -145,7 +147,8 @@ class ListeningStatsScreen extends ConsumerWidget {
               );
             },
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -161,9 +161,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Scaffold(
+        backgroundColor: RannaTheme.card,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // ── Header (back button + title) — matches listening pages ──
           Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 20, 8),
@@ -335,7 +337,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       ),
                     ),
                   ),
-        ],
+          ],
+        ),
       ),
     );
   }

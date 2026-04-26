@@ -12,6 +12,7 @@ import 'package:ranna/screens/account_screen.dart';
 import 'package:ranna/screens/edit_profile_screen.dart';
 import 'package:ranna/screens/listening_history_screen.dart';
 import 'package:ranna/screens/listening_stats_screen.dart';
+import 'package:ranna/screens/my_follows_screen.dart';
 import 'package:ranna/screens/browse_screen.dart';
 import 'package:ranna/screens/profile_screen.dart';
 import 'package:ranna/screens/playlist_screen.dart';
@@ -123,6 +124,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 GoRoute(
                   path: 'listening-stats',
                   builder: (context, state) => const ListeningStatsScreen(),
+                ),
+                GoRoute(
+                  path: 'my-follows',
+                  builder: (context, state) => const MyFollowsScreen(),
                 ),
               ],
             ),
