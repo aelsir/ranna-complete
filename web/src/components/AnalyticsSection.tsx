@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   useAnalyticsSummary,
   usePlaysTrend,
@@ -23,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { motion } from "framer-motion";
 
 // ── Small helpers ──────────────────────────────────────────
@@ -48,6 +50,18 @@ const AnalyticsSection = () => {
   const { data: topFavs, isLoading: topFavsLoading } = useTopFavorited(5);
   const { data: userActivity, isLoading: userActivityLoading } = useUserActivity();
   const { data: downloads, isLoading: downloadsLoading } = useDownloadAnalytics();
+
+  // Unit toggle for the listening-time chart. The toggle group below the
+  // header card flips the chart's data source: 'minutes' shows whole-minute
+  // sums per day; 'hours' divides by 60 with one-decimal precision so a
+  // typical day still has resolution (e.g. 2.5 ساعة instead of being floored
+  // to 2). Title, tooltip text, and dataKey all switch together.
+  const [listeningUnit, setListeningUnit] = useState<"minutes" | "hours">("minutes");
+  const listeningTrendData = (trend ?? []).map((d) => ({
+    ...d,
+    value: listeningUnit === "minutes" ? d.minutes : Math.round((d.minutes / 60) * 10) / 10,
+  }));
+  const listeningUnitLabel = listeningUnit === "minutes" ? "دقيقة" : "ساعة";
 
   const kpis = [
     {
@@ -334,6 +348,105 @@ const AnalyticsSection = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Row 2.5: Listening time per day (toggle: minutes / hours) */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+                <Clock className="h-4 w-4 text-accent" />
+                {listeningUnit === "minutes" ? "دقائق الاستماع" : "ساعات الاستماع"}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                {listeningUnit === "minutes"
+                  ? "إجمالي دقائق الاستماع خلال الـ 14 يوماً الماضية"
+                  : "إجمالي ساعات الاستماع خلال الـ 14 يوماً الماضية"}
+              </CardDescription>
+            </div>
+            <ToggleGroup
+              type="single"
+              size="sm"
+              value={listeningUnit}
+              onValueChange={(v) => {
+                // Radix returns "" when the user clicks the active item; ignore
+                // that to keep one option always selected.
+                if (v === "minutes" || v === "hours") setListeningUnit(v);
+              }}
+              className="border border-border/40 rounded-lg p-0.5 bg-muted/20"
+            >
+              <ToggleGroupItem
+                value="minutes"
+                aria-label="عرض بالدقائق"
+                className="h-7 px-3 text-xs font-fustat data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+              >
+                دقائق
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="hours"
+                aria-label="عرض بالساعات"
+                className="h-7 px-3 text-xs font-fustat data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+              >
+                ساعات
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 h-[300px]">
+          {trendLoading ? (
+            <CardSpinner />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={listeningTrendData}>
+                <defs>
+                  <linearGradient id="colorListening" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#FF6B66" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#FF6B66" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+                  tickFormatter={(str) => {
+                    const date = new Date(str);
+                    return date.toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+                  }}
+                />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "rgba(0,0,0,0.8)",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontFamily: "Fustat",
+                    color: "#fff",
+                  }}
+                  itemStyle={{ color: "#fff" }}
+                  labelStyle={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}
+                  labelFormatter={(label) => {
+                    const date = new Date(label);
+                    return date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+                  }}
+                  formatter={(value: number) => [`${value} ${listeningUnitLabel}`, "الاستماع"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#FF6B66"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorListening)"
+                  animationDuration={1500}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Row 3: Trending this week + Content type distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

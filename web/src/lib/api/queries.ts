@@ -1076,22 +1076,33 @@ export async function getPlaysTrend(days = 14) {
   start.setDate(start.getDate() - (days - 1));
   start.setHours(0, 0, 0, 0);
 
-  const rows = await fetchPlaysSince<{ played_at: string }>(start.toISOString(), "played_at");
+  const rows = await fetchPlaysSince<{ played_at: string; duration_seconds: number | null }>(
+    start.toISOString(),
+    "played_at, duration_seconds",
+  );
 
-  // Bucket by local date
+  // Bucket by local date — track both play count and listened seconds per day.
   const counts = new Map<string, number>();
+  const seconds = new Map<string, number>();
   for (const r of rows) {
     const day = toLocalDay(r.played_at);
-    counts.set(day, (counts.get(day) || 0) + 1);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+    // Plays from early installs may have NULL duration; treat as 0 minutes
+    // contributed rather than poisoning the sum.
+    seconds.set(day, (seconds.get(day) ?? 0) + (r.duration_seconds ?? 0));
   }
 
   // Zero-fill the full window so the chart always renders `days` evenly-spaced points.
-  const result: { date: string; count: number }[] = [];
+  const result: { date: string; count: number; minutes: number }[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const key = d.toLocaleDateString("en-CA");
-    result.push({ date: key, count: counts.get(key) || 0 });
+    result.push({
+      date: key,
+      count: counts.get(key) ?? 0,
+      minutes: Math.round((seconds.get(key) ?? 0) / 60),
+    });
   }
   return result;
 }
