@@ -65,6 +65,37 @@ flutter:
 
 
   fonts:
+    # ── Active fonts (AMOLED theme) ──
+    # Kufam = display / headers / titles. ReadexPro = body / subtitles / captions.
+    - family: Kufam
+      fonts:
+        - asset: assets/fonts/Kufam-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Kufam-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Kufam-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Kufam-Italic.ttf
+          weight: 400
+          style: italic
+    - family: ReadexPro
+      fonts:
+        - asset: assets/fonts/ReadexPro-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/ReadexPro-Light.ttf
+          weight: 300
+        - asset: assets/fonts/ReadexPro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/ReadexPro-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/ReadexPro-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/ReadexPro-Bold.ttf
+          weight: 700
+    # ── Legacy fonts (kept declared so any straggler `fontFamily: 'Fustat'`
+    # string literal still loads instead of falling back to default; the
+    # active theme tokens point at Kufam/ReadexPro). Safe to remove once
+    # the codebase is fully migrated to the token names.
     - family: Fustat
       fonts:
         - asset: assets/fonts/Fustat-Regular.ttf

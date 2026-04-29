@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -348,12 +350,20 @@ class _FloatingBottomNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = navigationShell.currentIndex;
 
-    return Container(
+    // ClipRRect + BackdropFilter give the nav a frosted-dark feel: anything
+    // scrolling underneath blurs through the bar instead of disappearing
+    // behind a flat surface. The elevated card color sits on top at 90%
+    // alpha so the blur reads through.
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
           height: 68,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.97),
+            color: RannaTheme.card.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
-            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.15)),
+            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.8)),
             boxShadow: RannaTheme.shadowFloat,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -378,6 +388,8 @@ class _FloatingBottomNav extends ConsumerWidget {
               );
             }),
           ),
+        ),
+      ),
     );
   }
 }
@@ -411,7 +423,7 @@ class _AnimatedTab extends StatelessWidget {
           vertical: isActive ? 10 : 8,
         ),
         decoration: BoxDecoration(
-          color: isActive ? RannaTheme.primary : Colors.transparent,
+          color: isActive ? RannaTheme.navActiveIndicator : Colors.transparent,
           borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
         ),
         child: Row(
@@ -420,17 +432,17 @@ class _AnimatedTab extends StatelessWidget {
             Icon(
               icon,
               size: 20,
-              color: isActive ? Colors.white : RannaTheme.mutedForeground,
+              color: isActive ? RannaTheme.navSelected : RannaTheme.navUnselected,
             ),
             if (isActive) ...[
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: RannaTheme.fontFustat,
+                  fontFamily: RannaTheme.fontKufam,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: RannaTheme.navSelected,
                 ),
               ),
             ],

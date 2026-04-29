@@ -139,12 +139,14 @@ class RannaImage extends StatelessWidget {
   }
 
   Widget _defaultFallback() {
-    // Ranna logo on white background as the ultimate fallback
+    // Ranna logo on a dark surface — the ultimate fallback for missing
+    // images. Uses muted (#18181B) so the fallback reads as a card-like
+    // surface instead of a glaring white square against the AMOLED scaffold.
     final logoSize = (width < height ? width : height) * 0.45;
     return Container(
       width: width,
       height: height,
-      color: Colors.white,
+      color: RannaTheme.muted,
       child: Center(
         child: Image.asset(
           'assets/images/logo-ranna.png',

@@ -13,7 +13,7 @@ class AllTariqasScreen extends ConsumerWidget {
     final tariqasAsync = ref.watch(allTuruqProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: RannaTheme.background,
       appBar: const RannaAppBar(title: 'الطرق الصوفية'),
       body: tariqasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

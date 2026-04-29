@@ -78,7 +78,7 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
     final firstPageAsync = ref.watch(paginatedArtistsProvider(0));
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: RannaTheme.background,
       appBar: const RannaAppBar(title: 'المادحين'),
       body: firstPageAsync.when(
         loading: () => _buildLoading(),

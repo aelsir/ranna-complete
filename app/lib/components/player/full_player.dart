@@ -139,11 +139,12 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
         },
         child: Container(
           decoration: BoxDecoration(
-            color: RannaTheme.primary,
+            // AMOLED full-player gradient: #111 at the top fades down to
+            // pure black at the bottom — feels cinematic against the cover
+            // art and matches the spec.
+            gradient: RannaTheme.fullPlayerGradient,
             borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-            border: Border.all(
-              color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
-            ),
+            border: Border.all(color: RannaTheme.border),
             boxShadow: RannaTheme.shadowFloat,
           ),
           child: SafeArea(
@@ -273,8 +274,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                           child: Icon(
                                             Icons.ios_share_rounded,
                                             size: 24,
-                                            color: RannaTheme.primaryForeground
-                                                .withValues(alpha: 0.40),
+                                            color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
                                           ),
                                         ),
                                       ),
@@ -540,7 +540,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
 
   Widget _buildFallbackCover() {
     return Container(
-      color: Colors.white,
+      color: RannaTheme.muted,
       child: Center(
         child: Image.asset(
           'assets/images/logo-ranna.png',
@@ -703,11 +703,24 @@ class _ProgressSliderState extends State<_ProgressSlider> {
             trackShape: const RoundedRectSliderTrackShape(),
             activeTrackColor: Colors.white,
             inactiveTrackColor:
-                RannaTheme.primaryForeground.withValues(alpha: 0.15),
+                RannaTheme.primaryForeground.withValues(alpha: 0.40),
+            secondaryActiveTrackColor:
+                Colors.white.withValues(alpha: 0.30),
             thumbColor: Colors.white,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
             overlayColor: Colors.white.withValues(alpha: 0.12),
+            // Tick marks — hidden but must be white to avoid black fallback
+            activeTickMarkColor: Colors.transparent,
+            inactiveTickMarkColor: Colors.transparent,
+            // Value indicator (tooltip on drag)
+            valueIndicatorColor: RannaTheme.card,
+            valueIndicatorTextStyle: const TextStyle(color: Colors.white),
+            // Disabled states
+            disabledThumbColor: Colors.white.withValues(alpha: 0.40),
+            disabledActiveTrackColor: Colors.white.withValues(alpha: 0.30),
+            disabledInactiveTrackColor:
+                Colors.white.withValues(alpha: 0.15),
           ),
           child: Slider(
             value: currentValue.toDouble().clamp(0.0, maxMs),

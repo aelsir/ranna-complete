@@ -14,7 +14,7 @@ class BrowseScreen extends ConsumerWidget {
     final collectionsAsync = ref.watch(allCollectionsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: RannaTheme.background,
       appBar: const RannaAppBar(title: 'القوائم المميزة'),
       body: collectionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

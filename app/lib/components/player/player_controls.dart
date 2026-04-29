@@ -32,7 +32,7 @@ class PlayerControls extends ConsumerWidget {
           icon: Icons.forward_10,
           size: 40,
           iconSize: 24,
-          iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.60),
+          iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.80),
           onTap: () => notifier.skipBackward(),
         ),
 
@@ -44,7 +44,7 @@ class PlayerControls extends ConsumerWidget {
           size: 48,
           iconSize: 30,
           iconColor: playerState.hasPrevious
-              ? RannaTheme.primaryForeground.withValues(alpha: 0.60)
+              ? RannaTheme.primaryForeground.withValues(alpha: 0.80)
               : RannaTheme.primaryForeground.withValues(alpha: 0.20),
           onTap: playerState.hasPrevious ? () => notifier.playPrevious() : null,
           flipHorizontally: true,
@@ -59,14 +59,14 @@ class PlayerControls extends ConsumerWidget {
             width: 70,
             height: 70,
             decoration: BoxDecoration(
-              color: RannaTheme.primaryForeground,
+              color: RannaTheme.primary,
               shape: BoxShape.circle,
-              boxShadow: RannaTheme.shadowGlowAccent,
+              boxShadow: RannaTheme.shadowGlowSecondary,
             ),
             child: Center(
               child: Icon(
                 isPlaying ? Icons.pause_rounded : RannaTheme.playIcon,
-                color: RannaTheme.primary,
+                color: RannaTheme.background,
                 size: 40,
               ),
             ),
@@ -81,7 +81,7 @@ class PlayerControls extends ConsumerWidget {
           size: 48,
           iconSize: 30,
           iconColor: playerState.hasNext
-              ? RannaTheme.primaryForeground.withValues(alpha: 0.60)
+              ? RannaTheme.primaryForeground.withValues(alpha: 0.80)
               : RannaTheme.primaryForeground.withValues(alpha: 0.20),
           onTap: playerState.hasNext ? () => notifier.playNext() : null,
           flipHorizontally: true,
@@ -94,7 +94,7 @@ class PlayerControls extends ConsumerWidget {
           icon: Icons.replay_10,
           size: 40,
           iconSize: 24,
-          iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.60),
+          iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.80),
           onTap: () => notifier.skipForward(),
         ),
       ],

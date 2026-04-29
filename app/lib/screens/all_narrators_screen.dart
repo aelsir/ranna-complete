@@ -75,7 +75,7 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
     final firstPageAsync = ref.watch(paginatedNarratorsProvider(0));
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: RannaTheme.background,
       appBar: const RannaAppBar(title: 'الرواة'),
       body: firstPageAsync.when(
         loading: () => _buildLoading(),

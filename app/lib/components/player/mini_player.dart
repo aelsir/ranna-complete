@@ -37,11 +37,9 @@ class MiniPlayer extends ConsumerWidget {
       behavior: HitTestBehavior.opaque,
       child: Container(
         decoration: BoxDecoration(
-          color: RannaTheme.primary,
+          color: RannaTheme.card,
           borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-          border: Border.all(
-            color: RannaTheme.primaryForeground.withValues(alpha: 0.05),
-          ),
+          border: Border.all(color: RannaTheme.border),
           boxShadow: RannaTheme.shadowFloat,
         ),
         clipBehavior: Clip.antiAlias,
@@ -58,18 +56,18 @@ class MiniPlayer extends ConsumerWidget {
                   child: CustomPaint(
                     painter: _CircularProgressPainter(
                       progress: progress,
-                      progressColor: RannaTheme.accent,
-                      trackColor: RannaTheme.primaryForeground.withValues(
+                      progressColor: RannaTheme.primary,
+                      trackColor: RannaTheme.foreground.withValues(
                         alpha: 0.10,
                       ),
                       strokeWidth: 6,
                     ),
                     child: Center(
                       child: Container(
-                        width: 30,
-                        height: 30,
+                        width: 26,
+                        height: 26,
                         decoration: const BoxDecoration(
-                          color: Colors.white,
+                          color: RannaTheme.primary,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -77,7 +75,7 @@ class MiniPlayer extends ConsumerWidget {
                             isPlaying
                                 ? Icons.pause_rounded
                                 : RannaTheme.playIcon,
-                            color: RannaTheme.primary,
+                            color: RannaTheme.background,
                             size: 14,
                           ),
                         ),

@@ -1,4 +1,8 @@
-/// Ranna design system — matching the ranna-v2 webapp brand exactly.
+/// Ranna design system — AMOLED Black Dark Theme.
+///
+/// Pure-black scaffold (#000000) with elevated surfaces at #111111. Emerald
+/// (#10B981) and gold (#FFD479) carry brand accents. Typography is Kufam
+/// (display / headers / titles) + ReadexPro (body / subtitles / captions).
 library;
 
 import 'dart:ui';
@@ -8,49 +12,69 @@ class RannaTheme {
   RannaTheme._();
 
   // ===========================================================================
-  // Brand Colors
+  // Brand colors — AMOLED Dark
   // ===========================================================================
 
-  /// primary: 184 43% 19% — dark teal
-  static const Color primary = Color(0xFF1B4144);
+  /// Pure black scaffold — looks at home on OLED screens (pixels off = power
+  /// off) and gives photography / artwork maximum contrast.
+  static const Color background = Color(0xFF000000);
+
+  /// Elevated surface for cards, dialogs, the mini player. Slightly lighter
+  /// than the scaffold so cards still read as "above" the page without
+  /// breaking the dark mood.
+  static const Color card = Color(0xFF111111);
+
+  /// Primary accent — emerald green. Used on filled buttons, follow chips,
+  /// active states.
+  static const Color primary = Color(0xFF10B981);
   static const Color primaryForeground = Color(0xFFFFFFFF);
-  static const Color primaryGlow = Color(0xFF245E5C);
+  static const Color primaryGlow = Color(0xFF34D399);
 
-  /// secondary: 73 100% 50% — lime green
-  static const Color secondary = Color(0xFFBEFF00);
-  static const Color secondaryForeground = Color(0xFF112B2C);
+  /// Legacy alias — maps to primary so any existing reference resolves.
+  static const Color secondary = primary;
+  static const Color secondaryForeground = Color(0xFFFFFFFF);
 
-  /// accent: 7 100% 70% — coral
-  static const Color accent = Color(0xFFFF6B66);
-  static const Color accentForeground = Color(0xFFFFFFFF);
+  /// Secondary accent — warm gold. Reserved for highlights, awards,
+  /// special-occasion banners. Use sparingly so it stays meaningful.
+  static const Color accent = Color(0xFFFFD479);
 
-  /// background: 160 10% 97%
-  static const Color background = Color(0xFFF5F7F5);
+  /// Dark text on the gold accent — gold is a bright surface, needs dark fg.
+  static const Color accentForeground = Color(0xFF111111);
 
-  /// foreground: 184 43% 15%
-  static const Color foreground = Color(0xFF162F31);
+  /// Primary text — white, against pure-black scaffold.
+  static const Color foreground = Color(0xFFFFFFFF);
 
-  /// card: pure white
-  static const Color card = Color(0xFFFFFFFF);
+  /// Subtle surface (one step lighter than card) for resting states like
+  /// chips, segmented controls, divider blocks.
+  static const Color muted = Color(0xFF18181B);
 
-  /// muted: 180 12% 93%
-  static const Color muted = Color(0xFFE8EDED);
+  /// Muted text — Tailwind zinc-400. Captions, secondary labels.
+  static const Color mutedForeground = Color(0xFF71717A);
 
-  /// muted-foreground: 184 20% 46%
-  static const Color mutedForeground = Color(0xFF5E8385);
+  /// Hairline borders — Tailwind zinc-800. Visible against #111 cards but
+  /// disappears against pure black where appropriate.
+  static const Color border = Color(0xFF27272A);
 
-  /// border: 180 12% 88%
-  static const Color border = Color(0xFFD9E1E1);
-  static const Color input = Color(0xFFE0E8E8);
+  /// Form input fill — slightly lighter than card so inputs read as "wells".
+  static const Color input = Color(0xFF1C1C1F);
+
   static const Color destructive = Color(0xFFEF4444);
+
+  /// Bottom-nav specifics requested by the brief.
+  static const Color navUnselected = Color(0xFF71717A);
+  static const Color navSelected = Color(0xFFFFFFFF);
+  static const Color navActiveIndicator = Color(0xFF3F3F46);
 
   // ===========================================================================
   // Shadows
   // ===========================================================================
+  // On pure-black surfaces, drop-shadows are essentially invisible. We keep
+  // the API but use very subtle white-glow shadows so floating elements
+  // (mini player, bottom nav) still catch the eye.
 
   static List<BoxShadow> get shadowSm => [
     BoxShadow(
-      color: primary.withValues(alpha: 0.04),
+      color: Colors.white.withValues(alpha: 0.02),
       blurRadius: 3,
       offset: const Offset(0, 1),
     ),
@@ -58,7 +82,7 @@ class RannaTheme {
 
   static List<BoxShadow> get shadowMd => [
     BoxShadow(
-      color: primary.withValues(alpha: 0.08),
+      color: Colors.white.withValues(alpha: 0.04),
       blurRadius: 16,
       offset: const Offset(0, 4),
     ),
@@ -66,7 +90,7 @@ class RannaTheme {
 
   static List<BoxShadow> get shadowLg => [
     BoxShadow(
-      color: primary.withValues(alpha: 0.12),
+      color: Colors.black.withValues(alpha: 0.6),
       blurRadius: 40,
       offset: const Offset(0, 12),
     ),
@@ -74,7 +98,7 @@ class RannaTheme {
 
   static List<BoxShadow> get shadowCard => [
     BoxShadow(
-      color: primary.withValues(alpha: 0.06),
+      color: Colors.black.withValues(alpha: 0.4),
       blurRadius: 20,
       offset: const Offset(0, 4),
     ),
@@ -84,7 +108,7 @@ class RannaTheme {
 
   static List<BoxShadow> get shadowGlowSecondary => [
     BoxShadow(
-      color: secondary.withValues(alpha: 0.35),
+      color: primary.withValues(alpha: 0.35),
       blurRadius: 24,
       offset: const Offset(0, 4),
       spreadRadius: -4,
@@ -101,7 +125,7 @@ class RannaTheme {
   ];
 
   // ===========================================================================
-  // Border Radius
+  // Border radius
   // ===========================================================================
 
   static const double radiusSm = 8;
@@ -113,7 +137,7 @@ class RannaTheme {
   static const double radiusFull = 999;
 
   // ===========================================================================
-  // Glassmorphism
+  // Glassmorphism — dark variant
   // ===========================================================================
 
   static Widget glassContainer({
@@ -132,7 +156,8 @@ class RannaTheme {
         filter: ImageFilter.blur(sigmaX: sigmaX, sigmaY: sigmaY),
         child: Container(
           decoration: BoxDecoration(
-            color: color ?? Colors.white.withValues(alpha: 0.72),
+            // Dark glass — semi-transparent #111 over whatever's behind.
+            color: color ?? card.withValues(alpha: 0.72),
             borderRadius: borderRadius,
             border: border,
             boxShadow: boxShadow,
@@ -145,73 +170,94 @@ class RannaTheme {
   }
 
   // ===========================================================================
+  // Full-player background gradient
+  // ===========================================================================
+
+  /// Linear gradient from #111 (top) to pure black (bottom). Used by the
+  /// full audio player screen as a subtle vertical wash.
+  static const LinearGradient fullPlayerGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [card, background],
+  );
+
+  // ===========================================================================
   // Typography
   // ===========================================================================
 
-  /// Font family constants for use across the app.
-  static const String fontFustat = 'Fustat';
-  static const String fontNotoNaskh = 'NotoNaskhArabic';
+  /// Display / headers / titles — Kufam.
+  static const String fontKufam = 'Kufam';
+
+  /// Body / subtitles / captions — ReadexPro.
+  static const String fontReadexPro = 'ReadexPro';
+
+  /// Backwards-compatible aliases. Existing call sites that read
+  /// `fontFustat` / `fontNotoNaskh` keep working — the values now point at
+  /// the AMOLED-theme fonts. New code should prefer fontKufam / fontReadexPro
+  /// for clarity.
+  static const String fontFustat = fontKufam;
+  static const String fontNotoNaskh = fontReadexPro;
 
   static TextTheme _buildTextTheme() {
     return const TextTheme(
-      // Display — Fustat for large decorative headings
-      displayLarge: TextStyle(fontFamily: fontFustat, color: foreground),
-      displayMedium: TextStyle(fontFamily: fontFustat, color: foreground),
-      displaySmall: TextStyle(fontFamily: fontFustat, color: foreground),
+      // Display — Kufam for large decorative headings
+      displayLarge: TextStyle(fontFamily: fontKufam, color: foreground),
+      displayMedium: TextStyle(fontFamily: fontKufam, color: foreground),
+      displaySmall: TextStyle(fontFamily: fontKufam, color: foreground),
 
-      // Headline — Fustat bold/extrabold for section titles
+      // Headline — Kufam bold for section titles
       headlineLarge: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w700,
       ),
       headlineMedium: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
         fontWeight: FontWeight.w700,
       ),
       headlineSmall: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
         fontWeight: FontWeight.bold,
       ),
 
-      // Title — Fustat bold for card titles, app bar
+      // Title — Kufam bold for card titles, app bars
       titleLarge: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
         fontWeight: FontWeight.bold,
         fontSize: 20,
       ),
       titleMedium: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
         fontWeight: FontWeight.bold,
       ),
       titleSmall: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
         fontWeight: FontWeight.w600,
       ),
 
-      // Body — Noto Naskh Arabic for readable Arabic prose
-      bodyLarge: TextStyle(fontFamily: fontNotoNaskh, color: foreground),
-      bodyMedium: TextStyle(fontFamily: fontNotoNaskh, color: foreground),
-      bodySmall: TextStyle(fontFamily: fontNotoNaskh, color: mutedForeground),
+      // Body — ReadexPro for readable Arabic prose
+      bodyLarge: TextStyle(fontFamily: fontReadexPro, color: foreground),
+      bodyMedium: TextStyle(fontFamily: fontReadexPro, color: foreground),
+      bodySmall: TextStyle(fontFamily: fontReadexPro, color: mutedForeground),
 
-      // Label — Fustat bold for buttons, chips, nav labels
+      // Label — Kufam bold for buttons, chips, nav labels
       labelLarge: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: foreground,
         fontWeight: FontWeight.bold,
       ),
       labelMedium: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: mutedForeground,
         fontWeight: FontWeight.bold,
       ),
       labelSmall: TextStyle(
-        fontFamily: fontFustat,
+        fontFamily: fontKufam,
         color: mutedForeground,
         fontWeight: FontWeight.bold,
       ),
@@ -219,23 +265,23 @@ class RannaTheme {
   }
 
   // ===========================================================================
-  // Color scheme
+  // Color scheme — Brightness.dark
   // ===========================================================================
 
   static const ColorScheme colorScheme = ColorScheme(
-    brightness: Brightness.light,
+    brightness: Brightness.dark,
     primary: primary,
     onPrimary: primaryForeground,
-    primaryContainer: Color(0xFFD0F0EE),
-    onPrimaryContainer: foreground,
-    secondary: secondary,
-    onSecondary: secondaryForeground,
-    secondaryContainer: Color(0xFFE8FFB3),
-    onSecondaryContainer: secondaryForeground,
+    primaryContainer: Color(0xFF064E3B),       // emerald-900
+    onPrimaryContainer: Color(0xFFD1FAE5),     // emerald-100
+    secondary: primary,
+    onSecondary: primaryForeground,
+    secondaryContainer: Color(0xFF064E3B),
+    onSecondaryContainer: Color(0xFFD1FAE5),
     tertiary: accent,
     onTertiary: accentForeground,
-    tertiaryContainer: Color(0xFFFFDAD5),
-    onTertiaryContainer: Color(0xFF410002),
+    tertiaryContainer: Color(0xFF44340A),      // dim gold backing
+    onTertiaryContainer: Color(0xFFFFE4AD),
     error: destructive,
     onError: Color(0xFFFFFFFF),
     surface: card,
@@ -245,9 +291,9 @@ class RannaTheme {
     outlineVariant: muted,
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
-    inverseSurface: foreground,
-    onInverseSurface: Color(0xFFF5F5F5),
-    inversePrimary: Color(0xFF80CBC4),
+    inverseSurface: Color(0xFFE4E4E7),         // zinc-200 (rare, for snackbar contrast)
+    onInverseSurface: Color(0xFF18181B),
+    inversePrimary: Color(0xFF065F46),
     surfaceContainerHighest: muted,
   );
 
@@ -255,19 +301,26 @@ class RannaTheme {
   // ThemeData
   // ===========================================================================
 
-  static final ThemeData lightTheme = _buildLightTheme();
+  /// `lightTheme` is the public name kept for backwards compatibility with
+  /// the call site in `app.dart`. It is now a DARK theme — AMOLED is the
+  /// single, default theme for the app. There is no light variant.
+  static final ThemeData lightTheme = _buildDarkTheme();
 
-  static ThemeData _buildLightTheme() {
+  /// Alias for clarity if call sites want to be explicit.
+  static final ThemeData darkTheme = _buildDarkTheme();
+
+  static ThemeData _buildDarkTheme() {
     final textTheme = _buildTextTheme();
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
+      canvasColor: background,
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: background,
         foregroundColor: foreground,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -285,32 +338,46 @@ class RannaTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
-          side: BorderSide(color: border.withValues(alpha: 0.2)),
+          side: BorderSide(color: border.withValues(alpha: 0.6)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius2xl),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: card,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radius2xl)),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.transparent,
-        indicatorColor: Colors.transparent,
+        backgroundColor: card,
+        indicatorColor: navActiveIndicator,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return textTheme.labelSmall?.copyWith(
-              color: foreground,
+              color: navSelected,
               fontWeight: FontWeight.bold,
               fontSize: 10,
             );
           }
           return textTheme.labelSmall?.copyWith(
-            color: mutedForeground,
+            color: navUnselected,
             fontSize: 10,
           );
         }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondary,
-          foregroundColor: secondaryForeground,
+          backgroundColor: primary,
+          foregroundColor: primaryForeground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusFull),
           ),
@@ -318,6 +385,15 @@ class RannaTheme {
           elevation: 0,
           textStyle: textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: primaryForeground,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLg),
           ),
         ),
       ),
@@ -333,22 +409,20 @@ class RannaTheme {
       iconTheme: const IconThemeData(color: foreground, size: 24),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: muted,
+        fillColor: input,
         hintStyle: textTheme.bodyMedium?.copyWith(color: mutedForeground),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: mutedForeground),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius2xl),
-          borderSide: BorderSide(color: border.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(radiusLg),
+          borderSide: BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius2xl),
-          borderSide: BorderSide(color: border.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(radiusLg),
+          borderSide: BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radius2xl),
-          borderSide: BorderSide(
-            color: primary.withValues(alpha: 0.2),
-            width: 2,
-          ),
+          borderRadius: BorderRadius.circular(radiusLg),
+          borderSide: const BorderSide(color: primary, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -356,38 +430,51 @@ class RannaTheme {
         ),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: accent,
-        inactiveTrackColor: primaryForeground.withValues(alpha: 0.15),
-        thumbColor: accent,
-        overlayColor: accent.withValues(alpha: 0.15),
+        activeTrackColor: primary,
+        inactiveTrackColor: muted,
+        thumbColor: primary,
+        overlayColor: primary.withValues(alpha: 0.15),
         trackHeight: 4,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
       ),
-      dividerTheme: DividerThemeData(
-        color: border.withValues(alpha: 0.3),
+      dividerTheme: const DividerThemeData(
+        color: border,
         thickness: 1,
         space: 0,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: foreground,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
+        backgroundColor: muted,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(color: foreground),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),
         behavior: SnackBarBehavior.floating,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: accent,
+        color: primary,
         linearTrackColor: muted,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primary;
+          return mutedForeground;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primary.withValues(alpha: 0.4);
+          }
+          return muted;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(border),
       ),
     );
   }
+
   // ===========================================================================
-  // Directional Icons
+  // Directional icons
   // ===========================================================================
 
-  /// A directional version of the play arrow icon that automatically points
-  /// left in RTL (Arabic) contexts and right in LTR contexts.
+  /// RTL-aware play arrow — points left in Arabic, right in English.
   static IconData get playIcon => IconData(
     Icons.play_arrow_rounded.codePoint,
     fontFamily: Icons.play_arrow_rounded.fontFamily,

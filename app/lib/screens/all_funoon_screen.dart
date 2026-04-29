@@ -13,7 +13,7 @@ class AllFunoonScreen extends ConsumerWidget {
     final fununAsync = ref.watch(allFununProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: RannaTheme.background,
       appBar: const RannaAppBar(title: 'الفنون'),
       body: fununAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

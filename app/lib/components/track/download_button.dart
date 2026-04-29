@@ -104,7 +104,7 @@ class DownloadButton extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 8,
                     color: RannaTheme.mutedForeground.withValues(alpha: 0.5),
-                    fontFamily: 'Fustat',
+                    fontFamily: RannaTheme.fontKufam,
                   ),
                 ),
               ),
@@ -123,7 +123,7 @@ class DownloadButton extends ConsumerWidget {
           SnackBar(
             content: Text(
               'فشل التحميل: ${e.toString().substring(0, 50.clamp(0, e.toString().length))}',
-              style: const TextStyle(fontFamily: 'Fustat'),
+              style: const TextStyle(fontFamily: RannaTheme.fontKufam),
             ),
             backgroundColor: Colors.red.shade700,
           ),

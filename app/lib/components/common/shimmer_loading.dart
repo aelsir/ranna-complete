@@ -11,9 +11,14 @@ class ShimmerGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On the AMOLED dark theme:
+    //   • baseColor sets the placeholder's "rest" color
+    //   • highlightColor is the lighter wave that sweeps across
+    // We use border (#27272A) → navActiveIndicator (#3F3F46) for a
+    // visible but subtle pulse against the #111 card surfaces.
     return Shimmer.fromColors(
-      baseColor: RannaTheme.muted,
-      highlightColor: RannaTheme.card,
+      baseColor: RannaTheme.border,
+      highlightColor: RannaTheme.navActiveIndicator,
       child: child,
     );
   }

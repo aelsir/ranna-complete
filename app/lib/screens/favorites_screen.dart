@@ -182,19 +182,19 @@ class FavoritesScreen extends ConsumerWidget {
                                       builder: (ctx) => Directionality(
                                         textDirection: TextDirection.rtl,
                                         child: AlertDialog(
-                                          title: const Text('حذف المحفوظة', style: TextStyle(fontFamily: 'Fustat')),
+                                          title: const Text('حذف المحفوظة', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
                                           content: Text(
                                             'هل تريد حذف "${track.title}" من المحفوظات المحلية؟',
-                                            style: const TextStyle(fontFamily: 'Noto Naskh Arabic'),
+                                            style: const TextStyle(fontFamily: RannaTheme.fontReadexPro),
                                           ),
                                           actions: [
                                             TextButton(
                                               onPressed: () => Navigator.pop(ctx, false),
-                                              child: const Text('إلغاء', style: TextStyle(fontFamily: 'Fustat')),
+                                              child: const Text('إلغاء', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
                                             ),
                                             TextButton(
                                               onPressed: () => Navigator.pop(ctx, true),
-                                              child: Text('حذف', style: TextStyle(fontFamily: 'Fustat', color: Colors.red.shade700)),
+                                              child: Text('حذف', style: TextStyle(fontFamily: RannaTheme.fontKufam, color: Colors.red.shade700)),
                                             ),
                                           ],
                                         ),
@@ -258,19 +258,19 @@ class FavoritesScreen extends ConsumerWidget {
                                   builder: (ctx) => Directionality(
                                     textDirection: TextDirection.rtl,
                                     child: AlertDialog(
-                                      title: const Text('حذف جميع المحفوظات', style: TextStyle(fontFamily: 'Fustat')),
+                                      title: const Text('حذف جميع المحفوظات', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
                                       content: Text(
                                         'سيتم حذف ${downloadedIds.length} مدحة محفوظة محلياً. لن يتم حذفها من المفضلة.',
-                                        style: const TextStyle(fontFamily: 'Noto Naskh Arabic'),
+                                        style: const TextStyle(fontFamily: RannaTheme.fontReadexPro),
                                       ),
                                       actions: [
                                         TextButton(
                                           onPressed: () => Navigator.pop(ctx, false),
-                                          child: const Text('إلغاء', style: TextStyle(fontFamily: 'Fustat')),
+                                          child: const Text('إلغاء', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
                                         ),
                                         TextButton(
                                           onPressed: () => Navigator.pop(ctx, true),
-                                          child: Text('حذف الكل', style: TextStyle(fontFamily: 'Fustat', color: Colors.red.shade700)),
+                                          child: Text('حذف الكل', style: TextStyle(fontFamily: RannaTheme.fontKufam, color: Colors.red.shade700)),
                                         ),
                                       ],
                                     ),
