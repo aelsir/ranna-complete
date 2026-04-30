@@ -246,7 +246,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                                 : Icons.favorite_border_rounded,
                                             size: 24,
                                             color: isFav
-                                                ? RannaTheme.accent
+                                                ? RannaTheme.favoriteHeart
                                                 : RannaTheme.primaryForeground.withValues(
                                                     alpha: 0.40,
                                                   ),

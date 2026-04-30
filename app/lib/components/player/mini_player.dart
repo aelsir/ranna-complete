@@ -136,7 +136,7 @@ class MiniPlayer extends ConsumerWidget {
                     ? Icons.favorite_rounded
                     : Icons.favorite_border_rounded,
                 color: isFav
-                    ? RannaTheme.accent
+                    ? RannaTheme.favoriteHeart
                     : RannaTheme.primaryForeground.withValues(alpha: 0.40),
                 onTap: () {
                   ref.read(favoritesProvider.notifier).toggle(track.id);

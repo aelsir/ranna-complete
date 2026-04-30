@@ -163,7 +163,7 @@ class TrackRow extends ConsumerWidget {
                           : Icons.favorite_border_rounded,
                       size: 18,
                       color: isFav
-                          ? RannaTheme.accent
+                          ? RannaTheme.favoriteHeart
                           : RannaTheme.mutedForeground.withValues(alpha: 0.3),
                     ),
                     style: IconButton.styleFrom(

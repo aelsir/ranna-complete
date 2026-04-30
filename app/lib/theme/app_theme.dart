@@ -38,6 +38,9 @@ class RannaTheme {
   /// special-occasion banners. Use sparingly so it stays meaningful.
   static const Color accent = Color(0xFFFFD479);
 
+  /// Heart / favorite icon color — vibrant red-pink.
+  static const Color favoriteHeart = Color(0xFFFE365A);
+
   /// Dark text on the gold accent — gold is a bright surface, needs dark fg.
   static const Color accentForeground = Color(0xFF111111);
 

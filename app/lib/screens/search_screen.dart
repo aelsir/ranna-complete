@@ -264,8 +264,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         duration: 200.ms,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? RannaTheme.primary : RannaTheme.secondary,
+          color: isActive ? RannaTheme.primary : RannaTheme.muted,
           borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+          border: isActive
+              ? null
+              : Border.all(color: RannaTheme.border.withValues(alpha: 0.5)),
         ),
         child: AnimatedOpacity(
           duration: 200.ms,
@@ -280,7 +283,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: isActive
-                      ? RannaTheme.primaryForeground
+                      ? RannaTheme.background
                       : RannaTheme.foreground,
                 ),
               ),
@@ -294,7 +297,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     fontWeight: FontWeight.w500,
                     color:
                         (isActive
-                                ? RannaTheme.primaryForeground
+                                ? RannaTheme.background
                                 : RannaTheme.foreground)
                             .withValues(alpha: 0.6),
                   ),

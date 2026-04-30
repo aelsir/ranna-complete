@@ -210,36 +210,26 @@ class ShellScaffold extends ConsumerWidget {
 
     // iPad: no shell margins, content constrained to phone width inside
     final tablet = isTablet(context);
-    final shellMargin = tablet ? 0.0 : 3.0;
 
     return Scaffold(
       backgroundColor: RannaTheme.background,
       body: Stack(
         children: [
-          // ===== Content Shell =====
+          // ===== Content Area =====
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
             top: contentTop,
-            left: shellMargin,
-            right: shellMargin,
+            left: 0,
+            right: 0,
             bottom: totalBottomForContent,
-            child: Container(
-              decoration: BoxDecoration(
-                color: RannaTheme.card,
-                borderRadius: BorderRadius.circular(tablet ? 0 : RannaTheme.radius3xl),
-                border: tablet ? null : Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
-                boxShadow: tablet ? null : RannaTheme.shadowCard,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
-                  child: MediaQuery.removePadding(
-                    context: context,
-                    removeTop: true,
-                    child: navigationShell,
-                  ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: navigationShell,
                 ),
               ),
             ),
@@ -283,8 +273,8 @@ class ShellScaffold extends ConsumerWidget {
           // ===== Mini Player =====
           if (hasTrack)
             Positioned(
-              left: shellMargin,
-              right: shellMargin,
+              left: 4,
+              right: 4,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
               child: Center(
                 child: ConstrainedBox(
@@ -296,8 +286,8 @@ class ShellScaffold extends ConsumerWidget {
 
           // ===== Bottom Navigation =====
           Positioned(
-            left: shellMargin,
-            right: shellMargin,
+            left: 4,
+            right: 4,
             bottom: navBarBottomMargin + bottomPadding,
             child: Center(
               child: ConstrainedBox(
@@ -310,8 +300,8 @@ class ShellScaffold extends ConsumerWidget {
           // ===== Full Player Overlay =====
           if (isFullPlayerOpen)
             Positioned(
-              left: shellMargin,
-              right: shellMargin,
+              left: 0,
+              right: 0,
               top: contentTop,
               bottom: navBarHeight + navBarBottomMargin + bottomPadding + 4,
               child: Center(

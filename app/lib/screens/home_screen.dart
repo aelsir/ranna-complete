@@ -994,7 +994,7 @@ class _TrendingTrackRow extends ConsumerWidget {
                           : Icons.favorite_border_rounded,
                       size: 18,
                       color: isFav
-                          ? RannaTheme.accent
+                          ? RannaTheme.favoriteHeart
                           : RannaTheme.mutedForeground,
                     ),
                   );
