@@ -64,7 +64,7 @@ class FavoritesScreen extends ConsumerWidget {
                         SliverToBoxAdapter(
                           child: _SectionHeader(
                             icon: Icons.favorite_rounded,
-                            iconColor: Colors.red.shade400,
+                            iconColor: RannaTheme.favoriteHeart,
                             title: 'المفضلة',
                             count: favoriteIds.length,
                           ),
@@ -320,7 +320,7 @@ class FavoritesScreen extends ConsumerWidget {
             Icon(
                   Icons.favorite_rounded,
                   size: 72,
-                  color: RannaTheme.accent.withValues(alpha: 0.3),
+                  color: RannaTheme.favoriteHeart.withValues(alpha: 0.3),
                 )
                 .animate(onPlay: (controller) => controller.repeat())
                 .moveY(
