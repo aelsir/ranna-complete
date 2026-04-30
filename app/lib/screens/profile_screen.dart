@@ -415,7 +415,7 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
       isFollowingProvider((type: widget.targetType, id: widget.targetId)),
     );
     final label = isFollowing ? 'تتابعه' : 'تابـــــع';
-    final fg = isFollowing ? RannaTheme.primaryForeground : RannaTheme.primary;
+    final fg = isFollowing ? RannaTheme.background : RannaTheme.primary;
     final bg = isFollowing ? RannaTheme.primary : Colors.transparent;
     final borderColor = RannaTheme.primary;
 

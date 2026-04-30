@@ -953,10 +953,12 @@ class _TrendingTrackRow extends ConsumerWidget {
                   children: [
                     Text(
                       track.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 14,
                         fontWeight: isCurrentTrack
-                            ? FontWeight.w600
-                            : FontWeight.w500,
+                            ? FontWeight.bold
+                            : FontWeight.w600,
                         color: isCurrentTrack
                             ? RannaTheme.accent
                             : RannaTheme.foreground,
@@ -968,7 +970,9 @@ class _TrendingTrackRow extends ConsumerWidget {
                     Text(
                       '${track.madihDetails?.name ?? track.madih}'
                       '${track.rawi != null ? ' - ${track.rawi!.name}' : ''}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      style: const TextStyle(
+                        fontFamily: RannaTheme.fontFustat,
+                        fontSize: 11,
                         color: RannaTheme.mutedForeground,
                       ),
                       maxLines: 1,
@@ -983,7 +987,9 @@ class _TrendingTrackRow extends ConsumerWidget {
                 padding: const EdgeInsetsDirectional.only(end: 8),
                 child: Text(
                   formatDuration(track.durationSeconds),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  style: const TextStyle(
+                    fontFamily: RannaTheme.fontFustat,
+                    fontSize: 11,
                     color: RannaTheme.mutedForeground,
                   ),
                 ),

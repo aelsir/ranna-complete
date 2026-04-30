@@ -32,7 +32,7 @@ class RannaTheme {
 
   /// Legacy alias — maps to primary so any existing reference resolves.
   static const Color secondary = primary;
-  static const Color secondaryForeground = Color(0xFFFFFFFF);
+  static const Color secondaryForeground = Color(0xFF000000);
 
   /// Secondary accent — warm gold. Reserved for highlights, awards,
   /// special-occasion banners. Use sparingly so it stays meaningful.
@@ -271,11 +271,11 @@ class RannaTheme {
   static const ColorScheme colorScheme = ColorScheme(
     brightness: Brightness.dark,
     primary: primary,
-    onPrimary: primaryForeground,
+    onPrimary: background,
     primaryContainer: Color(0xFF064E3B),       // emerald-900
     onPrimaryContainer: Color(0xFFD1FAE5),     // emerald-100
     secondary: primary,
-    onSecondary: primaryForeground,
+    onSecondary: background,
     secondaryContainer: Color(0xFF064E3B),
     onSecondaryContainer: Color(0xFFD1FAE5),
     tertiary: accent,
@@ -377,7 +377,7 @@ class RannaTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: primaryForeground,
+          foregroundColor: background,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusFull),
           ),
@@ -391,7 +391,7 @@ class RannaTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: primaryForeground,
+          foregroundColor: background,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLg),
           ),
