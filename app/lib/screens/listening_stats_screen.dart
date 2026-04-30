@@ -25,7 +25,7 @@ class ListeningStatsScreen extends ConsumerWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: RannaTheme.card,
+        backgroundColor: RannaTheme.background,
         body: ListView(
           padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 120),
           children: [

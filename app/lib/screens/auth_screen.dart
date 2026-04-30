@@ -114,23 +114,28 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         fontSize: 13,
         color: RannaTheme.mutedForeground,
       ),
-      prefixIcon: icon == null ? null : Icon(icon, size: 20),
+      prefixIcon: icon == null
+          ? null
+          : Padding(
+              padding: const EdgeInsetsDirectional.only(start: 16, end: 8),
+              child: Icon(icon, size: 20, color: RannaTheme.mutedForeground),
+            ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 42, minHeight: 42),
       filled: true,
-      fillColor: RannaTheme.card,
+      fillColor: RannaTheme.muted,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-        borderSide:
-            BorderSide(color: RannaTheme.border.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-        borderSide:
-            BorderSide(color: RannaTheme.border.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+        borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
         borderSide: const BorderSide(color: RannaTheme.primary, width: 1.5),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
     );
   }
 

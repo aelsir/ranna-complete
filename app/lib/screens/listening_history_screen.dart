@@ -22,7 +22,7 @@ class ListeningHistoryScreen extends ConsumerWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: RannaTheme.card,
+        backgroundColor: RannaTheme.background,
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

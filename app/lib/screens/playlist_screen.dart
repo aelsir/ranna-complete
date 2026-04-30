@@ -27,7 +27,7 @@ class PlaylistScreen extends ConsumerWidget {
     final tracksAsync = ref.watch(collectionTracksProvider(id));
 
     return Scaffold(
-      backgroundColor: RannaTheme.card,
+      backgroundColor: RannaTheme.background,
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(

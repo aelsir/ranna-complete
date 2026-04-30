@@ -287,7 +287,7 @@ class RannaTheme {
     onTertiaryContainer: Color(0xFFFFE4AD),
     error: destructive,
     onError: Color(0xFFFFFFFF),
-    surface: card,
+    surface: background,
     onSurface: foreground,
     onSurfaceVariant: mutedForeground,
     outline: border,

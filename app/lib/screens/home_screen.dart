@@ -178,7 +178,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return SliverAppBar(
       pinned: true,
       floating: false,
-      backgroundColor: RannaTheme.card,
+      backgroundColor: RannaTheme.background,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,

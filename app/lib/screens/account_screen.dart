@@ -544,28 +544,28 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               fontSize: 13,
               color: RannaTheme.mutedForeground,
             ),
-            prefixIcon: const Icon(Icons.email_rounded, size: 18),
+            prefixIcon: const Padding(
+              padding: EdgeInsetsDirectional.only(start: 16, end: 8),
+              child: Icon(Icons.email_rounded, size: 18, color: RannaTheme.mutedForeground),
+            ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 42, minHeight: 42),
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
+              horizontal: 20,
               vertical: 14,
             ),
             filled: true,
-            fillColor: RannaTheme.background,
+            fillColor: RannaTheme.muted,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-              borderSide: BorderSide(
-                color: RannaTheme.border.withValues(alpha: 0.4),
-              ),
+              borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-              borderSide: BorderSide(
-                color: RannaTheme.border.withValues(alpha: 0.3),
-              ),
+              borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+              borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
               borderSide: const BorderSide(
                 color: RannaTheme.primary,
                 width: 1.5,
