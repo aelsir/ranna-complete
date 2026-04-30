@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import 'package:ranna/components/common/circle_back_button.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/providers/supabase_providers.dart';
@@ -31,7 +31,7 @@ class ListeningHistoryScreen extends ConsumerWidget {
             padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 20, 8),
             child: Row(
               children: [
-                _CircleBackButton(),
+                const CircleBackButton(),
                 const SizedBox(width: 12),
                 Text(
                   'سجل الاستماع',
@@ -177,33 +177,3 @@ class ListeningHistoryScreen extends ConsumerWidget {
   }
 }
 
-/// Circular back button matching the artist/profile screen pattern.
-/// In RTL the right-pointing chevron visually means "back" (toward the
-/// reading-direction start).
-class _CircleBackButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/account');
-        }
-      },
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: RannaTheme.muted.withValues(alpha: 0.8),
-        ),
-        child: const Icon(
-          Icons.keyboard_arrow_right_rounded,
-          size: 24,
-          color: RannaTheme.foreground,
-        ),
-      ),
-    );
-  }
-}

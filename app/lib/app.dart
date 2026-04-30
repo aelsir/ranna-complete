@@ -351,7 +351,7 @@ class _FloatingBottomNav extends ConsumerWidget {
         child: Container(
           height: 68,
           decoration: BoxDecoration(
-            color: RannaTheme.card.withValues(alpha: 0.9),
+            color: RannaTheme.card.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
             border: Border.all(color: RannaTheme.border.withValues(alpha: 0.8)),
             boxShadow: RannaTheme.shadowFloat,
@@ -409,7 +409,7 @@ class _AnimatedTab extends StatelessWidget {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isActive ? 12 : 8,
+          horizontal: isActive ? 10 : 8,
           vertical: isActive ? 10 : 8,
         ),
         decoration: BoxDecoration(
@@ -425,14 +425,18 @@ class _AnimatedTab extends StatelessWidget {
               color: isActive ? RannaTheme.navSelected : RannaTheme.navUnselected,
             ),
             if (isActive) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: RannaTheme.fontKufam,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: RannaTheme.navSelected,
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: RannaTheme.fontKufam,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: RannaTheme.navSelected,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

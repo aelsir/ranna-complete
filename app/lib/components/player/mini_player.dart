@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,14 +97,18 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
         ),
 
         // --- Swipeable mini player ---
-        AnimatedContainer(
+        ClipRRect(
+          borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           transform: Matrix4.translationValues(-_dragExtent, 0, 0),
           decoration: BoxDecoration(
-            color: RannaTheme.card,
+            color: RannaTheme.card.withValues(alpha: 0.80),
             borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-            border: Border.all(color: RannaTheme.border),
+            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.6)),
             boxShadow: RannaTheme.shadowFloat,
           ),
           clipBehavior: Clip.antiAlias,
@@ -220,6 +225,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
               ),
             ),
           ),
+        ),
+        ),
         ),
       ],
     );

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:ranna/components/common/circle_back_button.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 class RannaAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -35,28 +35,12 @@ class RannaAppBar extends StatelessWidget implements PreferredSizeWidget {
           height: 1.0,
         ),
       ),
-      leading: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: GestureDetector(
-          onTap: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/');
-            }
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: RannaTheme.muted.withValues(alpha: 0.8),
-            ),
-            child: const Icon(
-              Icons.keyboard_arrow_right_rounded,
-              size: 24,
-              color: RannaTheme.foreground,
-            ),
-          ),
-        ),
+      // App-bar back button falls back to home (`/`) instead of the
+      // default `/account` since this bar is used by browse / list pages
+      // outside the زاويتي tab.
+      leading: const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: CircleBackButton(fallbackPath: '/'),
       ),
     );
   }

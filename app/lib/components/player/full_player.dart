@@ -48,27 +48,37 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
 
     _slideAnimation =
         Tween<Offset>(
-          begin: const Offset(0, 60 / 800),
+          begin: const Offset(0, 1.0),
           end: Offset.zero,
         ).animate(
-          CurvedAnimation(parent: _entryController, curve: Curves.easeOutBack),
+          CurvedAnimation(
+            parent: _entryController, 
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          ),
         );
 
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _entryController, curve: Curves.easeOutBack),
+      CurvedAnimation(
+        parent: _entryController, 
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      ),
     );
 
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
         curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+        reverseCurve: const Interval(0.5, 1.0, curve: Curves.easeIn),
       ),
     );
 
     _coverScaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
-        curve: const Interval(0.2, 1.0, curve: Curves.easeOutBack),
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+        reverseCurve: Curves.easeInCubic,
       ),
     );
   }

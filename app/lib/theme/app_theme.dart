@@ -17,7 +17,7 @@ class RannaTheme {
 
   /// Pure black scaffold — looks at home on OLED screens (pixels off = power
   /// off) and gives photography / artwork maximum contrast.
-  static const Color background = Color(0xFF000000);
+  static const Color background = Color(0xFF121212);
 
   /// Elevated surface for cards, dialogs, the mini player. Slightly lighter
   /// than the scaffold so cards still read as "above" the page without

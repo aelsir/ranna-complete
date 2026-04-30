@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+import 'package:ranna/components/common/circle_back_button.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/providers/follows_provider.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -236,7 +236,7 @@ class _MyFollowsScreenState extends ConsumerState<MyFollowsScreen> {
               padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 20, 8),
               child: Row(
                 children: [
-                  _CircleBackButton(),
+                  const CircleBackButton(),
                   const SizedBox(width: 12),
                   Text(
                     'متابعاتي',
@@ -488,31 +488,3 @@ class _FollowedEntityRow extends StatelessWidget {
   }
 }
 
-/// Circular back button matching the app-wide pattern.
-class _CircleBackButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/account');
-        }
-      },
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: RannaTheme.muted.withValues(alpha: 0.8),
-        ),
-        child: const Icon(
-          Icons.keyboard_arrow_right_rounded,
-          size: 24,
-          color: RannaTheme.foreground,
-        ),
-      ),
-    );
-  }
-}
