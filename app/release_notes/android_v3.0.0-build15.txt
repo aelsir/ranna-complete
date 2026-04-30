@@ -1,0 +1,4 @@
+Version: 3.0.0+15
+Date: 2026-04-30
+What's New:
+Adding the ability to follow specific person, as well as new look and feel, and firday digest

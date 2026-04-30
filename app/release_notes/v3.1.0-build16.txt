@@ -1,0 +1,4 @@
+Version: 3.1.0+16
+Date: 2026-04-30
+What's New:
+change the theme of the app and introduce the follow up for each madiha nad rawi as well as sending the Friday digest.

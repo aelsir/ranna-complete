@@ -145,12 +145,14 @@ echo "✅ Build complete: $AAB_PATH"
 echo ""
 echo "⏳ Uploading to Google Play ($TRACK track)..."
 
-# Create a temporary changelogs directory for Fastlane
+# Create a temporary metadata directory for Fastlane.
+# supply expects: <metadata_path>/<language>/changelogs/<versionCode>.txt
+# Using "ar" for Arabic and "en-US" as fallback.
 CHANGELOG_DIR=$(mktemp -d)
-mkdir -p "$CHANGELOG_DIR/changelogs"
-# ar = Arabic, default = fallback
-echo "$NOTES" > "$CHANGELOG_DIR/changelogs/default.txt"
-echo "$NOTES" > "$CHANGELOG_DIR/changelogs/ar.txt"
+mkdir -p "$CHANGELOG_DIR/ar/changelogs"
+mkdir -p "$CHANGELOG_DIR/en-US/changelogs"
+echo "$NOTES" > "$CHANGELOG_DIR/ar/changelogs/$NEXT_BUILD.txt"
+echo "$NOTES" > "$CHANGELOG_DIR/en-US/changelogs/$NEXT_BUILD.txt"
 
 fastlane supply \
     --aab "$AAB_PATH" \
