@@ -106,7 +106,8 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ClipOval(
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
                           child: RannaImage(
                             url: narrator.imageUrl,
                             width: 80,
@@ -174,13 +175,13 @@ class _AllNarratorsScreenState extends ConsumerState<AllNarratorsScreen> {
     return Container(
       width: 80,
       height: 80,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
           colors: [RannaTheme.primary, RannaTheme.primaryGlow],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
       ),
       child: Center(
         child: Text(
