@@ -454,7 +454,7 @@ class _HeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(color: RannaTheme.primary),
+      decoration: const BoxDecoration(color: RannaTheme.background),
       child: Stack(
         children: [
           // Non-positioned child to give Stack its intrinsic size
@@ -465,7 +465,7 @@ class _HeroBanner extends StatelessWidget {
             child: Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover),
           ),
 
-          // Gradient overlay 1: bottom to top (primary tint)
+          // Gradient overlay: bottom fade to background (black)
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -473,27 +473,11 @@ class _HeroBanner extends StatelessWidget {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    RannaTheme.primary,
-                    RannaTheme.primary.withValues(alpha: 0.3),
+                    RannaTheme.background,
+                    RannaTheme.background.withValues(alpha: 0.2),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.5, 1.0],
-                ),
-              ),
-            ),
-          ),
-
-          // Gradient overlay 2: bottom-right to top-left (accent tint)
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: AlignmentDirectional.bottomStart,
-                  end: AlignmentDirectional.topEnd,
-                  colors: [
-                    RannaTheme.primary.withValues(alpha: 0.2),
-                    RannaTheme.accent.withValues(alpha: 0.1),
-                  ],
                 ),
               ),
             ),
