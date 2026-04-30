@@ -644,7 +644,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                             fontFamily: RannaTheme.fontFustat,
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: RannaTheme.primaryForeground,
+                            color: RannaTheme.background,
                           ),
                         ),
                 ),

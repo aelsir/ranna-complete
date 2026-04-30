@@ -88,7 +88,7 @@ class PlaylistScreen extends ConsumerWidget {
     return SliverAppBar(
       expandedHeight: 288,
       pinned: true,
-      backgroundColor: RannaTheme.primary,
+      backgroundColor: RannaTheme.background,
       leading: Padding(
         padding: const EdgeInsets.all(8.0),
         child: GestureDetector(
@@ -161,8 +161,10 @@ class PlaylistScreen extends ConsumerWidget {
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
+                  stops: const [0.0, 0.45, 1.0],
                   colors: [
-                    RannaTheme.primary.withValues(alpha: 0.7),
+                    RannaTheme.background,
+                    RannaTheme.background.withValues(alpha: 0.3),
                     Colors.transparent,
                   ],
                 ),
@@ -209,7 +211,7 @@ class PlaylistScreen extends ConsumerWidget {
                             : () => _playAll(ref, tracks),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: RannaTheme.accent,
-                          foregroundColor: Colors.white,
+                          foregroundColor: RannaTheme.accentForeground,
                         ),
                         icon: Icon(RannaTheme.playIcon),
                         label: const Text('تشغيل'),

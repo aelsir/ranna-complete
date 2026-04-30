@@ -547,7 +547,7 @@ class _HeroBanner extends StatelessWidget {
                         borderRadius: BorderRadius.circular(
                           RannaTheme.radiusFull,
                         ),
-                        boxShadow: RannaTheme.shadowGlowSecondary,
+                        boxShadow: RannaTheme.shadowGlowAccent,
                       ),
                       child: ElevatedButton.icon(
                         onPressed: onShufflePlay,
@@ -557,8 +557,8 @@ class _HeroBanner extends StatelessWidget {
                         ),
                         label: const Text('إخترنا لك'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: RannaTheme.secondary,
-                          foregroundColor: RannaTheme.secondaryForeground,
+                          backgroundColor: RannaTheme.accent,
+                          foregroundColor: RannaTheme.accentForeground,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 12,

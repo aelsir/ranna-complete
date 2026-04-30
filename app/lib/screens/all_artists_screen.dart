@@ -119,8 +119,12 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
                         const SizedBox(height: 8),
                         Text(
                           artist.name,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: RannaTheme.foreground,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
