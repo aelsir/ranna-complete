@@ -551,6 +551,17 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     state = state.copyWith(isFullPlayerOpen: false);
   }
 
+  /// Stop playback and clear the current track, effectively dismissing
+  /// the mini player. Records any in-progress play as partial.
+  Future<void> stopAndClear() async {
+    if (_playStart != null) {
+      unawaited(_recordCurrentPlay(false));
+      _playStart = null;
+    }
+    await _player.stop();
+    state = const PlayerState();
+  }
+
   // ---------------------------------------------------
   // Cleanup
   // ---------------------------------------------------

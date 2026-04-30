@@ -9,17 +9,53 @@ import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 
-/// Redesigned mini player bar:
+/// Redesigned mini player bar with swipe-to-dismiss:
 ///
 ///   [Play/Pause]  |  Title / Artist  |  [Lyrics?] [Share] [Love]
 ///
-/// No cover art, no slider, no skip buttons.
-/// Circular progress ring around play/pause shows track progress.
-class MiniPlayer extends ConsumerWidget {
+/// Swipe left to reveal a red "clear" action that dismisses the player.
+class MiniPlayer extends ConsumerStatefulWidget {
   const MiniPlayer({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MiniPlayer> createState() => _MiniPlayerState();
+}
+
+class _MiniPlayerState extends ConsumerState<MiniPlayer> {
+  // How far the player has been dragged open (0 = closed, _actionWidth = fully open)
+  double _dragExtent = 0;
+  static const _actionWidth = 72.0;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    // In RTL layout, swiping left produces negative primaryDelta.
+    // We track _dragExtent as positive (0 = closed, _actionWidth = open).
+    setState(() {
+      _dragExtent -= details.primaryDelta ?? 0; // negate: left swipe → increase
+      _dragExtent = _dragExtent.clamp(0.0, _actionWidth);
+    });
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (_dragExtent > _actionWidth * 0.4) {
+      // Snap open
+      setState(() => _dragExtent = _actionWidth);
+    } else {
+      // Snap closed
+      setState(() => _dragExtent = 0);
+    }
+  }
+
+  void _dismiss() {
+    ref.read(audioPlayerProvider.notifier).stopAndClear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final track = ref.watch(currentTrackProvider);
 
     if (track == null) return const SizedBox.shrink();
@@ -32,120 +68,160 @@ class MiniPlayer extends ConsumerWidget {
     );
     final hasLyrics = track.lyrics != null && track.lyrics!.isNotEmpty;
 
-    return GestureDetector(
-      onTap: () => notifier.openFullPlayer(),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        decoration: BoxDecoration(
-          color: RannaTheme.card,
-          borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-          border: Border.all(color: RannaTheme.border),
-          boxShadow: RannaTheme.shadowFloat,
+    return Stack(
+      children: [
+        // --- Red delete action behind the player ---
+        Positioned.fill(
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: GestureDetector(
+              onTap: _dismiss,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: _actionWidth,
+                decoration: BoxDecoration(
+                  color: RannaTheme.destructive.withValues(alpha: 0.30),
+                  borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: RannaTheme.destructive,
+                    size: 26,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              // --- Right: Play/Pause with circular progress (at start/right in RTL) ---
-              GestureDetector(
-                onTap: () => notifier.togglePlay(),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CustomPaint(
-                    painter: _CircularProgressPainter(
-                      progress: progress,
-                      progressColor: RannaTheme.primary,
-                      trackColor: RannaTheme.foreground.withValues(
-                        alpha: 0.10,
-                      ),
-                      strokeWidth: 6,
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: RannaTheme.primary,
-                          shape: BoxShape.circle,
+
+        // --- Swipeable mini player ---
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          transform: Matrix4.translationValues(-_dragExtent, 0, 0),
+          decoration: BoxDecoration(
+            color: RannaTheme.card,
+            borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+            border: Border.all(color: RannaTheme.border),
+            boxShadow: RannaTheme.shadowFloat,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: GestureDetector(
+            onHorizontalDragUpdate: _onDragUpdate,
+            onHorizontalDragEnd: _onDragEnd,
+            onTap: _dragExtent > 4
+                ? () =>
+                      setState(() => _dragExtent = 0) // tap to close if open
+                : () => notifier.openFullPlayer(),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  // --- Right: Play/Pause with circular progress (at start/right in RTL) ---
+                  GestureDetector(
+                    onTap: () => notifier.togglePlay(),
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: CustomPaint(
+                        painter: _CircularProgressPainter(
+                          progress: progress,
+                          progressColor: RannaTheme.primary,
+                          trackColor: RannaTheme.foreground.withValues(
+                            alpha: 0.10,
+                          ),
+                          strokeWidth: 6,
                         ),
                         child: Center(
-                          child: Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : RannaTheme.playIcon,
-                            color: RannaTheme.background,
-                            size: 14,
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            decoration: const BoxDecoration(
+                              color: RannaTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Icon(
+                                isPlaying
+                                    ? Icons.pause_rounded
+                                    : RannaTheme.playIcon,
+                                color: RannaTheme.background,
+                                size: 14,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
 
-              const SizedBox(width: 12),
+                  const SizedBox(width: 12),
 
-              // --- Center: Track title + artist ---
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      track.title,
-                      style: const TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  // --- Center: Track title + artist ---
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          track.title,
+                          style: const TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          track.madihDetails?.name ?? track.madih,
+                          style: TextStyle(
+                            fontFamily: RannaTheme.fontFustat,
+                            fontSize: 11,
+                            color: Colors.white.withValues(alpha: 0.50),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      track.madihDetails?.name ?? track.madih,
-                      style: TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.50),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  // --- Left: Action buttons (lyrics, download, love) in RTL order ---
+                  if (hasLyrics)
+                    _MiniActionButton(
+                      icon: Icons.menu_book_rounded,
+                      color: RannaTheme.primaryForeground.withValues(
+                        alpha: 0.40,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      onTap: () {
+                        notifier.openFullPlayerWithLyrics();
+                      },
                     ),
-                  ],
-                ),
+                  _MiniDownloadButton(track: track),
+                  _MiniActionButton(
+                    icon: isFav
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: isFav
+                        ? RannaTheme.favoriteHeart
+                        : RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                    onTap: () {
+                      ref.read(favoritesProvider.notifier).toggle(track.id);
+                    },
+                  ),
+                ],
               ),
-
-              const SizedBox(width: 8),
-
-              // --- Left: Action buttons (lyrics, download, love) in RTL order ---
-              if (hasLyrics)
-                _MiniActionButton(
-                  icon: Icons.menu_book_rounded,
-                  color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                  onTap: () {
-                    notifier.openFullPlayerWithLyrics();
-                  },
-                ),
-              _MiniDownloadButton(track: track),
-              _MiniActionButton(
-                icon: isFav
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                color: isFav
-                    ? RannaTheme.favoriteHeart
-                    : RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                onTap: () {
-                  ref.read(favoritesProvider.notifier).toggle(track.id);
-                },
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

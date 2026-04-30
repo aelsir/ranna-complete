@@ -200,8 +200,7 @@ class ShellScaffold extends ConsumerWidget {
     // Mini player height
     const miniPlayerHeight = 72.0;
 
-    final totalBottomForContent = navBarHeight + navBarBottomMargin + bottomPadding + 4 +
-        (hasTrack ? miniPlayerHeight + 4 : 0);
+
 
     // Offline banner height (animated)
     const bannerHeight = 28.0;
@@ -222,7 +221,7 @@ class ShellScaffold extends ConsumerWidget {
             top: contentTop,
             left: 0,
             right: 0,
-            bottom: totalBottomForContent,
+            bottom: 0,
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
@@ -271,7 +270,7 @@ class ShellScaffold extends ConsumerWidget {
           ),
 
           // ===== Mini Player =====
-          if (hasTrack)
+          if (hasTrack && MediaQuery.of(context).viewInsets.bottom == 0)
             Positioned(
               left: 4,
               right: 4,
@@ -285,17 +284,18 @@ class ShellScaffold extends ConsumerWidget {
             ),
 
           // ===== Bottom Navigation =====
-          Positioned(
-            left: 4,
-            right: 4,
-            bottom: navBarBottomMargin + bottomPadding,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
-                child: _FloatingBottomNav(navigationShell: navigationShell),
+          if (MediaQuery.of(context).viewInsets.bottom == 0)
+            Positioned(
+              left: 4,
+              right: 4,
+              bottom: navBarBottomMargin + bottomPadding,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
+                  child: _FloatingBottomNav(navigationShell: navigationShell),
+                ),
               ),
             ),
-          ),
 
           // ===== Full Player Overlay =====
           if (isFullPlayerOpen)
