@@ -22,7 +22,7 @@ class RannaTheme {
   /// Elevated surface for cards, dialogs, the mini player. Slightly lighter
   /// than the scaffold so cards still read as "above" the page without
   /// breaking the dark mood.
-  static const Color card = Color(0xFF111111);
+  static const Color card = Color(0xFF262626);
 
   /// Primary accent — emerald green. Used on filled buttons, follow chips,
   /// active states.

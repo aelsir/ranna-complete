@@ -97,136 +97,140 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
         ),
 
         // --- Swipeable mini player ---
-        ClipRRect(
-          borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: AnimatedContainer(
+        AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           transform: Matrix4.translationValues(-_dragExtent, 0, 0),
           decoration: BoxDecoration(
-            color: RannaTheme.card.withValues(alpha: 0.80),
             borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-            border: Border.all(color: RannaTheme.border.withValues(alpha: 0.6)),
             boxShadow: RannaTheme.shadowFloat,
           ),
-          clipBehavior: Clip.antiAlias,
-          child: GestureDetector(
-            onHorizontalDragUpdate: _onDragUpdate,
-            onHorizontalDragEnd: _onDragEnd,
-            onTap: _dragExtent > 4
-                ? () =>
-                      setState(() => _dragExtent = 0) // tap to close if open
-                : () => notifier.openFullPlayer(),
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  // --- Right: Play/Pause with circular progress (at start/right in RTL) ---
-                  GestureDetector(
-                    onTap: () => notifier.togglePlay(),
-                    child: SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: CustomPaint(
-                        painter: _CircularProgressPainter(
-                          progress: progress,
-                          progressColor: RannaTheme.primary,
-                          trackColor: RannaTheme.foreground.withValues(
-                            alpha: 0.10,
-                          ),
-                          strokeWidth: 6,
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 26,
-                            height: 26,
-                            decoration: const BoxDecoration(
-                              color: RannaTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Icon(
-                                isPlaying
-                                    ? Icons.pause_rounded
-                                    : RannaTheme.playIcon,
-                                color: RannaTheme.background,
-                                size: 14,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: RannaTheme.card.withValues(alpha: 0.80),
+                  borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
+                  border: Border.all(color: RannaTheme.border.withValues(alpha: 0.6)),
+                ),
+                child: GestureDetector(
+                  onHorizontalDragUpdate: _onDragUpdate,
+                  onHorizontalDragEnd: _onDragEnd,
+                  onTap: _dragExtent > 4
+                      ? () =>
+                            setState(() => _dragExtent = 0)
+                      : () => notifier.openFullPlayer(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        // --- Right: Play/Pause with circular progress ---
+                        GestureDetector(
+                          onTap: () => notifier.togglePlay(),
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: CustomPaint(
+                              painter: _CircularProgressPainter(
+                                progress: progress,
+                                progressColor: RannaTheme.primary,
+                                trackColor: RannaTheme.foreground.withValues(
+                                  alpha: 0.10,
+                                ),
+                                strokeWidth: 6,
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: const BoxDecoration(
+                                    color: RannaTheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      isPlaying
+                                          ? Icons.pause_rounded
+                                          : RannaTheme.playIcon,
+                                      color: RannaTheme.background,
+                                      size: 14,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
 
-                  const SizedBox(width: 12),
+                        const SizedBox(width: 12),
 
-                  // --- Center: Track title + artist ---
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          track.title,
-                          style: const TextStyle(
-                            fontFamily: RannaTheme.fontFustat,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        // --- Center: Track title + artist ---
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                track.title,
+                                style: const TextStyle(
+                                  fontFamily: RannaTheme.fontFustat,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                track.madihDetails?.name ?? track.madih,
+                                style: TextStyle(
+                                  fontFamily: RannaTheme.fontFustat,
+                                  fontSize: 11,
+                                  color: Colors.white.withValues(alpha: 0.50),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          track.madihDetails?.name ?? track.madih,
-                          style: TextStyle(
-                            fontFamily: RannaTheme.fontFustat,
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.50),
+
+                        const SizedBox(width: 8),
+
+                        // --- Left: Action buttons ---
+                        if (hasLyrics)
+                          _MiniActionButton(
+                            icon: Icons.menu_book_rounded,
+                            color: RannaTheme.primaryForeground.withValues(
+                              alpha: 0.40,
+                            ),
+                            onTap: () {
+                              notifier.openFullPlayerWithLyrics();
+                            },
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        _MiniDownloadButton(track: track),
+                        _MiniActionButton(
+                          icon: isFav
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: isFav
+                              ? RannaTheme.favoriteHeart
+                              : RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                          onTap: () {
+                            ref.read(favoritesProvider.notifier).toggle(track.id);
+                          },
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(width: 8),
-
-                  // --- Left: Action buttons (lyrics, download, love) in RTL order ---
-                  if (hasLyrics)
-                    _MiniActionButton(
-                      icon: Icons.menu_book_rounded,
-                      color: RannaTheme.primaryForeground.withValues(
-                        alpha: 0.40,
-                      ),
-                      onTap: () {
-                        notifier.openFullPlayerWithLyrics();
-                      },
-                    ),
-                  _MiniDownloadButton(track: track),
-                  _MiniActionButton(
-                    icon: isFav
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    color: isFav
-                        ? RannaTheme.favoriteHeart
-                        : RannaTheme.primaryForeground.withValues(alpha: 0.40),
-                    onTap: () {
-                      ref.read(favoritesProvider.notifier).toggle(track.id);
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-        ),
         ),
       ],
     );

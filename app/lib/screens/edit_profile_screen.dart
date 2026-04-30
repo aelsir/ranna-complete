@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import 'package:ranna/components/common/circle_back_button.dart';
 import 'package:ranna/constants/countries.dart';
 import 'package:ranna/providers/auth_notifier.dart';
+import 'package:ranna/providers/user_profile_provider.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 /// Edit profile screen — displayed at `/account/edit`.
@@ -31,16 +31,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _phoneController = TextEditingController();
   String _country = defaultCountryCode;
 
-  bool _loading = true;
   bool _saving = false;
   String? _error;
   bool _savedOnce = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  /// One-shot flag so we seed controllers from the loaded profile only once
+  /// (the first time the provider has data). After seeding, the user owns
+  /// the input — re-seeding from external state changes would clobber edits.
+  bool _seededFromProfile = false;
 
   @override
   void dispose() {
@@ -49,44 +47,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    final client = Supabase.instance.client;
-    final user = client.auth.currentUser;
-    if (user == null) {
-      setState(() => _loading = false);
-      return;
-    }
-    // Seed phone from session metadata immediately (no DB call needed).
-    final meta = user.userMetadata ?? const {};
-    final phone = (meta['phone_number'] as String?) ?? '';
-    _phoneController.text = phone;
-
-    try {
-      final row = await client
-          .from('user_profiles')
-          .select('display_name, country')
-          .eq('id', user.id)
-          .maybeSingle();
-      if (!mounted) return;
-      final name = (row?['display_name'] as String?) ?? '';
-      final country = (row?['country'] as String?) ?? defaultCountryCode;
-      setState(() {
-        _nameController.text = name;
-        _country = _resolveCountry(country);
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = 'تعذّر تحميل بياناتك. حاول لاحقاً.';
-      });
-    }
+  /// Seed the form from the canonical `UserProfile` once it's loaded. Called
+  /// from `build()` so it runs after `userProfileProvider` first emits a
+  /// non-null `profile`.
+  void _seedFromProfile(UserProfile profile) {
+    _seededFromProfile = true;
+    _nameController.text = profile.displayName;
+    _phoneController.text = profile.phoneNumber;
+    _country = _resolveCountry(profile.country);
   }
 
   /// Guard against legacy free-text values (e.g. the old default
   /// `'السودان'` was stored verbatim) so the Dropdown doesn't assert.
   String _resolveCountry(String raw) {
+    if (raw.isEmpty) return defaultCountryCode;
     final match = allCountries.where((c) => c.code == raw);
     if (match.isNotEmpty) return match.first.code;
     // Free-text fallback: try matching label, else default.
@@ -101,35 +75,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _saving = true;
       _error = null;
     });
-    final client = Supabase.instance.client;
-    final user = client.auth.currentUser;
-    if (user == null) {
-      setState(() {
-        _saving = false;
-        _error = 'يجب تسجيل الدخول أولاً.';
-      });
-      return;
-    }
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     try {
-      // 1) Sync the columns in user_profiles.
-      await client.from('user_profiles').update({
-        'display_name': name,
-        'country': _country,
-      }).eq('id', user.id);
-
-      // 2) Mirror all three fields into raw_user_meta_data so the session
-      //    reflects changes instantly and phone persists (metadata-only).
-      await client.auth.updateUser(
-        UserAttributes(
-          data: {
-            'display_name': name,
-            'country': _country,
-            'phone_number': phone,
-          },
-        ),
-      );
+      await ref.read(userProfileProvider.notifier).updateProfileFields(
+            displayName: name,
+            country: _country,
+            phoneNumber: phone,
+          );
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -145,7 +98,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _saving = false;
@@ -158,6 +111,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
     final email = auth.user?.email ?? '';
+
+    final profileState = ref.watch(userProfileProvider);
+    final profile = profileState.profile;
+
+    // First-load seed: as soon as the provider has data, populate the
+    // form controllers once. We do it here rather than in initState
+    // because the profile may already be loaded by the time the screen
+    // mounts (provider hydrates on auth-user change), or it may load a
+    // moment later — either path lands here.
+    if (!_seededFromProfile && profile != null) {
+      _seedFromProfile(profile);
+    }
+
+    final showLoadingSpinner = !_seededFromProfile && profileState.loading;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -188,7 +155,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
           // ── Body ──
           Expanded(
-            child: _loading
+            child: showLoadingSpinner
                 ? const Center(
                     child: CircularProgressIndicator(color: RannaTheme.primary),
                   )
