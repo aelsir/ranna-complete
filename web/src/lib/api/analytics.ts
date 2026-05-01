@@ -27,7 +27,7 @@ async function fetchPlaysSince<T>(
 ): Promise<T[]> {
   return paginate<T>((from, to) =>
     supabase
-      .from("user_plays")
+      .from("v_user_plays_external")
       .select(columns)
       .gte("played_at", sinceIso)
       .range(from, to)
@@ -57,7 +57,7 @@ export async function getAnalyticsSummary() {
     paginate<{ played_at: string; duration_seconds: number | null }>(
       (from, to) =>
         supabase
-          .from("user_plays")
+          .from("v_user_plays_external")
           .select("played_at, duration_seconds")
           .range(from, to)
     ),
@@ -171,7 +171,7 @@ export async function getEngagementMetrics(): Promise<EngagementMetrics> {
 
   const playRows = await paginate<PlayRow>((from, to) =>
     supabase
-      .from("user_plays")
+      .from("v_user_plays_external")
       .select("user_id, duration_seconds, completed, device_type")
       .range(from, to)
   );
@@ -195,7 +195,7 @@ export async function getEngagementMetrics(): Promise<EngagementMetrics> {
     totalPlays > 0 ? Math.round(totalDuration / totalPlays) : 0;
 
   const { count: favCount, error: favErr } = await supabase
-    .from("user_favorites")
+    .from("v_user_favorites_external")
     .select("*", { count: "exact", head: true });
   if (favErr) throw favErr;
 
@@ -248,7 +248,7 @@ export async function getTrendingThisWeek(
 
     const events = await paginate<{ track_id: string }>((from, to) =>
       supabase
-        .from("user_plays")
+        .from("v_user_plays_external")
         .select("track_id")
         .in("track_id", ids)
         .gte("played_at", start.toISOString())
@@ -284,7 +284,7 @@ export async function getTopFavorited(
   limit = 5
 ): Promise<FavoritedTrack[]> {
   const favRows = await paginate<{ track_id: string }>((from, to) =>
-    supabase.from("user_favorites").select("track_id").range(from, to)
+    supabase.from("v_user_favorites_external").select("track_id").range(from, to)
   );
 
   const counts = new Map<string, number>();
@@ -336,6 +336,10 @@ export async function getUserActivity(): Promise<UserActivity> {
   thirtyDaysAgo.setDate(now.getDate() - 30);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // All four queries exclude internal team accounts. We use `.eq("is_internal", false)`
+  // (not `.neq("is_internal", true)`) because the column is NOT NULL with
+  // default FALSE, so this is a clean equality lookup that hits the
+  // partial index on is_internal.
   const [
     { count: activeThisWeek },
     { count: activeThisMonth },
@@ -345,18 +349,22 @@ export async function getUserActivity(): Promise<UserActivity> {
     supabase
       .from("user_profiles")
       .select("*", { count: "exact", head: true })
+      .eq("is_internal", false)
       .gte("last_active_at", sevenDaysAgo.toISOString()),
     supabase
       .from("user_profiles")
       .select("*", { count: "exact", head: true })
+      .eq("is_internal", false)
       .gte("last_active_at", thirtyDaysAgo.toISOString()),
     supabase
       .from("user_profiles")
       .select("*", { count: "exact", head: true })
+      .eq("is_internal", false)
       .gte("created_at", startOfMonth.toISOString()),
     supabase
       .from("user_profiles")
-      .select("*", { count: "exact", head: true }),
+      .select("*", { count: "exact", head: true })
+      .eq("is_internal", false),
   ]);
 
   return {
@@ -445,7 +453,7 @@ export async function getDownloadAnalytics(
 
   const rows = await paginate<DownloadRow>((from, to) =>
     supabase
-      .from("download_events")
+      .from("v_download_events_external")
       .select("track_id, device_type, downloaded_at")
       .range(from, to)
   );

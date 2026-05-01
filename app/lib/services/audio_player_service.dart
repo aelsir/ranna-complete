@@ -7,7 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
 import 'package:ranna/db/local_db.dart';
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/providers/user_profile_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Build-time flag — pass `--dart-define=INTERNAL_DEVICE=true` on dev iPhones
+/// (founder, designers, internal testers) so their plays never reach
+/// `user_plays`. Production builds omit the flag → defaults to `false` →
+/// real users record normally. See app/README.md for the runbook.
+const _kInternalDevice = bool.fromEnvironment(
+  'INTERNAL_DEVICE',
+  defaultValue: false,
+);
 
 // =====================================================
 // R2 Public URL (from environment / compile-time define)
@@ -413,6 +423,17 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     if (start == null) return;
     final elapsed = DateTime.now().difference(start.startTime).inSeconds;
     if (elapsed < 3) return;
+
+    // Skip-at-source for internal team activity. Two independent gates:
+    //   • `_kInternalDevice` — build-time flag baked into dev iPhones, so
+    //     anonymous-mode testing on founder devices doesn't record either
+    //   • `userProfileProvider.isInternal` — runtime flag from
+    //     `user_profiles.is_internal`, covers logged-in internal accounts
+    //     across all devices (including production builds where someone
+    //     internal happens to log in)
+    final isInternalUser =
+        _ref.read(userProfileProvider).profile?.isInternal == true;
+    if (_kInternalDevice || isInternalUser) return;
 
     final supabase = Supabase.instance.client;
     final userId = supabase.auth.currentUser?.id;

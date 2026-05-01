@@ -15,6 +15,13 @@ interface AuthContextType {
   /** True when the user has the `admin` or `superuser` role in `user_roles`. */
   isAdmin: boolean;
   /**
+   * True when this user is on the internal team (founder, designers,
+   * testers). Read from `user_profiles.is_internal`. Used to skip play
+   * recording at source AND filter analytics — see migration 036 for the
+   * full design. Anonymous users are never internal.
+   */
+  isInternal: boolean;
+  /**
    * Request a login magic link for an EXISTING account. Uses
    * `signInWithOtp({ shouldCreateUser: false })` so Supabase:
    *   - fires the `magic_link` template, and
@@ -62,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isInternal, setIsInternal] = useState(false);
 
   // Ensures `signInAnonymously` is called at most once per component lifetime.
   // Never bootstrap from the `onAuthStateChange` callback — that fires on
@@ -123,26 +131,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Refresh the `isAdmin` flag whenever the user identity changes.
+  // Refresh `isAdmin` + `isInternal` whenever the user identity changes.
+  // These two flags are user-row-derived and live on the same lifecycle —
+  // hydrate them in a single effect so we don't fan out into N parallel
+  // network calls every auth state transition.
   useEffect(() => {
     let cancelled = false;
 
-    const checkAdmin = async () => {
+    const refreshFlags = async () => {
       if (!user || user.is_anonymous) {
-        if (!cancelled) setIsAdmin(false);
+        if (!cancelled) {
+          setIsAdmin(false);
+          setIsInternal(false);
+        }
         return;
       }
-      const { data, error } = await supabase.rpc("is_admin_or_superuser");
+
+      const [adminResp, profileResp] = await Promise.all([
+        supabase.rpc("is_admin_or_superuser"),
+        supabase
+          .from("user_profiles")
+          .select("is_internal")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
       if (cancelled) return;
-      if (error) {
-        console.error("[auth] is_admin_or_superuser failed", error);
+
+      if (adminResp.error) {
+        console.error("[auth] is_admin_or_superuser failed", adminResp.error);
         setIsAdmin(false);
-        return;
+      } else {
+        setIsAdmin(adminResp.data === true);
       }
-      setIsAdmin(data === true);
+
+      if (profileResp.error) {
+        console.error("[auth] is_internal lookup failed", profileResp.error);
+        setIsInternal(false);
+      } else {
+        setIsInternal(profileResp.data?.is_internal === true);
+      }
     };
 
-    checkAdmin();
+    refreshFlags();
     return () => {
       cancelled = true;
     };
@@ -233,6 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAnonymous,
         isAdmin,
+        isInternal,
         loginWithMagicLink,
         signUpWithMagicLink,
         signOut,

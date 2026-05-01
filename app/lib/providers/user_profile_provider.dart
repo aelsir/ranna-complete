@@ -31,6 +31,12 @@ class UserProfile {
   final bool emailNotifications;
   final bool pushNotifications;
 
+  /// When true, this user is on the internal team (founder, designers,
+  /// testers). The audio player service short-circuits `recordPlay` for
+  /// these users so dashboard QA listening doesn't pollute analytics.
+  /// See migration 036 for the full design. Defaults FALSE.
+  final bool isInternal;
+
   const UserProfile({
     required this.id,
     this.displayName = '',
@@ -38,6 +44,7 @@ class UserProfile {
     this.phoneNumber = '',
     this.emailNotifications = true,
     this.pushNotifications = true,
+    this.isInternal = false,
   });
 
   UserProfile copyWith({
@@ -46,6 +53,7 @@ class UserProfile {
     String? phoneNumber,
     bool? emailNotifications,
     bool? pushNotifications,
+    bool? isInternal,
   }) {
     return UserProfile(
       id: id,
@@ -54,6 +62,7 @@ class UserProfile {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       emailNotifications: emailNotifications ?? this.emailNotifications,
       pushNotifications: pushNotifications ?? this.pushNotifications,
+      isInternal: isInternal ?? this.isInternal,
     );
   }
 }
@@ -135,7 +144,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
       final row = await _client
           .from('user_profiles')
           .select(
-            'display_name, country, email_notifications, push_notifications',
+            'display_name, country, email_notifications, push_notifications, is_internal',
           )
           .eq('id', user.id)
           .maybeSingle();
@@ -154,6 +163,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
               (row?['email_notifications'] as bool?) ?? true,
           pushNotifications:
               (row?['push_notifications'] as bool?) ?? true,
+          isInternal: (row?['is_internal'] as bool?) ?? false,
         ),
         loading: false,
       );

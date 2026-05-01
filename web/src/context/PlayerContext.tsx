@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useRef, useEffect, ReactNode, useC
 import { trackEvent } from "@/lib/analytics";
 import { recordPlay } from "@/lib/api/queries";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "./AuthContext";
 
 interface PlayerContextType {
   // Queue & track
@@ -96,10 +97,22 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const lastSaveRef = useRef<number>(0);
   const playStartRef = useRef<{ trackId: string; startTime: number } | null>(null);
 
+  // Pull `isInternal` once per render and stash it in a ref so the
+  // recordCurrentPlay callback (memoised with `[]`) reads the latest
+  // value without becoming itself unstable. Same lifecycle pattern as
+  // playStartRef above.
+  const { isInternal } = useAuth();
+  const isInternalRef = useRef(isInternal);
+  useEffect(() => {
+    isInternalRef.current = isInternal;
+  }, [isInternal]);
+
   /**
    * Record the currently-playing track to the `user_plays` analytics table.
    * - Awaits the Supabase session so `user_id` is a real UUID (not a Promise).
    * - Skips sessions shorter than 3 s to filter out fumbles.
+   * - Skips entirely for internal users (founder, team) — their dashboard
+   *   QA listening shouldn't pollute analytics. See migration 036.
    * - Caller is responsible for clearing `playStartRef.current` after a
    *   successful record (e.g. to prevent a track-change cleanup from
    *   double-recording an already-completed play).
@@ -109,6 +122,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (!start) return;
     const elapsed = Math.floor((Date.now() - start.startTime) / 1000);
     if (elapsed < 3) return;
+    if (isInternalRef.current) return; // internal team — skip at source
     try {
       const { data: { session } } = await supabase.auth.getSession();
       await recordPlay({
