@@ -377,7 +377,19 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   /// Increments play_count on the track.
   /// If Supabase is unreachable, queues the action for later sync.
   /// Trending and listening history are now derived from user_plays.
+  ///
+  /// Skipped for internal team activity by the same two-gate filter as
+  /// `_recordCurrentPlay`:
+  ///   • `_kInternalDevice` — build-time flag baked into dev iPhones
+  ///   • `userProfileProvider.isInternal` — runtime DB flag for logged-in
+  ///     internal accounts
+  /// Without this, the founder's listening would inflate `play_count` even
+  /// while their `user_plays` rows are correctly filtered. See migration 036.
   void _logPlayEvent(String trackId) async {
+    final isInternalUser =
+        _ref.read(userProfileProvider).profile?.isInternal == true;
+    if (_kInternalDevice || isInternalUser) return;
+
     try {
       final supabase = Supabase.instance.client;
 

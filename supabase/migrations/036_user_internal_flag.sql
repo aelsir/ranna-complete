@@ -92,4 +92,30 @@ GRANT SELECT ON v_follower_counts          TO authenticated, anon, service_role;
 -- To find your UUID:
 --
 --   SELECT id, email FROM auth.users WHERE email = 'your.email@example.com';
+--
+-- ============================================
+-- One-time play_count recompute (run AFTER marking internal users)
+-- ============================================
+-- `tracks.play_count` is a denormalized counter that's been bumped on
+-- every play, including the founder's pre-flag activity. Going forward
+-- the client guards skip the bump for internal users. But the existing
+-- values still rank founder-favourited tracks as "popular".
+--
+-- This one-time UPDATE recomputes the counter from `v_user_plays_external`
+-- (which already filters internal users), so the rankings reflect only
+-- real-user play activity.
+--
+UPDATE tracks t
+SET play_count = sub.real_count
+FROM (
+  SELECT track_id, COUNT(*) AS real_count
+  FROM v_user_plays_external
+  GROUP BY track_id
+) sub
+WHERE sub.track_id = t.id;
+
+-- Tracks with zero real plays:
+UPDATE tracks SET play_count = 0
+WHERE id NOT IN (SELECT track_id FROM v_user_plays_external);
+-- Skip both UPDATEs on a fresh launch (no internal play history yet).
 -- ============================================

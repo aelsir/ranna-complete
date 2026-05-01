@@ -9,6 +9,20 @@ export $(shell [ -f .env ] && sed 's/=.*//' .env)
 # Default Issuer ID from .env if not provided on command line
 ISSUER_ID ?= $(APPLE_API_ISSUER)
 
+# ─────────────────────────────────────────────
+# Internal-device flag (analytics hygiene)
+# ─────────────────────────────────────────────
+# Passed only to local dev / founder-iPhone builds (dev-app, release-app).
+# When set, the Flutter audio player short-circuits recordPlay and
+# increment_play_count so founder/dev listening doesn't pollute the
+# user_plays or tracks.play_count analytics. See migration 036 +
+# app/README.md for the full design.
+#
+# CRITICAL: Production / distribution targets (build-aab, upload-ios,
+# upload-android, build-ipa, build-apk) must NOT include this flag —
+# real users need their plays recorded normally.
+INTERNAL_DEVICE_FLAG := --dart-define=INTERNAL_DEVICE=true
+
 
 # List of asset directories to link
 ASSET_DIRS := icons images fonts
@@ -41,12 +55,16 @@ dev-web: sync
 	cd web && npm run dev
 
 ## Start the Flutter app (ensures links first)
+## Includes INTERNAL_DEVICE flag — listening on this device does NOT touch
+## user_plays / tracks.play_count. Production builds below omit the flag.
 dev-app: sync
-	cd app && flutter run --dart-define-from-file=env.json
+	cd app && flutter run --dart-define-from-file=env.json $(INTERNAL_DEVICE_FLAG)
 
-## Install the Flutter app in release mode on a connected iPhone (works independently)
+## Install the Flutter app in release mode on a connected iPhone (founder's
+## device). Includes INTERNAL_DEVICE flag — same analytics-hygiene rule as
+## dev-app. Use upload-ios for App Store / TestFlight distribution to real users.
 release-app: sync
-	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json --no-tree-shake-icons && flutter install --release
+	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json $(INTERNAL_DEVICE_FLAG) --no-tree-shake-icons && flutter install --release
 
 ## Build Android App Bundle (.aab) for Google Play Store with Version Bumping
 build-aab:
