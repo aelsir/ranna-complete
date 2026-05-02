@@ -130,7 +130,10 @@ function FileRow({
   funoon,
   sharedMetadata,
   isPreviewPlaying,
+  isPreviewing,
   previewProgress,
+  previewCurrentTime,
+  previewDuration,
   suggestion,
   allTracks,
   isSelected,
@@ -139,6 +142,7 @@ function FileRow({
   onSetOverride,
   onClearOverrides,
   onTogglePreview,
+  onSeek,
   onOpenAdvanced,
   onLinkTrack,
   onDismissSuggestion,
@@ -151,7 +155,10 @@ function FileRow({
   funoon: { id: string; name: string }[];
   sharedMetadata: SharedMetadata;
   isPreviewPlaying: boolean;
+  isPreviewing: boolean;
   previewProgress: number;
+  previewCurrentTime: number;
+  previewDuration: number;
   suggestion: TrackForMatch | null;
   allTracks: TrackForMatch[];
   isSelected: boolean;
@@ -160,6 +167,7 @@ function FileRow({
   onSetOverride: (id: string, overrides: Partial<FileMetadataOverrides>) => void;
   onClearOverrides: (id: string) => void;
   onTogglePreview: () => void;
+  onSeek: (fraction: number) => void;
   onOpenAdvanced: (id: string) => void;
   onLinkTrack: (fileId: string, track: TrackForMatch) => void;
   onDismissSuggestion: (fileId: string) => void;
@@ -168,6 +176,8 @@ function FileRow({
   const hasOverrides = Object.keys(file.overrides).filter(k => k !== 'linkedTrackId').length > 0;
   const isLinked = !!file.overrides.linkedTrackId;
   const [linkSearch, setLinkSearch] = useState("");
+  const seekBarRef = useRef<HTMLDivElement>(null);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
 
   const filteredTracks = useMemo(() => {
@@ -354,13 +364,61 @@ function FileRow({
           </div>
         </div>
 
-        {/* Preview progress bar — thin accent line */}
-        {isPreviewPlaying && (
-          <div className="h-0.5 bg-border">
+        {/* Preview seek bar — interactive progress bar with time display */}
+        {isPreviewing && (
+          <div className="px-3 pb-2 pt-1">
             <div
-              className="h-full bg-accent transition-all duration-200 ease-linear"
-              style={{ width: `${previewProgress}%` }}
-            />
+              ref={seekBarRef}
+              className="relative h-5 flex items-center cursor-pointer group"
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                const bar = seekBarRef.current;
+                if (!bar) return;
+                setIsSeeking(true);
+                const rect = bar.getBoundingClientRect();
+                // RTL: right edge is 0%, left edge is 100%
+                const isRtl = getComputedStyle(bar).direction === 'rtl';
+                const fraction = isRtl
+                  ? 1 - ((e.clientX - rect.left) / rect.width)
+                  : (e.clientX - rect.left) / rect.width;
+                onSeek(Math.max(0, Math.min(1, fraction)));
+
+                const onMouseMove = (ev: MouseEvent) => {
+                  const r = bar.getBoundingClientRect();
+                  const f = isRtl
+                    ? 1 - ((ev.clientX - r.left) / r.width)
+                    : (ev.clientX - r.left) / r.width;
+                  onSeek(Math.max(0, Math.min(1, f)));
+                };
+                const onMouseUp = () => {
+                  setIsSeeking(false);
+                  document.removeEventListener('mousemove', onMouseMove);
+                  document.removeEventListener('mouseup', onMouseUp);
+                };
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+              }}
+            >
+              {/* Track (background) */}
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-border group-hover:h-1.5 transition-all" />
+              {/* Filled portion */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-accent group-hover:h-1.5 transition-all"
+                style={{ width: `${previewProgress}%`, right: 0 }}
+              />
+              {/* Seek thumb */}
+              <div
+                className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-accent shadow-md border-2 border-background transition-opacity ${
+                  isSeeking ? 'opacity-100 scale-110' : 'opacity-0 group-hover:opacity-100'
+                }`}
+                style={{ right: `calc(${previewProgress}% - 6px)` }}
+              />
+            </div>
+            {/* Time display */}
+            <div className="flex justify-between text-[10px] font-mono text-muted-foreground mt-0.5 select-none" dir="ltr">
+              <span>{formatDuration(Math.round(previewCurrentTime))}</span>
+              <span>{formatDuration(Math.round(previewDuration))}</span>
+            </div>
           </div>
         )}
 
@@ -523,6 +581,8 @@ export function BulkUploadDialog({
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [previewProgress, setPreviewProgress] = useState(0);
+  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
+  const [previewDuration, setPreviewDuration] = useState(0);
   const [isPreviewActuallyPlaying, setIsPreviewActuallyPlaying] = useState(false);
   const previewUrlRef = useRef<string | null>(null);
 
@@ -539,6 +599,8 @@ export function BulkUploadDialog({
     }
     setPreviewingId(null);
     setPreviewProgress(0);
+    setPreviewCurrentTime(0);
+    setPreviewDuration(0);
     setIsPreviewActuallyPlaying(false);
   }, []);
 
@@ -567,9 +629,20 @@ export function BulkUploadDialog({
       audio.play();
       setPreviewingId(fileId);
       setPreviewProgress(0);
+      setPreviewCurrentTime(0);
+      setPreviewDuration(0);
       setIsPreviewActuallyPlaying(true);
     },
     [previewingId]
+  );
+
+  const seekPreview = useCallback(
+    (fraction: number) => {
+      const audio = previewAudioRef.current;
+      if (!audio || !audio.duration || !isFinite(audio.duration)) return;
+      audio.currentTime = fraction * audio.duration;
+    },
+    []
   );
 
   // Attach audio event listeners
@@ -580,11 +653,15 @@ export function BulkUploadDialog({
     const onTimeUpdate = () => {
       if (audio.duration && isFinite(audio.duration)) {
         setPreviewProgress((audio.currentTime / audio.duration) * 100);
+        setPreviewCurrentTime(audio.currentTime);
+        setPreviewDuration(audio.duration);
       }
     };
     const onEnded = () => {
       setPreviewingId(null);
       setPreviewProgress(0);
+      setPreviewCurrentTime(0);
+      setPreviewDuration(0);
       setIsPreviewActuallyPlaying(false);
     };
     const onPlay = () => setIsPreviewActuallyPlaying(true);
@@ -820,8 +897,15 @@ export function BulkUploadDialog({
                           isPreviewPlaying={
                             previewingId === f.id && isPreviewActuallyPlaying
                           }
+                          isPreviewing={previewingId === f.id}
                           previewProgress={
                             previewingId === f.id ? previewProgress : 0
+                          }
+                          previewCurrentTime={
+                            previewingId === f.id ? previewCurrentTime : 0
+                          }
+                          previewDuration={
+                            previewingId === f.id ? previewDuration : 0
                           }
                           suggestion={suggestions[f.id] ?? null}
                           allTracks={allTracks}
@@ -831,6 +915,7 @@ export function BulkUploadDialog({
                           onSetOverride={setFileOverride}
                           onClearOverrides={clearFileOverrides}
                           onTogglePreview={() => togglePreview(f.id, f.file)}
+                          onSeek={seekPreview}
                           onOpenAdvanced={setAdvancedEditingId}
                           onLinkTrack={handleLinkTrack}
                           onDismissSuggestion={handleDismissSuggestion}

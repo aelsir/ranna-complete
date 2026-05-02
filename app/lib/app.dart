@@ -40,6 +40,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     // `sd.aelsir.ranna://auth/callback?code=...`. GoRouter receives the raw
     // URL including the scheme, which doesn't match any registered route.
     // Strip scheme+host and keep path+query so it resolves to `/auth/callback`.
+    //
+    // Universal Links / App Links from `https://ranna.aelsir.sd/track/...`
+    // may also arrive with the full URL; strip to just the path.
     redirect: (context, state) {
       final uriStr = state.uri.toString();
       if (uriStr.startsWith('sd.aelsir.ranna://')) {
@@ -48,6 +51,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         final host = uri.host;
         final query = uri.hasQuery ? '?${uri.query}' : '';
         return '/$host$path$query';
+      }
+      // Universal Links: strip scheme+host, keep path+query
+      if (uriStr.startsWith('https://ranna.aelsir.sd') ||
+          uriStr.startsWith('http://ranna.aelsir.sd')) {
+        final uri = Uri.parse(uriStr);
+        final path = uri.path.isEmpty ? '/' : uri.path;
+        final query = uri.hasQuery ? '?${uri.query}' : '';
+        return '$path$query';
       }
       return null;
     },

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ranna.aelsir.me",
+      "sha256_cert_fingerprints": [
+        "2A:16:0B:32:19:48:F2:1E:5C:4D:E8:DC:97:17:AB:4A:BE:BF:DD:3F:27:6F:B8:2A:42:8F:F4:1E:E0:C4:1C:4D"
+      ]
+    }
+  }
+]
