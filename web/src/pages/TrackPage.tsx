@@ -1,8 +1,9 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { ArrowRight, Clock, Loader2 } from "lucide-react";
+import { ArrowRight, Clock, Loader2, Download, Smartphone, Wifi, WifiOff, ChevronDown, ChevronUp } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useMadha, useMadhaatByMadih } from "@/lib/api/hooks";
 import { getImageUrl, formatDuration } from "@/lib/format";
@@ -11,35 +12,157 @@ import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
 import TrackRow from "@/components/TrackRow";
 
+// ── App Store URLs from env ──
+const APP_STORE_URL = import.meta.env.VITE_APP_STORE_URL || "";
+const PLAY_STORE_URL = import.meta.env.VITE_PLAY_STORE_URL || "";
+
+// ── Detect platform for smart banner ──
+function getDevicePlatform(): "ios" | "android" | "desktop" {
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+// ── App Download Banner Component ──
+function AppDownloadBanner({ trackTitle }: { trackTitle: string }) {
+  const [dismissed, setDismissed] = useState(false);
+  const platform = getDevicePlatform();
+
+  useEffect(() => {
+    if (localStorage.getItem("ranna_app_banner_dismissed") === "true") {
+      setDismissed(true);
+    }
+  }, []);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem("ranna_app_banner_dismissed", "true");
+  };
+
+  // Only show on mobile / or desktop too for awareness
+  if (dismissed) return null;
+
+  const storeUrl = platform === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
+  // Hide if no store URL is configured for this platform
+  if (!storeUrl && platform !== "desktop") return null;
+  if (platform === "desktop" && !APP_STORE_URL && !PLAY_STORE_URL) return null;
+  const storeName = platform === "ios" ? "App Store" : platform === "android" ? "Google Play" : "App Store / Google Play";
+  const linkUrl = storeUrl || APP_STORE_URL || PLAY_STORE_URL;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ delay: 1, duration: 0.5, ease: "easeOut" }}
+      className="mx-5 mb-4"
+    >
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-bl from-primary/[0.06] via-card to-accent/[0.04]">
+        {/* Decorative glow */}
+        <div className="absolute -top-12 -left-12 w-32 h-32 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-8 -right-8 w-24 h-24 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative p-4 flex items-start gap-3.5">
+          {/* App icon */}
+          <div className="flex-shrink-0 h-14 w-14 rounded-[14px] bg-white shadow-md flex items-center justify-center p-1.5 border border-border/50">
+            <img src="/pwa-192x192.png" alt="رنّة" className="w-full h-full object-contain rounded-lg" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h4 className="font-fustat text-sm font-bold text-foreground leading-tight">
+              استمع في تطبيق رنّة
+            </h4>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              تجربة أفضل • تحميل مدائح بدون نت • إشعارات بالمدائح الجديدة
+            </p>
+
+            <div className="flex items-center gap-2 mt-2.5">
+              <a
+                href={linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-primary text-primary-foreground text-xs font-fustat font-bold shadow-sm hover:opacity-90 transition-opacity"
+              >
+                <Download className="h-3 w-3" />
+                حمّل التطبيق
+              </a>
+              <button
+                onClick={handleDismiss}
+                className="h-8 px-3 rounded-full text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ليس الآن
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature pills */}
+        <div className="px-4 pb-3.5 flex items-center gap-1.5 flex-wrap">
+          {[
+            { icon: WifiOff, label: "استماع بدون انترنت" },
+            { icon: Smartphone, label: "تجربة أسرع وأنعم" },
+          ].map(({ icon: Icon, label }) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1 text-[10px] font-fustat text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full"
+            >
+              <Icon className="h-2.5 w-2.5" />
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Main TrackPage ──
+
 export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { playTrack, nowPlayingId, isFavorite, toggleFavorite } = usePlayer();
+  const [lyricsExpanded, setLyricsExpanded] = useState(false);
 
   const { data: track, isLoading, error } = useMadha(id);
   const { data: moreTracks } = useMadhaatByMadih(track?.madih_id || undefined);
 
   // Filter out current track from "more by this artist"
-  const relatedTracks = (moreTracks || []).filter((t) => t.id !== id).slice(0, 5);
+  const relatedTracks = (moreTracks || []).filter((t) => t.id !== id).slice(0, 6);
   const isPlaying = nowPlayingId === id;
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center gap-3"
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-accent" />
+          <p className="font-fustat text-xs text-muted-foreground">جاري التحميل...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (error || !track) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
+      >
+        <div className="h-20 w-20 rounded-full bg-muted/60 flex items-center justify-center">
+          <span className="text-3xl">🎵</span>
+        </div>
         <p className="font-fustat text-lg font-bold text-foreground">هذه المدحة غير متوفرة</p>
         <p className="text-sm text-muted-foreground">ربما تم حذفها أو الرابط غير صحيح</p>
-        <Button variant="outline" onClick={() => navigate("/")} className="font-fustat mt-2">
+        <Button variant="outline" onClick={() => navigate("/")} className="font-fustat mt-2 rounded-full">
           العودة للرئيسية
         </Button>
-      </div>
+      </motion.div>
     );
   }
 
@@ -57,6 +180,13 @@ export default function TrackPage() {
   const shareUrl = getTrackShareUrl(track.id);
   const shareTitle = `${track.title} — ${artistName} | رنّة`;
   const allQueue = [track.id, ...relatedTracks.map((t) => t.id)];
+
+  // Lyrics: collapse if > 8 lines, show a preview
+  const lyricsLines = track.lyrics?.split("\n") || [];
+  const hasLongLyrics = lyricsLines.length > 12;
+  const visibleLyrics = hasLongLyrics && !lyricsExpanded
+    ? lyricsLines.slice(0, 10).join("\n")
+    : track.lyrics;
 
   // JSON-LD structured data for search engines
   const jsonLd = {
@@ -98,47 +228,87 @@ export default function TrackPage() {
         {imageUrl && <meta property="og:image" content={imageUrl} />}
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
-      {/* Hero / Header */}
-      <div className="relative">
-        <div className="h-72 w-full overflow-hidden md:h-80">
+
+      {/* ── Hero Section with parallax-style image ── */}
+      <div className="relative overflow-hidden">
+        {/* Background image — blurred for ambient effect */}
+        <div className="absolute inset-0 scale-110">
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover blur-xl opacity-30"
+          />
+        </div>
+
+        {/* Main image */}
+        <div className="relative h-80 w-full md:h-96">
           <img
             src={imageUrl}
             alt={track.title}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          {/* Gradient overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-transparent to-transparent h-24" />
         </div>
 
         {/* Back button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(-1)}
-          className="absolute top-10 right-4 z-10 h-8 w-8 rounded-full bg-background/40 backdrop-blur-sm text-foreground hover:bg-background/60"
+        <motion.div
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
         >
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="absolute top-10 right-4 z-10 h-9 w-9 rounded-full bg-background/50 backdrop-blur-md text-foreground hover:bg-background/70 border border-border/30"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </motion.div>
 
-        {/* Title overlay */}
-        <div className="absolute bottom-0 right-0 left-0 px-5 pb-4">
-          <p className="font-fustat text-[10px] font-bold uppercase tracking-wider text-muted-foreground">مدحة</p>
-          <h1 className="font-fustat text-2xl font-extrabold text-foreground md:text-3xl leading-tight">{track.title}</h1>
-          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+        {/* Title overlay — positioned at the bottom of the hero */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.5 }}
+          className="absolute bottom-0 right-0 left-0 px-5 pb-5"
+        >
+          <div className="flex items-center gap-1.5 mb-1.5">
+            {tariqaName && (
+              <span className="text-[9px] font-fustat bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/10">
+                {tariqaName}
+              </span>
+            )}
+            {fanName && (
+              <span className="text-[9px] font-fustat bg-accent/10 text-accent px-2 py-0.5 rounded-full border border-accent/10">
+                {fanName}
+              </span>
+            )}
+          </div>
+
+          <h1 className="font-fustat text-2xl font-extrabold text-foreground md:text-3xl leading-tight">
+            {track.title}
+          </h1>
+
+          <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <Link
               to={`/profile/artist/${track.madih_id}`}
-              className="hover:text-foreground transition-colors"
+              className="font-fustat font-semibold text-foreground/80 hover:text-accent transition-colors"
             >
               {artistName}
             </Link>
             {narratorName && (
               <>
-                <span className="opacity-40">•</span>
+                <span className="opacity-30">·</span>
                 <span>رواية: {narratorName}</span>
               </>
             )}
             {duration && duration !== "0:00" && (
               <>
-                <span className="opacity-40">•</span>
+                <span className="opacity-30">·</span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {duration}
@@ -146,26 +316,39 @@ export default function TrackPage() {
               </>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Actions bar */}
-      <div className="flex items-center gap-3 px-5 py-3">
-        <motion.div whileTap={{ scale: 0.92 }}>
-          <Button
-            onClick={handlePlay}
-            variant="secondary"
-            size="icon"
-            className="h-12 w-12 rounded-full hover:scale-105 active:scale-95 transition-transform"
-          >
-            <RtlPlay className="h-5 w-5" fill="currentColor" />
-          </Button>
-        </motion.div>
+      {/* ── Actions Bar ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="flex items-center gap-2 px-5 py-4"
+      >
+        {/* Play button — prominent */}
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          whileHover={{ scale: 1.05 }}
+          onClick={handlePlay}
+          className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-md ${
+            isPlaying
+              ? "bg-accent text-accent-foreground shadow-glow-accent"
+              : "bg-primary text-primary-foreground hover:shadow-lg"
+          }`}
+        >
+          <RtlPlay className="h-5 w-5" fill="currentColor" />
+        </motion.button>
 
+        {/* Favorite */}
         <Button
           variant="ghost"
           size="icon"
-          className={`text-muted-foreground hover:text-foreground ${isFavorite(track.id) ? "text-accent" : ""}`}
+          className={`h-10 w-10 rounded-full transition-all duration-200 ${
+            isFavorite(track.id)
+              ? "text-red-500 bg-red-50 hover:bg-red-100"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+          }`}
           onClick={() => toggleFavorite(track.id)}
         >
           <motion.svg
@@ -186,62 +369,173 @@ export default function TrackPage() {
           </motion.svg>
         </Button>
 
+        {/* Share */}
         <ShareButton url={shareUrl} title={shareTitle} />
 
         <div className="flex-1" />
 
-        {/* Metadata badges */}
-        <div className="flex items-center gap-1.5">
-          {tariqaName && (
-            <span className="text-[10px] font-fustat bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-              {tariqaName}
-            </span>
-          )}
-          {fanName && (
-            <span className="text-[10px] font-fustat bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-              {fanName}
-            </span>
-          )}
-        </div>
-      </div>
+        {/* Now playing indicator */}
+        {isPlaying && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-1.5 bg-accent/10 text-accent px-3 py-1.5 rounded-full"
+          >
+            <div className="flex items-end gap-[2px] h-3">
+              <div className="w-[2px] rounded-full bg-accent animate-eq-1" />
+              <div className="w-[2px] rounded-full bg-accent animate-eq-2" />
+              <div className="w-[2px] rounded-full bg-accent animate-eq-3" />
+            </div>
+            <span className="text-[10px] font-fustat font-bold">يعمل الآن</span>
+          </motion.div>
+        )}
+      </motion.div>
 
-      {/* Lyrics section */}
+      {/* ── App Download Banner ── */}
+      <AppDownloadBanner trackTitle={track.title} />
+
+      {/* ── Lyrics Section ── */}
       {track.lyrics && (
-        <div className="px-5 pb-4">
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-fustat text-sm font-bold text-primary">كلمات المدحة</h3>
-            <div className="h-px bg-border" />
-            <p className="font-panorama text-base leading-[2.2] whitespace-pre-line text-foreground/80">
-              {track.lyrics}
-            </p>
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="px-5 pb-5"
+        >
+          <div className="relative rounded-2xl border border-border bg-card overflow-hidden">
+            {/* Subtle decorative corner */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-accent/[0.04] to-transparent pointer-events-none" />
+
+            <div className="p-5 space-y-3 relative">
+              <div className="flex items-center justify-between">
+                <h3 className="font-fustat text-sm font-bold text-primary flex items-center gap-2">
+                  <span className="inline-block w-1 h-4 rounded-full bg-accent" />
+                  كلمات المدحة
+                </h3>
+                {hasLongLyrics && (
+                  <button
+                    onClick={() => setLyricsExpanded(!lyricsExpanded)}
+                    className="text-[11px] font-fustat text-accent flex items-center gap-0.5 hover:opacity-80 transition-opacity"
+                  >
+                    {lyricsExpanded ? "عرض أقل" : "عرض الكل"}
+                    {lyricsExpanded ? (
+                      <ChevronUp className="h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              <div className="h-px bg-border/60" />
+
+              <div className="relative">
+                <p className="font-panorama text-base leading-[2.2] whitespace-pre-line text-foreground/80">
+                  {visibleLyrics}
+                </p>
+
+                {/* Fade out effect when collapsed */}
+                {hasLongLyrics && !lyricsExpanded && (
+                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                )}
+              </div>
+
+              {hasLongLyrics && !lyricsExpanded && (
+                <button
+                  onClick={() => setLyricsExpanded(true)}
+                  className="w-full py-2 text-xs font-fustat font-bold text-accent hover:text-accent/80 transition-colors flex items-center justify-center gap-1"
+                >
+                  عرض كل الكلمات
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {/* More by this artist */}
+      {/* ── Track Details Card ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="px-5 pb-5"
+      >
+        <div className="rounded-2xl border border-border bg-card/60 p-4">
+          <h3 className="font-fustat text-sm font-bold text-primary mb-3 flex items-center gap-2">
+            <span className="inline-block w-1 h-4 rounded-full bg-primary/30" />
+            تفاصيل المدحة
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-fustat text-muted-foreground/60 uppercase">المادح</p>
+              <Link
+                to={`/profile/artist/${track.madih_id}`}
+                className="text-xs font-fustat font-semibold text-foreground hover:text-accent transition-colors"
+              >
+                {artistName}
+              </Link>
+            </div>
+            {narratorName && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-fustat text-muted-foreground/60 uppercase">الراوي</p>
+                <p className="text-xs font-fustat font-semibold text-foreground">{narratorName}</p>
+              </div>
+            )}
+            {tariqaName && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-fustat text-muted-foreground/60 uppercase">الطريقة</p>
+                <p className="text-xs font-fustat font-semibold text-foreground">{tariqaName}</p>
+              </div>
+            )}
+            {fanName && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-fustat text-muted-foreground/60 uppercase">الفن</p>
+                <p className="text-xs font-fustat font-semibold text-foreground">{fanName}</p>
+              </div>
+            )}
+            {duration && duration !== "0:00" && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-fustat text-muted-foreground/60 uppercase">المدة</p>
+                <p className="text-xs font-fustat font-semibold text-foreground">{duration}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── More by this Artist ── */}
       {relatedTracks.length > 0 && (
-        <div className="px-5 pb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="px-5 pb-6"
+        >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-fustat text-base font-bold">المزيد من {artistName}</h3>
+            <h3 className="font-fustat text-base font-bold flex items-center gap-2">
+              <span className="inline-block w-1 h-4 rounded-full bg-secondary/60" />
+              المزيد من {artistName}
+            </h3>
             {track.madih_id && (
               <Link
                 to={`/profile/artist/${track.madih_id}`}
-                className="font-fustat text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="font-fustat text-xs text-accent hover:text-accent/80 transition-colors"
               >
-                عرض الكل
+                عرض الكل ←
               </Link>
             )}
           </div>
           <div className="space-y-0.5">
             {relatedTracks.map((t, i) => (
-              <TrackRow key={t.id} track={t} index={i + 1} contextQueue={allQueue} />
+              <TrackRow key={t.id} track={t} index={i} contextQueue={allQueue} />
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Bottom spacing for mini player */}
-      <div className="h-24" />
+      <div className="h-40" />
     </div>
   );
 }
