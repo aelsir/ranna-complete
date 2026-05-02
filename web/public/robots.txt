@@ -8,4 +8,4 @@ Disallow: /listening-history
 Disallow: /listening-stats
 Disallow: /font-test
 
-Sitemap: https://ranna.aelsir.sd/api/sitemap.xml
+Sitemap: https://ranna.aelsir.sd/sitemap.xml
