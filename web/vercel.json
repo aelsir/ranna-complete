@@ -23,7 +23,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(?i)(WhatsApp|Telegram|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|Google-Read-Aloud|bingbot|Googlebot|Pinterest|vkShare)"
+          "value": "(?i)(WhatsApp|Telegram|facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|Google-Read-Aloud|bingbot|Googlebot|GoogleOther|Google-InspectionTool|Storebot-Google|AdsBot-Google|Mediapartners-Google|Pinterest|vkShare|Applebot|DuckDuckBot|Baiduspider|YandexBot)"
         }
       ]
     },

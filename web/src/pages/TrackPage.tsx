@@ -46,7 +46,10 @@ export default function TrackPage() {
   const imageUrl = getImageUrl(track.image_url || track.madiheen?.image_url);
   const artistName = track.madiheen?.name || track.madih || "غير معروف";
   const pageTitle = `${track.title} — ${artistName} | رنّة`;
-  const pageDesc = `استمع إلى "${track.title}" للمادح ${artistName} على رنّة`;
+  const lyricsSnippet = track.lyrics ? track.lyrics.substring(0, 160).replace(/\n/g, " ") : "";
+  const pageDesc = lyricsSnippet
+    ? `${track.title} — ${artistName} | ${lyricsSnippet}`
+    : `استمع إلى "${track.title}" للمادح ${artistName} على رنّة — منصة المدائح النبوية السودانية`;
   const narratorName = track.ruwat?.name || track.writer;
   const tariqaName = track.turuq?.name;
   const fanName = track.funun?.name;
@@ -54,6 +57,29 @@ export default function TrackPage() {
   const shareUrl = getTrackShareUrl(track.id);
   const shareTitle = `${track.title} — ${artistName} | رنّة`;
   const allQueue = [track.id, ...relatedTracks.map((t) => t.id)];
+
+  // JSON-LD structured data for search engines
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "MusicRecording",
+    name: track.title,
+    url: shareUrl,
+    inLanguage: "ar",
+    ...(track.duration_seconds && {
+      duration: `PT${Math.floor(track.duration_seconds / 60)}M${track.duration_seconds % 60}S`,
+    }),
+    ...(imageUrl && { image: imageUrl }),
+    ...(artistName && { byArtist: { "@type": "MusicGroup", name: artistName } }),
+    isAccessibleForFree: true,
+    ...(track.lyrics && {
+      recordingOf: {
+        "@type": "MusicComposition",
+        name: track.title,
+        lyrics: { "@type": "CreativeWork", text: track.lyrics },
+        inLanguage: "ar",
+      },
+    }),
+  };
 
   const handlePlay = () => {
     playTrack(track.id, allQueue);
@@ -64,6 +90,13 @@ export default function TrackPage() {
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDesc} />
+        <link rel="canonical" href={shareUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:type" content="music.song" />
+        <meta property="og:url" content={shareUrl} />
+        {imageUrl && <meta property="og:image" content={imageUrl} />}
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
       {/* Hero / Header */}
       <div className="relative">

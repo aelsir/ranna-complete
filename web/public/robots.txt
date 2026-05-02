@@ -1,2 +1,11 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /dashboard
+Disallow: /auth/
+Disallow: /account
+Disallow: /favorites
+Disallow: /listening-history
+Disallow: /listening-stats
+Disallow: /font-test
+
+Sitemap: https://ranna.aelsir.sd/api/sitemap.xml
