@@ -18,8 +18,8 @@ ISSUER_ID ?= $(APPLE_API_ISSUER)
 # user_plays or tracks.play_count analytics. See migration 036 +
 # app/README.md for the full design.
 #
-# CRITICAL: Production / distribution targets (build-aab, upload-ios,
-# upload-android, build-ipa, build-apk) must NOT include this flag —
+# CRITICAL: Production / distribution targets (deploy, deploy-ios,
+# deploy-android, build-aab, build-ipa) must NOT include this flag —
 # real users need their plays recorded normally.
 INTERNAL_DEVICE_FLAG := --dart-define=INTERNAL_DEVICE=true
 
@@ -27,7 +27,14 @@ INTERNAL_DEVICE_FLAG := --dart-define=INTERNAL_DEVICE=true
 # List of asset directories to link
 ASSET_DIRS := icons images fonts
 
-.PHONY: sync dev-web dev-app
+.PHONY: sync dev-web dev-app release-app release-ios release-android \
+        deploy deploy-ios deploy-android \
+        build-aab build-ipa build-apk \
+        upload-ios upload-android
+
+# ═════════════════════════════════════════════
+# Asset sync
+# ═════════════════════════════════════════════
 
 ## Ensure symlinks for shared assets exist in app and web
 sync:
@@ -50,6 +57,10 @@ sync:
 	done
 	@echo "✅ Assets are automatically synced via symlinks"
 
+# ═════════════════════════════════════════════
+# Local development
+# ═════════════════════════════════════════════
+
 ## Start the web app (ensures links first)
 dev-web: sync
 	cd web && npm run dev
@@ -60,29 +71,79 @@ dev-web: sync
 dev-app: sync
 	cd app && flutter run --dart-define-from-file=env.json $(INTERNAL_DEVICE_FLAG)
 
-## Install the Flutter app in release mode on a connected iPhone (founder's
-## device). Includes INTERNAL_DEVICE flag — same analytics-hygiene rule as
-## dev-app. Use upload-ios for App Store / TestFlight distribution to real users.
+# ═════════════════════════════════════════════
+# Local release install (founder's device)
+# ═════════════════════════════════════════════
+
+## Install the Flutter app in release mode on a connected device.
+## Auto-detects whether iOS or Android device is connected.
+## Includes INTERNAL_DEVICE flag — analytics-hygiene rule.
+## For store distribution, use: make deploy
 release-app: sync
-	cd app && flutter clean && flutter build ios --release --dart-define-from-file=env.json $(INTERNAL_DEVICE_FLAG) --no-tree-shake-icons && flutter install --release
+	@echo "🔍 Detecting connected device..."
+	@if flutter devices 2>/dev/null | grep -qi "android"; then \
+		echo "🤖 Android device detected"; \
+		$(MAKE) release-android; \
+	elif flutter devices 2>/dev/null | grep -qi "iphone\|ipad\|ios"; then \
+		echo "🍏 iOS device detected"; \
+		$(MAKE) release-ios; \
+	else \
+		echo "❌ No physical device connected. Connect an iPhone or Android phone."; \
+		echo "   Detected devices:"; \
+		cd app && flutter devices; \
+		exit 1; \
+	fi
+
+## Install release build on a connected iOS device (founder's device)
+release-ios: sync
+	cd app && flutter clean && \
+		flutter build ios --release \
+			--dart-define-from-file=env.json \
+			$(INTERNAL_DEVICE_FLAG) \
+			--no-tree-shake-icons && \
+		flutter install --release
+
+## Install release build on a connected Android device (founder's device)
+release-android: sync
+	cd app && flutter clean && \
+		flutter build apk --release \
+			--dart-define-from-file=env.json \
+			$(INTERNAL_DEVICE_FLAG) \
+			--no-tree-shake-icons && \
+		flutter install --release
+
+# ═════════════════════════════════════════════
+# 🚀 Store deployment (unified pipeline)
+# ═════════════════════════════════════════════
+
+## Deploy to BOTH App Store + Google Play in one command.
+## Bumps version once, writes shared release notes, builds & uploads both.
+deploy:
+	@bash scripts/deploy.sh both
+
+## Deploy to iOS App Store / TestFlight only
+deploy-ios:
+	@bash scripts/deploy.sh ios
+
+## Deploy to Google Play only
+deploy-android:
+	@bash scripts/deploy.sh android
+
+# ═════════════════════════════════════════════
+# Legacy / standalone build targets
+# ═════════════════════════════════════════════
 
 ## Build Android App Bundle (.aab) for Google Play Store with Version Bumping
 build-aab:
 	@bash scripts/build_android.sh
 
-## Upload to App Store Connect (TestFlight & App Store)
-## Usage: make upload-ios (Interactive version bump + upload)
+## Upload to App Store Connect (standalone — prefer `make deploy-ios`)
 upload-ios:
 	@bash scripts/upload_ios.sh
 
-## Upload to Google Play (Internal/Beta/Production)
-## Usage: make upload-android (Interactive version bump + upload)
+## Upload to Google Play (standalone — prefer `make deploy-android`)
 upload-android:
 	@bash scripts/upload_android.sh
-
-
-
-## Not very useful for now
 
 ## Build the iOS app for App Store / TestFlight distribution
 build-ipa: sync
@@ -90,4 +151,4 @@ build-ipa: sync
 
 ## Build Android APK for direct distribution
 build-apk: sync
-	cd app && flutter build apk --release --dart-define-from-file=env.json
+	cd app && flutter build apk --release --dart-define-from-file=env.json --no-tree-shake-icons

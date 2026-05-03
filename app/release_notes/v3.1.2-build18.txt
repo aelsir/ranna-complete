@@ -1,0 +1,5 @@
+Version: 3.1.2+18
+Date: 2026-05-03
+Platform: BOTH
+What's New:
+We added a follow up button to follow your favourite Rawi and Madih, and you will get a summary email every Friday.
