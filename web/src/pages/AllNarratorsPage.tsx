@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -20,6 +21,31 @@ const AllNarratorsPage = () => {
   const totalPages = Math.ceil(narrators.length / ITEMS_PER_PAGE);
   const paginatedItems = narrators.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const pageTitle = `الرواة السودانيون للمديح — ${narrators.length} راوي | رنّة`;
+  const pageDesc = `تصفح جميع الرواة السودانيين على رنّة — أكبر مكتبة للمدائح النبوية السودانية. ${narrators.slice(0, 8).map(n => n.name).join("، ")} وغيرهم.`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "الرواة السودانيون للمديح النبوي",
+    description: pageDesc,
+    url: "https://ranna.aelsir.sd/narrators",
+    inLanguage: "ar",
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: narrators.length,
+      itemListElement: narrators.slice(0, 50).map((n, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        item: {
+          "@type": "Person",
+          name: n.name,
+          url: `https://ranna.aelsir.sd/profile/narrator/${n.id}`,
+          ...(n.image_url && { image: n.image_url }),
+        },
+      })),
+    },
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -27,11 +53,23 @@ const AllNarratorsPage = () => {
       transition={{ duration: 0.3 }}
       className=""
     >
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+        <link rel="canonical" href="https://ranna.aelsir.sd/narrators" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ranna.aelsir.sd/narrators" />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
+
       <div className="sticky top-0 z-20 bg-card px-5 py-4 flex items-center gap-3 border-b border-border/30 rounded-t-3xl">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 rounded-full text-foreground">
           <ArrowRight className="h-4 w-4" />
         </Button>
         <h1 className="font-fustat text-lg font-bold">الراوون</h1>
+        <span className="text-xs text-muted-foreground font-fustat">{narrators.length} راوي</span>
       </div>
 
       <div className="grid grid-cols-3 gap-5 px-5 pt-4 md:grid-cols-4 lg:grid-cols-6 md:px-12">

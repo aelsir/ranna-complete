@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -20,6 +21,31 @@ const AllArtistsPage = () => {
   const totalPages = Math.ceil(artists.length / ITEMS_PER_PAGE);
   const paginatedItems = artists.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  const pageTitle = `المادحون السودانيون — ${artists.length} مادح | رنّة`;
+  const pageDesc = `تصفح جميع المادحين السودانيين على رنّة — أكبر مكتبة للمدائح النبوية السودانية. ${artists.slice(0, 8).map(a => a.name).join("، ")} وغيرهم.`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "المادحون السودانيون",
+    description: pageDesc,
+    url: "https://ranna.aelsir.sd/artists",
+    inLanguage: "ar",
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: artists.length,
+      itemListElement: artists.slice(0, 50).map((a, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        item: {
+          "@type": "MusicGroup",
+          name: a.name,
+          url: `https://ranna.aelsir.sd/profile/artist/${a.id}`,
+          ...(a.image_url && { image: a.image_url }),
+        },
+      })),
+    },
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -27,11 +53,23 @@ const AllArtistsPage = () => {
       transition={{ duration: 0.3 }}
       className=""
     >
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={pageDesc} />
+        <link rel="canonical" href="https://ranna.aelsir.sd/artists" />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://ranna.aelsir.sd/artists" />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
+
       <div className="sticky top-0 z-20 bg-card px-5 py-4 flex items-center gap-3 border-b border-border/30 rounded-t-3xl">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-9 w-9 rounded-full text-foreground">
           <ArrowRight className="h-4 w-4" />
         </Button>
         <h1 className="font-fustat text-lg font-bold">المادحون</h1>
+        <span className="text-xs text-muted-foreground font-fustat">{artists.length} مادح</span>
       </div>
 
       <div className="grid grid-cols-3 gap-5 px-5 pt-4 md:grid-cols-4 lg:grid-cols-6 md:px-12">

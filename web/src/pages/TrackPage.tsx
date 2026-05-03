@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { ArrowRight, Clock, Loader2, Download, Smartphone, Wifi, WifiOff, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowRight, Clock, Loader2, Smartphone, WifiOff, ChevronDown, ChevronUp } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -16,18 +16,24 @@ import TrackRow from "@/components/TrackRow";
 const APP_STORE_URL = import.meta.env.VITE_APP_STORE_URL || "";
 const PLAY_STORE_URL = import.meta.env.VITE_PLAY_STORE_URL || "";
 
-// ── Detect platform for smart banner ──
-function getDevicePlatform(): "ios" | "android" | "desktop" {
-  const ua = navigator.userAgent || "";
-  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
-  if (/Android/i.test(ua)) return "android";
-  return "desktop";
-}
+
 
 // ── App Download Banner Component ──
-function AppDownloadBanner({ trackTitle }: { trackTitle: string }) {
+// ── Inline SVG icons for App Store and Play Store ──
+const AppleIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 384 512" className={className} fill="currentColor">
+    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-27.1-46.9-42.3-83.7-45.6-35.5-3.2-74.2 20.9-88.5 20.9-15.1 0-49.3-19.7-74.5-19.7C59.6 140.5 0 181.3 0 270.3c0 26.2 4.8 53.3 14.4 81.2 12.8 37.1 59 128.1 107.2 126.5 25.3-.6 43.3-18.1 74.5-18.1 30.1 0 46.9 18.1 74.5 18.1 48.6-.7 90.4-82.5 102.6-119.7-65.2-30.7-61.5-90-61.5-90.6zm-56.6-164.2c27.3-32.4 24.8-62.1 24-72.5-24 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
+  </svg>
+);
+
+const PlayStoreIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 512 512" className={className} fill="currentColor">
+    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
+  </svg>
+);
+
+function AppDownloadBanner() {
   const [dismissed, setDismissed] = useState(false);
-  const platform = getDevicePlatform();
 
   useEffect(() => {
     if (localStorage.getItem("ranna_app_banner_dismissed") === "true") {
@@ -40,22 +46,19 @@ function AppDownloadBanner({ trackTitle }: { trackTitle: string }) {
     localStorage.setItem("ranna_app_banner_dismissed", "true");
   };
 
-  // Only show on mobile / or desktop too for awareness
   if (dismissed) return null;
 
-  const storeUrl = platform === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
-  // Hide if no store URL is configured for this platform
-  if (!storeUrl && platform !== "desktop") return null;
-  if (platform === "desktop" && !APP_STORE_URL && !PLAY_STORE_URL) return null;
-  const storeName = platform === "ios" ? "App Store" : platform === "android" ? "Google Play" : "App Store / Google Play";
-  const linkUrl = storeUrl || APP_STORE_URL || PLAY_STORE_URL;
+  const hasIos = !!APP_STORE_URL;
+  const hasAndroid = !!PLAY_STORE_URL;
+  // Hide completely if neither URL is configured
+  if (!hasIos && !hasAndroid) return null;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      transition={{ delay: 1, duration: 0.5, ease: "easeOut" }}
+      transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
       className="mx-5 mb-4"
     >
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-bl from-primary/[0.06] via-card to-accent/[0.04]">
@@ -74,27 +77,52 @@ function AppDownloadBanner({ trackTitle }: { trackTitle: string }) {
               استمع في تطبيق رنّة
             </h4>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-              تجربة أفضل • تحميل مدائح بدون نت • إشعارات بالمدائح الجديدة
+              تجربة أفضل • تحميل مدائح بدون نت • إشعارات بالجديد
             </p>
 
-            <div className="flex items-center gap-2 mt-2.5">
-              <a
-                href={linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full bg-primary text-primary-foreground text-xs font-fustat font-bold shadow-sm hover:opacity-90 transition-opacity"
-              >
-                <Download className="h-3 w-3" />
-                حمّل التطبيق
-              </a>
-              <button
-                onClick={handleDismiss}
-                className="h-8 px-3 rounded-full text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                ليس الآن
-              </button>
+            {/* Store buttons — both always visible */}
+            <div className="flex items-center gap-2 mt-3">
+              {hasIos && (
+                <a
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-foreground text-background text-[11px] font-fustat font-bold hover:opacity-90 transition-opacity"
+                >
+                  <AppleIcon className="h-4 w-4" />
+                  <div className="flex flex-col items-start leading-none">
+                    <span className="text-[8px] font-normal opacity-70">حمّل من</span>
+                    <span>App Store</span>
+                  </div>
+                </a>
+              )}
+              {hasAndroid && (
+                <a
+                  href={PLAY_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-foreground text-background text-[11px] font-fustat font-bold hover:opacity-90 transition-opacity"
+                >
+                  <PlayStoreIcon className="h-3.5 w-3.5" />
+                  <div className="flex flex-col items-start leading-none">
+                    <span className="text-[8px] font-normal opacity-70">حمّل من</span>
+                    <span>Google Play</span>
+                  </div>
+                </a>
+              )}
             </div>
           </div>
+
+          {/* Dismiss button */}
+          <button
+            onClick={handleDismiss}
+            className="absolute top-3 left-3 p-1 text-muted-foreground/40 hover:text-foreground transition-colors rounded-full"
+            aria-label="إغلاق"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         {/* Feature pills */}
@@ -392,7 +420,7 @@ export default function TrackPage() {
       </motion.div>
 
       {/* ── App Download Banner ── */}
-      <AppDownloadBanner trackTitle={track.title} />
+      <AppDownloadBanner />
 
       {/* ── Lyrics Section ── */}
       {track.lyrics && (

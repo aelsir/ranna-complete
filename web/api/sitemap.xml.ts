@@ -19,13 +19,13 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
     // Fetch all artists
     const { data: artists } = await supabase
-      .from("madiheen")
+      .from("artists")
       .select("id, updated_at")
       .order("updated_at", { ascending: false });
 
     // Fetch all narrators
     const { data: narrators } = await supabase
-      .from("ruwat")
+      .from("authors")
       .select("id, updated_at")
       .order("updated_at", { ascending: false });
 

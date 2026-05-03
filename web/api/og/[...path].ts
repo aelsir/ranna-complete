@@ -181,7 +181,7 @@ async function getTrackMeta(id: string): Promise<OGMeta | null> {
 
 async function getArtistMeta(id: string): Promise<OGMeta | null> {
   const { data } = await supabase
-    .from("madiheen")
+    .from("artists")
     .select("name, image_url, bio")
     .eq("id", id)
     .single();
@@ -241,18 +241,56 @@ async function getArtistMeta(id: string): Promise<OGMeta | null> {
 
 async function getNarratorMeta(id: string): Promise<OGMeta | null> {
   const { data } = await supabase
-    .from("ruwat")
-    .select("name")
+    .from("authors")
+    .select("name, image_url")
     .eq("id", id)
     .single();
 
   if (!data) return null;
+
+  // Get tracks by this narrator
+  const { data: tracks, count } = await supabase
+    .from("madha")
+    .select("id, title", { count: "exact" })
+    .eq("rawi_id", id)
+    .eq("status", "approved")
+    .order("play_count", { ascending: false })
+    .limit(50);
+
+  const jsonLd: any = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": data.name,
+    "url": `${SITE_URL}/profile/narrator/${id}`,
+    ...(data.image_url && { "image": data.image_url }),
+    "description": `راوي سوداني للمديح النبوي — ${count || 0} مدحة على رنّة`,
+  };
+
+  let bodyHtml = `
+    <article itemscope itemtype="https://schema.org/Person">
+      <h1 itemprop="name">${escapeHtml(data.name)}</h1>
+      <p>راوي سوداني للمديح النبوي — ${count || 0} مدحة على رنّة — أكبر منصة للمدائح النبوية السودانية</p>`;
+
+  if (tracks && tracks.length > 0) {
+    bodyHtml += `
+      <section>
+        <h2>مدائح رواية ${escapeHtml(data.name)}</h2>
+        <ul>
+          ${tracks.map((t) => `<li><a href="/track/${t.id}">${escapeHtml(t.title)}</a></li>`).join("\n          ")}
+        </ul>
+      </section>`;
+  }
+
+  bodyHtml += `
+    </article>`;
+
   return {
     title: data.name,
-    description: `الراوي ${data.name} على رنّة — منصة المدائح النبوية السودانية`,
+    description: `الراوي السوداني ${data.name} — ${count || 0} مدحة على رنّة — أكبر منصة للمدائح النبوية السودانية`,
     ogType: "profile",
     canonicalPath: `/profile/narrator/${id}`,
-    bodyHtml: `<article><h1>${escapeHtml(data.name)}</h1><p>راوي على رنّة — منصة المدائح النبوية السودانية</p></article>`,
+    jsonLd,
+    bodyHtml,
   };
 }
 
@@ -272,6 +310,118 @@ async function getPlaylistMeta(id: string): Promise<OGMeta | null> {
     ogType: "music.playlist",
     canonicalPath: `/playlist/${id}`,
     bodyHtml: `<article><h1>${escapeHtml(data.name)}</h1>${data.description ? `<p>${escapeHtml(data.description)}</p>` : ""}</article>`,
+  };
+}
+
+// ── All Artists listing page ──
+
+async function getArtistsListingMeta(): Promise<OGMeta> {
+  const { data: artists, count } = await supabase
+    .from("artists")
+    .select("id, name, image_url", { count: "exact" })
+    .order("name");
+
+  const allArtists = artists || [];
+  const total = count || allArtists.length;
+  const namesPreview = allArtists.slice(0, 10).map(a => a.name).join("، ");
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "المادحون السودانيون",
+    "url": `${SITE_URL}/artists`,
+    "description": `تصفح جميع المادحين السودانيين — ${total} مادح على رنّة`,
+    "inLanguage": "ar",
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": total,
+      "itemListElement": allArtists.slice(0, 50).map((a, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "MusicGroup",
+          "name": a.name,
+          "url": `${SITE_URL}/profile/artist/${a.id}`,
+        },
+      })),
+    },
+  };
+
+  const artistLinks = allArtists.map(a =>
+    `<li><a href="/profile/artist/${a.id}">${escapeHtml(a.name)}</a></li>`
+  ).join("\n          ");
+
+  return {
+    title: `المادحون السودانيون — ${total} مادح`,
+    description: `تصفح جميع المادحين السودانيين على رنّة — أكبر مكتبة للمدائح النبوية السودانية. ${namesPreview} وغيرهم.`,
+    ogType: "website",
+    canonicalPath: "/artists",
+    jsonLd,
+    bodyHtml: `
+      <article>
+        <h1>المادحون السودانيون — ${total} مادح على رنّة</h1>
+        <p>تصفح جميع المادحين السودانيين على رنّة — أكبر مكتبة صوتية للمدائح النبوية السودانية على الإنترنت.</p>
+        <h2>جميع المادحين</h2>
+        <ul>
+          ${artistLinks}
+        </ul>
+      </article>`,
+  };
+}
+
+// ── All Narrators listing page ──
+
+async function getNarratorsListingMeta(): Promise<OGMeta> {
+  const { data: narrators, count } = await supabase
+    .from("authors")
+    .select("id, name, image_url", { count: "exact" })
+    .order("name");
+
+  const allNarrators = narrators || [];
+  const total = count || allNarrators.length;
+  const namesPreview = allNarrators.slice(0, 10).map(n => n.name).join("، ");
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "الرواة السودانيون للمديح النبوي",
+    "url": `${SITE_URL}/narrators`,
+    "description": `تصفح جميع الرواة السودانيين — ${total} راوي على رنّة`,
+    "inLanguage": "ar",
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": total,
+      "itemListElement": allNarrators.slice(0, 50).map((n, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "item": {
+          "@type": "Person",
+          "name": n.name,
+          "url": `${SITE_URL}/profile/narrator/${n.id}`,
+        },
+      })),
+    },
+  };
+
+  const narratorLinks = allNarrators.map(n =>
+    `<li><a href="/profile/narrator/${n.id}">${escapeHtml(n.name)}</a></li>`
+  ).join("\n          ");
+
+  return {
+    title: `الرواة السودانيون للمديح — ${total} راوي`,
+    description: `تصفح جميع الرواة السودانيين على رنّة — أكبر مكتبة للمدائح النبوية السودانية. ${namesPreview} وغيرهم.`,
+    ogType: "website",
+    canonicalPath: "/narrators",
+    jsonLd,
+    bodyHtml: `
+      <article>
+        <h1>الرواة السودانيون للمديح النبوي — ${total} راوي على رنّة</h1>
+        <p>تصفح جميع رواة المديح النبوي السوداني على رنّة — أكبر مكتبة صوتية للمدائح النبوية السودانية على الإنترنت.</p>
+        <h2>جميع الرواة</h2>
+        <ul>
+          ${narratorLinks}
+        </ul>
+      </article>`,
   };
 }
 
@@ -308,8 +458,8 @@ function getHomepageMeta(): OGMeta {
         <p>استمع لأجمل المدائح النبوية السودانية وابحث في كلمات المدائح والأذكار. أكبر مكتبة صوتية للمدائح النبوية السودانية على الإنترنت.</p>
         <h2>تصفح المدائح النبوية</h2>
         <ul>
-          <li><a href="/artists">جميع المدّاحين</a></li>
-          <li><a href="/narrators">جميع الرواة</a></li>
+          <li><a href="/artists">جميع المدّاحين السودانيين</a></li>
+          <li><a href="/narrators">جميع الرواة السودانيين</a></li>
           <li><a href="/playlists">قوائم التشغيل</a></li>
           <li><a href="/tariqas">الطرق الصوفية</a></li>
           <li><a href="/funoon">الفنون</a></li>
@@ -369,6 +519,7 @@ function buildHTML(meta: OGMeta): string {
     <nav>
       <a href="/">الرئيسية</a> |
       <a href="/artists">المدّاحين</a> |
+      <a href="/narrators">الرواة</a> |
       <a href="/search">البحث</a>
     </nav>
   </footer>
@@ -397,6 +548,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } else if (type === "playlist" && pathSegments[1]) {
       meta = await getPlaylistMeta(pathSegments[1]);
+    } else if (type === "artists") {
+      meta = await getArtistsListingMeta();
+    } else if (type === "narrators") {
+      meta = await getNarratorsListingMeta();
     }
 
     // Fallback for unknown paths or deleted content

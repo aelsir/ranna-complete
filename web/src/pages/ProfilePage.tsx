@@ -52,14 +52,41 @@ const ProfilePage = () => {
   };
 
   const profileLabel = isArtist ? "مادح" : "راوي";
-  const pageTitle = `${profile.name} | ${profileLabel} — رنّة`;
-  const pageDesc = `${profileLabel}: ${profile.name} — ${profileTracks.length} مدحة على رنّة`;
+  const pageTitle = `${profile.name} | ${profileLabel} سوداني — رنّة`;
+  const pageDesc = isArtist
+    ? `استمع لمدائح المادح السوداني ${profile.name} — ${profileTracks.length} مدحة على رنّة. ${profileTracks.slice(0, 5).map(t => t.title).join("، ")}`
+    : `استمع لمدائح الراوي السوداني ${profile.name} — ${profileTracks.length} مدحة على رنّة. ${profileTracks.slice(0, 5).map(t => t.title).join("، ")}`;
+  const canonicalUrl = getProfileShareUrl(isArtist ? "artist" : "narrator", id!);
+
+  // JSON-LD structured data
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": isArtist ? "MusicGroup" : "Person",
+    name: profile.name,
+    url: canonicalUrl,
+    ...(profile.image_url && { image: profile.image_url }),
+    ...(isArtist && { genre: "المدائح النبوية السودانية" }),
+    ...(profileTracks.length > 0 && {
+      track: profileTracks.slice(0, 30).map(t => ({
+        "@type": "MusicRecording",
+        name: t.title,
+        url: `https://ranna.aelsir.sd/track/${t.id}`,
+      })),
+    }),
+  };
 
   return (
     <div>
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDesc} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={pageDesc} />
+        <meta property="og:type" content="profile" />
+        <meta property="og:url" content={canonicalUrl} />
+        {profile.image_url && <meta property="og:image" content={profile.image_url} />}
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
       {/* Header */}
       <div className="relative">
