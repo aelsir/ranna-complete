@@ -4,12 +4,17 @@ import { Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMadhaat, useHomePageData } from "@/lib/api/hooks";
 import { usePlayer } from "@/context/PlayerContext";
+import { useCountUp } from "@/lib/useCountUp";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const HeroSection = () => {
   const { data: madhaat } = useMadhaat();
   const { data: homeData } = useHomePageData();
   const count = homeData?.totalTracks;
+  // Count-up hook returns `null` until `count` is a positive number, then
+  // animates 0 → count over 2s. Re-mount of HeroSection (e.g. page
+  // refresh / nav back to Home) restarts the animation by design.
+  const animatedCount = useCountUp(count);
   const { playTrack } = usePlayer();
 
   const handlePickForYou = useCallback(() => {
@@ -57,9 +62,18 @@ const HeroSection = () => {
             <span className="relative h-1.5 w-1.5 rounded-full bg-secondary" />
           </div>
           <span className="font-fustat text-[10px] font-bold text-primary-foreground/80">
-            {count && count > 0
-              ? `استمع الآن لأكثر من ${count} مدحة`
-              : "استمع الآن"}
+            {animatedCount != null ? (
+              <>
+                استمع الآن لأكثر من{" "}
+                {/* `tabular-nums` keeps the badge width stable while the
+                    digit count grows mid-animation; without it, the
+                    surrounding Arabic text shifts left/right by a pixel
+                    or two on each tick. */}
+                <span className="tabular-nums">{animatedCount}</span> مدحة
+              </>
+            ) : (
+              "استمع الآن"
+            )}
           </span>
         </motion.div>
 

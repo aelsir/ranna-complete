@@ -18,6 +18,11 @@ import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 import 'package:ranna/utils/haptics.dart';
 
+/// Single source of truth for how long the hero "track count" badge takes
+/// to tick from 0 to the platform total. Tune here, the badge updates.
+/// Mirrored on the web side by `COUNT_UP_DURATION_MS` in `useCountUp.ts`.
+const _kCountUpDuration = Duration(seconds: 4);
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -653,15 +658,63 @@ class _LiveBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            'استمع الآن لأكثر من $totalTracks مدحة',
-            style: const TextStyle(
-              fontFamily: RannaTheme.fontFustat,
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+          // Until we have a real track count, show the bare "listen now"
+          // label — counting up from zero before the number is known
+          // would just be a zero on screen, which is uglier than a clean
+          // single-line label.
+          if (totalTracks <= 0)
+            const Text(
+              'استمع الآن',
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          else
+            Text.rich(
+              TextSpan(
+                style: const TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                children: [
+                  const TextSpan(text: 'استمع الآن لأكثر من '),
+                  // Inline ticking number. `WidgetSpan` keeps it baseline-
+                  // aligned with the surrounding Arabic, and a `ValueKey`
+                  // on the target makes the tween restart from 0 if the
+                  // number changes (e.g. after a pull-to-refresh fetches
+                  // a new total). Without the key, a target change would
+                  // animate from the previous value, not from 0.
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: TweenAnimationBuilder<int>(
+                      key: ValueKey(totalTracks),
+                      tween: IntTween(begin: 0, end: totalTracks),
+                      duration: _kCountUpDuration,
+                      curve: Curves.easeOut,
+                      builder: (_, value, _) => Text(
+                        '$value',
+                        style: const TextStyle(
+                          fontFamily: RannaTheme.fontFustat,
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          // Tabular figures so the badge width doesn't
+                          // jitter as the digit count grows mid-tween.
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const TextSpan(text: ' مدحة'),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
