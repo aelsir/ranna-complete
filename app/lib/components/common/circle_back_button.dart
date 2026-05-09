@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/utils/haptics.dart';
 
 /// Circular back button used by detail screens that don't sit on a
 /// `SliverAppBar` (e.g. `سجل الاستماع`, `إحصائيات الاستماع`, `بيانات الحساب`,
@@ -33,6 +34,7 @@ class CircleBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        Haptics.selection();
         if (context.canPop()) {
           context.pop();
         } else {

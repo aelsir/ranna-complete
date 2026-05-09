@@ -1,6 +1,7 @@
 import { useMadhaat } from "@/lib/api/hooks";
 import { Card, CardContent } from "@/components/ui/card";
 import TrackRow from "@/components/TrackRow";
+import { TrackQueueProvider } from "@/context/TrackQueueContext";
 
 const RecentlyAdded = () => {
   const { data: tracks, isLoading, error } = useMadhaat({
@@ -48,12 +49,15 @@ const RecentlyAdded = () => {
       <div className="px-5 md:px-12">
         <Card className="rounded-2xl shadow-card border-border/20 overflow-hidden">
           <CardContent className="p-2">
-            {tracks.map((track, i) => (
-              <div key={track.id}>
-                <TrackRow track={track} index={i} />
-                {i < tracks.length - 1 && <div className="h-px bg-border/30 mx-3" />}
-              </div>
-            ))}
+            {/* Single wrap → all rows below auto-advance through this list. */}
+            <TrackQueueProvider trackIds={tracks.map((t) => t.id)}>
+              {tracks.map((track, i) => (
+                <div key={track.id}>
+                  <TrackRow track={track} index={i} />
+                  {i < tracks.length - 1 && <div className="h-px bg-border/30 mx-3" />}
+                </div>
+              ))}
+            </TrackQueueProvider>
           </CardContent>
         </Card>
       </div>

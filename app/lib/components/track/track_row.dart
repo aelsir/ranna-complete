@@ -4,17 +4,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
+import 'package:ranna/components/track/track_action_sheet.dart';
+import 'package:ranna/components/track/track_queue_scope.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/utils/responsive.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
+import 'package:ranna/utils/haptics.dart';
 
 /// A single track list item.
+///
+/// Auto-advance is queue-driven: tapping this row plays the track AND tells
+/// the audio player about the surrounding queue, so when this track ends
+/// the player advances to the next one in the list.
+///
+/// Queue resolution order (first non-null wins):
+///   1. The explicit [queue] parameter (legacy / one-off contexts).
+///   2. The nearest enclosing [TrackQueueScope] (preferred for lists —
+///      wrap once at the list level instead of per-item).
+///   3. `[track]` — single-track queue, plays just this one and stops.
 class TrackRow extends ConsumerWidget {
   final MadhaWithRelations track;
   final int index;
+
+  /// Explicit queue override. Prefer wrapping the list in [TrackQueueScope]
+  /// instead — that way every row in the list inherits the queue without
+  /// the parent having to thread it through each item.
   final List<MadhaWithRelations>? queue;
   final VoidCallback? onTap;
 
@@ -42,7 +59,10 @@ class TrackRow extends ConsumerWidget {
           : Colors.transparent,
       child: InkWell(
         onTap: () {
-          final tracksToCache = queue ?? [track];
+          Haptics.selection();
+          // Resolve queue: explicit param > inherited scope > single-track.
+          final tracksToCache =
+              queue ?? TrackQueueScope.of(context)?.tracks ?? [track];
           ref.read(trackCacheProvider.notifier).state = {
             ...ref.read(trackCacheProvider),
             for (final t in tracksToCache) t.id: t,
@@ -53,6 +73,8 @@ class TrackRow extends ConsumerWidget {
               );
           onTap?.call();
         },
+        // Long-press → bottom sheet with "Play next" + "Add to queue".
+        onLongPress: () => showTrackActionSheet(context, ref, track),
         child: SizedBox(
           height: scaleForTablet(context, 56, 68),
           child: Padding(
@@ -154,6 +176,10 @@ class TrackRow extends ConsumerWidget {
                   height: 32,
                   child: IconButton(
                     onPressed: () {
+                      // Heavier tick when *adding* a favorite, light tick
+                      // on remove — matches user mental model of "saving"
+                      // vs "undoing".
+                      isFav ? Haptics.selection() : Haptics.light();
                       ref.read(favoritesProvider.notifier).toggle(track.id);
                     },
                     padding: EdgeInsets.zero,

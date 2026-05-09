@@ -11,6 +11,7 @@ import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
+import 'package:ranna/utils/haptics.dart';
 import 'package:ranna/utils/share.dart';
 
 /// Full player overlay with glass-dark styling, rounded-3xl, z-55.
@@ -243,9 +244,12 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                   children: [
                                     // Favorite
                                     GestureDetector(
-                                      onTap: () => ref
-                                          .read(favoritesProvider.notifier)
-                                          .toggle(trackId),
+                                      onTap: () {
+                                        isFav ? Haptics.selection() : Haptics.light();
+                                        ref
+                                            .read(favoritesProvider.notifier)
+                                            .toggle(trackId);
+                                      },
                                       child: SizedBox(
                                         width: 44,
                                         height: 44,
@@ -296,8 +300,10 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                     if (hasLyrics) ...[
                                       const SizedBox(width: 24),
                                       GestureDetector(
-                                        onTap: () =>
-                                            setState(() => _showLyrics = !_showLyrics),
+                                        onTap: () {
+                                          Haptics.selection();
+                                          setState(() => _showLyrics = !_showLyrics);
+                                        },
                                         child: SizedBox(
                                           width: 44,
                                           height: 44,
@@ -746,6 +752,7 @@ class _ProgressSliderState extends State<_ProgressSlider> {
               setState(() => _dragValue = value);
             },
             onChangeEnd: (value) {
+              Haptics.selection();
               setState(() => _isDragging = false);
               widget.onSeek(Duration(milliseconds: value.toInt()));
             },

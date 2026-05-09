@@ -13,6 +13,7 @@ import { getImageUrl } from "@/lib/format";
 import { normalizeArabic } from "@/lib/arabic";
 import { usePlayer } from "@/context/PlayerContext";
 import { trackEvent } from "@/lib/analytics";
+import { haptic } from "@/lib/haptic";
 
 type ResultType = "مدحة" | "مادح" | "راوي" | "كلمات";
 
@@ -183,7 +184,10 @@ const SearchPage = () => {
               key={f}
               variant={activeFilter === f ? "default" : "secondary"}
               size="sm"
-              onClick={() => setActiveFilter(f)}
+              onClick={() => {
+                if (activeFilter !== f) haptic.selection();
+                setActiveFilter(f);
+              }}
               className={`rounded-full font-fustat text-xs font-bold whitespace-nowrap ${activeFilter === f ? "shadow-sm" : ""} ${!hasResults && query.trim() ? "opacity-50" : ""}`}
             >
               {f}

@@ -2,8 +2,10 @@ import { Heart, BookOpenText } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlayer } from "@/context/PlayerContext";
+import { useTrackQueue } from "@/context/TrackQueueContext";
 import type { MadhaWithRelations } from "@/types/database";
 import { formatDuration, getImageUrl } from "@/lib/format";
+import { haptic } from "@/lib/haptic";
 
 const Equalizer = () => (
   <div className="flex items-end gap-[2px] h-4">
@@ -17,11 +19,20 @@ interface TrackRowProps {
   track: MadhaWithRelations;
   index: number;
   animate?: boolean;
+  /**
+   * Explicit queue override. Prefer wrapping the surrounding list in
+   * `<TrackQueueProvider>` instead — every row inside inherits the queue
+   * automatically, no per-row plumbing.
+   */
   contextQueue?: string[];
 }
 
 const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps) => {
   const { nowPlayingId, playTrack, isFavorite, toggleFavorite } = usePlayer();
+  // Resolve queue: explicit prop > inherited context > undefined (single track).
+  const inheritedQueue = useTrackQueue();
+  const effectiveQueue = contextQueue ?? inheritedQueue ?? undefined;
+
   const isNowPlaying = track.id === nowPlayingId;
   const duration = formatDuration(track.duration_seconds);
   const thumbSrc = track.image_url || track.madiheen?.image_url;
@@ -31,7 +42,10 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
       className={`group flex items-center gap-3 py-3.5 cursor-pointer rounded-xl px-3 -mx-1 transition-colors duration-200 ${
         isNowPlaying ? "bg-accent/8" : "hover:bg-muted/60"
       }`}
-      onClick={() => playTrack(track.id, contextQueue)}
+      onClick={() => {
+        haptic.selection();
+        playTrack(track.id, effectiveQueue);
+      }}
     >
       {isNowPlaying ? (
         <span className="w-5 flex items-center justify-center flex-shrink-0">
@@ -80,6 +94,7 @@ const TrackRow = ({ track, index, animate = true, contextQueue }: TrackRowProps)
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          isFavorite(track.id) ? haptic.selection() : haptic.light();
           toggleFavorite(track.id);
         }}
         className="h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 flex-shrink-0"

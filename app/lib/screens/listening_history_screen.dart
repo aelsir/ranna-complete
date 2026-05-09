@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/components/common/circle_back_button.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
+import 'package:ranna/components/track/track_queue_scope.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -70,7 +71,12 @@ class ListeningHistoryScreen extends ConsumerWidget {
               data: (entries) {
                 if (entries.isEmpty) return _buildEmptyState();
                 final tracks = entries.map((e) => e.track).toList();
-                return ListView.separated(
+                // The whole list shares one queue → wrap once. Every
+                // TrackRow inside reads it from the scope automatically;
+                // no per-row `queue:` plumbing needed.
+                return TrackQueueScope(
+                  tracks: tracks,
+                  child: ListView.separated(
                   padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 120),
                   itemCount: entries.length,
                   separatorBuilder: (_, _) => Divider(
@@ -86,7 +92,6 @@ class ListeningHistoryScreen extends ConsumerWidget {
                           child: TrackRow(
                             track: entry.track,
                             index: index,
-                            queue: tracks,
                           ),
                         ),
                         Padding(
@@ -116,6 +121,7 @@ class ListeningHistoryScreen extends ConsumerWidget {
                           curve: Curves.easeOut,
                         );
                   },
+                ),
                 );
               },
             ),

@@ -9,6 +9,7 @@ import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/utils/haptics.dart';
 
 /// Redesigned mini player bar with swipe-to-dismiss:
 ///
@@ -42,8 +43,11 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   }
 
   void _onDragEnd(DragEndDetails details) {
+    final wasOpen = _dragExtent >= _actionWidth;
     if (_dragExtent > _actionWidth * 0.4) {
-      // Snap open
+      // Snap open — fire haptic only on the *transition* into open, not
+      // on every micro-drag-end while already open.
+      if (!wasOpen) Haptics.medium();
       setState(() => _dragExtent = _actionWidth);
     } else {
       // Snap closed
@@ -52,6 +56,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   }
 
   void _dismiss() {
+    Haptics.medium();
     ref.read(audioPlayerProvider.notifier).stopAndClear();
   }
 
@@ -111,7 +116,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
               filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
               child: Container(
                 decoration: BoxDecoration(
-                  color: RannaTheme.card.withValues(alpha: 0.80),
+                  // Top-tier overlay (sits above content, like the nav).
+                  color: RannaTheme.surface2.withValues(alpha: 0.80),
                   borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
                   border: Border.all(color: RannaTheme.border.withValues(alpha: 0.6)),
                 ),
@@ -119,9 +125,11 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                   onHorizontalDragUpdate: _onDragUpdate,
                   onHorizontalDragEnd: _onDragEnd,
                   onTap: _dragExtent > 4
-                      ? () =>
-                            setState(() => _dragExtent = 0)
-                      : () => notifier.openFullPlayer(),
+                      ? () => setState(() => _dragExtent = 0)
+                      : () {
+                          Haptics.selection();
+                          notifier.openFullPlayer();
+                        },
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -129,7 +137,10 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                       children: [
                         // --- Right: Play/Pause with circular progress ---
                         GestureDetector(
-                          onTap: () => notifier.togglePlay(),
+                          onTap: () {
+                            Haptics.selection();
+                            notifier.togglePlay();
+                          },
                           child: SizedBox(
                             width: 48,
                             height: 48,
@@ -209,6 +220,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               alpha: 0.40,
                             ),
                             onTap: () {
+                              Haptics.selection();
                               notifier.openFullPlayerWithLyrics();
                             },
                           ),
@@ -221,6 +233,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               ? RannaTheme.favoriteHeart
                               : RannaTheme.primaryForeground.withValues(alpha: 0.40),
                           onTap: () {
+                            isFav ? Haptics.selection() : Haptics.light();
                             ref.read(favoritesProvider.notifier).toggle(track.id);
                           },
                         ),
@@ -313,6 +326,7 @@ class _MiniDownloadButton extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () async {
+        Haptics.light();
         try {
           await startDownload(ref, track);
         } catch (_) {}

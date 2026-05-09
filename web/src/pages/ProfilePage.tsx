@@ -8,6 +8,7 @@ import { useMadih, useRawi, useMadhaatByMadih, useMadhaatByRawi } from "@/lib/ap
 import { getImageUrl } from "@/lib/format";
 import TrackRow from "@/components/TrackRow";
 import { ShareButton } from "@/components/ShareButton";
+import { TrackQueueProvider } from "@/context/TrackQueueContext";
 import { getProfileShareUrl } from "@/lib/share";
 
 import { usePlayer } from "@/context/PlayerContext";
@@ -136,12 +137,14 @@ const ProfilePage = () => {
 
       {/* Track list */}
       <div className="px-5 md:px-12">
-        {profileTracks.map((track, i) => (
-          <div key={track.id}>
-            <TrackRow track={track} index={i} animate={false} />
-            {i < profileTracks.length - 1 && <div className="h-px bg-border/30 mx-3" />}
-          </div>
-        ))}
+        <TrackQueueProvider trackIds={queue}>
+          {profileTracks.map((track, i) => (
+            <div key={track.id}>
+              <TrackRow track={track} index={i} animate={false} />
+              {i < profileTracks.length - 1 && <div className="h-px bg-border/30 mx-3" />}
+            </div>
+          ))}
+        </TrackQueueProvider>
       </div>
     </div>
   );

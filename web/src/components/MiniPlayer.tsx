@@ -8,6 +8,7 @@ import { getAudioUrl, getTrackDisplayImage } from "@/lib/format";
 import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
 import { trackEvent } from "@/lib/analytics";
+import { haptic } from "@/lib/haptic";
 
 /* ── Circular progress ring around the play button ── */
 const ProgressRing = ({ progress, size = 48, stroke = 3 }: { progress: number; size?: number; stroke?: number }) => {
@@ -136,7 +137,10 @@ const MiniPlayer = () => {
               <div className="relative shrink-0 h-12 w-12">
                 <ProgressRing progress={progress} size={48} stroke={6} />
                 <button
-                  onClick={togglePlay}
+                  onClick={() => {
+                    haptic.selection();
+                    togglePlay();
+                  }}
                   className="absolute inset-[6px] flex items-center justify-center rounded-full bg-primary-foreground active:scale-90 transition-transform"
                 >
                   <AnimatePresence mode="wait">
@@ -157,6 +161,7 @@ const MiniPlayer = () => {
               <div
                 className="flex-1 min-w-0 cursor-pointer active:opacity-70 transition-opacity"
                 onClick={() => {
+                  haptic.selection();
                   setFullPlayerOpen(true);
                   trackEvent("full_player_opened", { track_id: nowPlayingId });
                 }}
@@ -170,7 +175,10 @@ const MiniPlayer = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (nowPlayingId) toggleFavorite(nowPlayingId);
+                    if (nowPlayingId) {
+                      isFavorite(nowPlayingId) ? haptic.selection() : haptic.light();
+                      toggleFavorite(nowPlayingId);
+                    }
                   }}
                   className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
                 >

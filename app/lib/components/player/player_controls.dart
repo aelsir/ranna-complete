@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/utils/haptics.dart';
 
 /// Playback control row used by the full-screen player.
 ///
@@ -33,7 +34,10 @@ class PlayerControls extends ConsumerWidget {
           size: 40,
           iconSize: 24,
           iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.80),
-          onTap: () => notifier.skipBackward(),
+          onTap: () {
+            Haptics.selection();
+            notifier.skipBackward();
+          },
         ),
 
         const SizedBox(width: 12),
@@ -46,7 +50,12 @@ class PlayerControls extends ConsumerWidget {
           iconColor: playerState.hasPrevious
               ? RannaTheme.primaryForeground.withValues(alpha: 0.80)
               : RannaTheme.primaryForeground.withValues(alpha: 0.20),
-          onTap: playerState.hasPrevious ? () => notifier.playPrevious() : null,
+          onTap: playerState.hasPrevious
+              ? () {
+                  Haptics.selection();
+                  notifier.playPrevious();
+                }
+              : null,
           flipHorizontally: true,
         ),
 
@@ -54,7 +63,10 @@ class PlayerControls extends ConsumerWidget {
 
         // --- Play / Pause (large circular button) ---
         GestureDetector(
-          onTap: () => notifier.togglePlay(),
+          onTap: () {
+            Haptics.selection();
+            notifier.togglePlay();
+          },
           child: Container(
             width: 70,
             height: 70,
@@ -83,7 +95,12 @@ class PlayerControls extends ConsumerWidget {
           iconColor: playerState.hasNext
               ? RannaTheme.primaryForeground.withValues(alpha: 0.80)
               : RannaTheme.primaryForeground.withValues(alpha: 0.20),
-          onTap: playerState.hasNext ? () => notifier.playNext() : null,
+          onTap: playerState.hasNext
+              ? () {
+                  Haptics.selection();
+                  notifier.playNext();
+                }
+              : null,
           flipHorizontally: true,
         ),
 
@@ -95,7 +112,10 @@ class PlayerControls extends ConsumerWidget {
           size: 40,
           iconSize: 24,
           iconColor: RannaTheme.primaryForeground.withValues(alpha: 0.80),
-          onTap: () => notifier.skipForward(),
+          onTap: () {
+            Haptics.selection();
+            notifier.skipForward();
+          },
         ),
       ],
     );

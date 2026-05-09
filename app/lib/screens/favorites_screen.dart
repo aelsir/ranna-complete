@@ -160,13 +160,23 @@ class FavoritesScreen extends ConsumerWidget {
                           error: (_, _) => SliverToBoxAdapter(
                             child: _buildErrorMessage('حدث خطأ في تحميل المحفوظات'),
                           ),
-                          data: (rows) => SliverList(
+                          data: (rows) {
+                            // Pre-decode the JSON metadata for every row once
+                            // so all TrackRow children share the same queue
+                            // identity (auto-advance plays them in order).
+                            final downloadedTracks = rows
+                                .map(
+                                  (r) => MadhaWithRelations.fromJson(
+                                    jsonDecode(r.metadataJson)
+                                        as Map<String, dynamic>,
+                                  ),
+                                )
+                                .toList();
+                            return SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
                                 final row = rows[index];
-                                final track = MadhaWithRelations.fromJson(
-                                  jsonDecode(row.metadataJson) as Map<String, dynamic>,
-                                );
+                                final track = downloadedTracks[index];
                                 return Dismissible(
                                   key: Key('download-${row.trackId}'),
                                   direction: DismissDirection.endToStart,
@@ -212,6 +222,7 @@ class FavoritesScreen extends ConsumerWidget {
                                               child: TrackRow(
                                                 track: track,
                                                 index: index,
+                                                queue: downloadedTracks,
                                               ),
                                             ),
                                             Icon(
@@ -244,7 +255,8 @@ class FavoritesScreen extends ConsumerWidget {
                               },
                               childCount: rows.length,
                             ),
-                          ),
+                            );
+                          },
                         ),
 
                         // Delete all button

@@ -29,6 +29,7 @@ import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/components/player/mini_player.dart';
 import 'package:ranna/components/player/full_player.dart';
 import 'package:ranna/services/audio_player_service.dart';
+import 'package:ranna/utils/haptics.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -353,8 +354,10 @@ class _FloatingBottomNav extends ConsumerWidget {
 
     // ClipRRect + BackdropFilter give the nav a frosted-dark feel: anything
     // scrolling underneath blurs through the bar instead of disappearing
-    // behind a flat surface. The elevated card color sits on top at 90%
-    // alpha so the blur reads through.
+    // behind a flat surface. We sit at `surface2` (the top tier of the
+    // elevation system) so the nav stays visually distinct from cards
+    // (`surface1`) — without this tier separation the nav and a card
+    // sitting next to it would read as the same chrome.
     return ClipRRect(
       borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
       child: BackdropFilter(
@@ -362,7 +365,7 @@ class _FloatingBottomNav extends ConsumerWidget {
         child: Container(
           height: 68,
           decoration: BoxDecoration(
-            color: RannaTheme.card.withValues(alpha: 0.75),
+            color: RannaTheme.surface2.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
             border: Border.all(color: RannaTheme.border.withValues(alpha: 0.8)),
             boxShadow: RannaTheme.shadowFloat,
@@ -376,6 +379,9 @@ class _FloatingBottomNav extends ConsumerWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
+                    // Skip the haptic when the user re-taps the active tab
+                    // (that's a "scroll to top" gesture, not a navigation).
+                    if (!isActive) Haptics.selection();
                     // Always close full player when tapping tabs to ensure content visibility
                     ref.read(audioPlayerProvider.notifier).closeFullPlayer();
                     navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);

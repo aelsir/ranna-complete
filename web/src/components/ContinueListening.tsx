@@ -67,7 +67,7 @@ const ContinueListening = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05, duration: 0.3 }}
-              onClick={() => playTrack(track.id)}
+              onClick={() => playTrack(track.id, trackIds)}
               className="relative overflow-hidden transition-colors rounded-lg flex flex-col justify-end p-3 h-20 cursor-pointer shadow-sm ring-1 ring-border/10 group bg-slate-900"
             >
               <div className="absolute inset-0 z-0">

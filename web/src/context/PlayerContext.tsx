@@ -3,6 +3,8 @@ import { trackEvent } from "@/lib/analytics";
 import { recordPlay } from "@/lib/api/queries";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthContext";
+import { useMadha } from "@/lib/api/hooks";
+import { getAudioUrl } from "@/lib/format";
 
 interface PlayerContextType {
   // Queue & track
@@ -144,6 +146,18 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, [queue, currentIndex]);
 
+  const hasNext = queue.length > 0 && currentIndex < queue.length - 1;
+  const hasPrevious = queue.length > 0 && currentIndex > 0;
+
+  // Prefetch the next track so iOS/Safari can advance synchronously
+  const nextTrackId = hasNext ? queue[currentIndex + 1] : null;
+  const { data: nextTrack } = useMadha(nextTrackId ?? undefined);
+  const nextAudioUrlRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    nextAudioUrlRef.current = nextTrack ? getAudioUrl(nextTrack.audio_url) : null;
+  }, [nextTrack]);
+
   const currentTime = duration ? (progress / 100) * duration : 0;
 
   // Audio control methods
@@ -229,9 +243,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const playPrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev));
   }, []);
-
-  const hasNext = queue.length > 0 && currentIndex < queue.length - 1;
-  const hasPrevious = queue.length > 0 && currentIndex > 0;
 
   const isFavorite = useCallback((id: string) => favorites.has(id), [favorites]);
 
@@ -399,6 +410,12 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       if (hasNext) {
+        // Synchronous track change for mobile browsers (Safari)
+        if (nextAudioUrlRef.current) {
+          audio.src = nextAudioUrlRef.current;
+          audio.load();
+          audio.play().catch(() => {});
+        }
         playNext();
       } else if (repeatMode === "all" && queue.length > 0) {
         setCurrentIndex(0);

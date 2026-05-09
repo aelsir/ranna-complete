@@ -12,17 +12,49 @@ class RannaTheme {
   RannaTheme._();
 
   // ===========================================================================
-  // Brand colors — AMOLED Dark
+  // Surface tiers — three-step elevation system
   // ===========================================================================
+  //
+  // Use these going forward instead of `background` / `card` directly. Each
+  // tier sits one step above the previous, giving inline cards, modal
+  // sheets, and the floating nav their own visual identity. On AMOLED,
+  // shadows are nearly invisible, so tone difference is what carries
+  // elevation — a 3-step scale gives us enough headroom to disambiguate
+  // a card sitting next to a nav bar of the same shape.
+  //
+  //   surface0 → page background, scaffold (deepest)
+  //   surface1 → inline elevated content: cards, list items
+  //   surface2 → top-tier overlays: bottom nav, sheets, dialogs, mini player
+  //
+  // To add a new surface tier later (e.g. surface3 for the full player),
+  // append to the bottom and pick a tone ~10% lighter than the previous.
+  // Don't reorder — call sites depend on the semantic tier names.
 
-  /// Pure black scaffold — looks at home on OLED screens (pixels off = power
-  /// off) and gives photography / artwork maximum contrast.
-  static const Color background = Color(0xFF121212);
+  /// Page background / scaffold. Deepest tier.
+  static const Color surface0 = Color(0xFF121212);
 
-  /// Elevated surface for cards, dialogs, the mini player. Slightly lighter
-  /// than the scaffold so cards still read as "above" the page without
-  /// breaking the dark mood.
-  static const Color card = Color(0xFF262626);
+  /// Inline elevated content — cards, list rows, callouts. One step above
+  /// the page so cards read as "raised" without competing with the nav.
+  static const Color surface1 = Color(0xFF1E1E1E);
+
+  /// Top-tier overlays — bottom nav, modal sheets, dialogs, mini player.
+  /// One step above cards so floating chrome stays visually separable from
+  /// the inline content scrolling underneath it.
+  static const Color surface2 = Color(0xFF262626);
+
+  // ── Aliases (backward compat) ──────────────────────────────────────────
+  // Existing call sites read `background` and `card`. We keep the names
+  // but re-anchor them onto the tier system so the whole app moves
+  // together. New code should prefer `surface0` / `surface1` / `surface2`
+  // for clarity about WHICH tier it's targeting.
+
+  /// Page background — alias for [surface0].
+  static const Color background = surface0;
+
+  /// Elevated surface for cards. Alias for [surface1]. (Was #262626 before
+  /// the tier split; cards now sit at #1E1E1E and the nav/sheets occupy
+  /// the lighter #262626 so they don't visually merge.)
+  static const Color card = surface1;
 
   /// Primary accent — emerald green. Used on filled buttons, follow chips,
   /// active states.
@@ -345,21 +377,21 @@ class RannaTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: card,
+        backgroundColor: surface2,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius2xl),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: card,
+        backgroundColor: surface2,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(radius2xl)),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: card,
+        backgroundColor: surface2,
         indicatorColor: navActiveIndicator,
         elevation: 0,
         surfaceTintColor: Colors.transparent,

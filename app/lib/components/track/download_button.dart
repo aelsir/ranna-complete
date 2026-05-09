@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/madha.dart';
 import '../../providers/download_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/haptics.dart';
 
 /// Compact download button for a track.
 ///
@@ -51,6 +52,7 @@ class DownloadButton extends ConsumerWidget {
     if (isDownloading) {
       return GestureDetector(
         onTap: () {
+          Haptics.selection();
           // Cancel the download
           ref.read(downloadServiceProvider).cancelDownload(track.id);
           ref.read(activeDownloadsProvider.notifier).remove(track.id);
@@ -115,6 +117,7 @@ class DownloadButton extends ConsumerWidget {
   }
 
   Future<void> _startDownload(BuildContext context, WidgetRef ref) async {
+    Haptics.light();
     try {
       await startDownload(ref, track);
     } catch (e) {

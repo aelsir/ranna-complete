@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as ja;
@@ -172,6 +173,15 @@ class RannaAudioHandler extends BaseAudioHandler with SeekHandler {
 Future<RannaAudioHandler> initAudioHandler() async {
   return await AudioService.init(
     builder: () => RannaAudioHandler(),
+    // NOTE: `androidNotificationOngoing: true` requires
+    // `androidStopForegroundOnPause: true` (audio_service asserts this).
+    // We keep the ongoing notification (better UX — user can't accidentally
+    // swipe it away mid-listen) and accept that the foreground service
+    // drops briefly during pauses on Android. Inter-track transitions
+    // don't trigger a "pause" event in just_audio (they go through
+    // `completed` → next track), so this isn't actually the bug source
+    // for the user's symptom — that's the iOS audio session, fixed in
+    // main.dart's AudioSession.configure call.
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.ranna.audio',
       androidNotificationChannelName: 'رنّة للمدائح',
@@ -197,6 +207,9 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   StreamSubscription<ja.PlayerState>? _playerStateSub;
   DateTime? _lastPositionUpdate;
   StreamSubscription<ja.ProcessingState>? _processingStateSub;
+  StreamSubscription<int?>? _currentIndexSub;
+  StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
+  StreamSubscription<void>? _becomingNoisySub;
 
   /// Tracks the current play session so we can record duration + completion
   /// to `user_plays` when the track ends or the user switches to another track.
@@ -253,18 +266,77 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
         _onTrackCompleted();
       }
     });
+
+    _currentIndexSub = _player.currentIndexStream.listen((index) {
+      if (mounted && index != null && index >= 0 && index < state.queue.length) {
+        final newTrackId = state.queue[index];
+        // If the native player advanced to the next track automatically
+        if (state.currentTrackId != newTrackId) {
+          // Record the previous play
+          if (_playStart != null) {
+            unawaited(_recordCurrentPlay(true));
+          }
+          state = state.copyWith(
+            currentTrackId: newTrackId,
+            currentIndex: index,
+          );
+          // Update the lock-screen / Now Playing card to reflect the new
+          // track. Without this, native controls would still show the
+          // first-played track's title/artwork through every transition.
+          final queue = audioHandler.queue.value;
+          if (index < queue.length) {
+            audioHandler.mediaItem.add(queue[index]);
+          }
+          _playStart = (trackId: newTrackId, startTime: DateTime.now());
+          _logPlayEvent(newTrackId);
+        }
+      }
+    });
+
+    // ── Audio session interruption + noisy handling ───────────────────
+    // `AudioSession.instance` is a process-wide singleton already
+    // configured in main.dart. Subscribing here for the lifetime of the
+    // service is safe — disposed via `_interruptionSub` / `_becomingNoisySub`.
+    //
+    // - interruptionEventStream: phone calls, alarms, Siri. Pause when the
+    //   interruption begins; resume when it ends if it was a transient
+    //   "pause" type. Without this the player stays paused after a call,
+    //   forcing the user to manually restart.
+    // - becomingNoisyEventStream: headphones unplugged. Pause to avoid
+    //   blasting through the device speaker.
+    // ignore: discarded_futures
+    AudioSession.instance.then((session) {
+      if (!mounted) return;
+      _interruptionSub = session.interruptionEventStream.listen((event) {
+        if (!mounted) return;
+        if (event.begin) {
+          if (state.isPlaying) {
+            _player.pause();
+          }
+        } else {
+          if (event.type == AudioInterruptionType.pause) {
+            // Transient interruption ended (e.g. call dropped) — resume.
+            _player.play();
+          }
+          // Other resume types (.duck, .unknown) → leave alone.
+        }
+      });
+      _becomingNoisySub = session.becomingNoisyEventStream.listen((_) {
+        if (!mounted) return;
+        if (state.isPlaying) {
+          _player.pause();
+        }
+      });
+    });
   }
 
   void _onTrackCompleted() {
-    // Record the completed play to `user_plays` BEFORE advancing.
-    // Clear `_playStart` so `_loadAndPlay` doesn't re-record this play as
-    // partial when auto-advancing to the next track.
-    unawaited(_recordCurrentPlay(true));
-    _playStart = null;
-
-    if (state.hasNext) {
-      playNext();
-    } else {
+    // We only need to stop playing if we reached the absolute end of the queue.
+    // ConcatenatingAudioSource handles the track-to-track transitions, which
+    // triggers currentIndexStream instead.
+    if (!state.hasNext) {
+      unawaited(_recordCurrentPlay(true));
+      _playStart = null;
       state = state.copyWith(
         isPlaying: false,
         position: Duration.zero,
@@ -326,43 +398,68 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     }
 
     try {
-      final track = _getCachedTrack(trackId);
+      // Build a ConcatenatingAudioSource from the current queue
+      final audioSources = <ja.AudioSource>[];
+      final mediaItems = <MediaItem>[];
 
-      // Update native media controls with track metadata
-      final artUri = _resolveArtworkUri(track);
-      audioHandler.mediaItem.add(MediaItem(
-        id: trackId,
-        title: track?.title ?? 'Unknown',
-        artist: track?.madihDetails?.name ?? track?.madih,
-        artUri: artUri,
-        duration: track?.durationSeconds != null
-            ? Duration(seconds: track!.durationSeconds!)
-            : null,
-      ));
+      for (final id in state.queue) {
+        final track = _getCachedTrack(id);
+        final url = _resolveAudioUrl(id);
+        if (url == null) continue;
 
-      // Check for offline download first (not on web)
-      if (!kIsWeb) {
-        final localPath = await LocalDb.getLocalPath(trackId);
-        if (localPath != null && await File(localPath).exists()) {
-          debugPrint('▶️ Playing offline: $localPath');
-          await _player.setAudioSource(ja.AudioSource.file(localPath));
-          await _player.play();
-          _playStart = (trackId: trackId, startTime: DateTime.now());
-          _logPlayEvent(trackId);
-          return;
+        final artUri = _resolveArtworkUri(track);
+        final mediaItem = MediaItem(
+          id: id,
+          title: track?.title ?? 'Unknown',
+          artist: track?.madihDetails?.name ?? track?.madih,
+          artUri: artUri,
+          duration: track?.durationSeconds != null
+              ? Duration(seconds: track!.durationSeconds!)
+              : null,
+        );
+        mediaItems.add(mediaItem);
+
+        // Check for offline download first
+        String? localPath;
+        if (!kIsWeb) {
+          final possibleLocalPath = await LocalDb.getLocalPath(id);
+          if (possibleLocalPath != null && await File(possibleLocalPath).exists()) {
+            localPath = possibleLocalPath;
+          }
+        }
+
+        if (localPath != null) {
+          audioSources.add(ja.AudioSource.file(localPath, tag: mediaItem));
+        } else {
+          audioSources.add(ja.AudioSource.uri(Uri.parse(url), tag: mediaItem));
         }
       }
 
-      // Stream from R2
-      final url = _resolveAudioUrl(trackId);
-      if (url == null) {
+      if (audioSources.isEmpty) {
         state = state.copyWith(isPlaying: false);
         return;
       }
 
-      await _player.setAudioSource(
-        ja.AudioSource.uri(Uri.parse(url)),
+      final playlist = ja.ConcatenatingAudioSource(
+        useLazyPreparation: true,
+        children: audioSources,
       );
+
+      // We handle the queue visually, but need to sync audio_service
+      audioHandler.queue.add(mediaItems);
+
+      // Find the index of the requested trackId in the sources we just built
+      final targetIndex = state.queue.indexOf(trackId);
+      final initialIndex = targetIndex >= 0 && targetIndex < audioSources.length ? targetIndex : 0;
+
+      // Push the current MediaItem so the iOS Now Playing card and Android
+      // media-style notification render the right title/artist/artwork.
+      // `audioHandler.queue` alone doesn't drive the lock-screen display —
+      // it has to be `mediaItem`. Updated again on track transition by the
+      // `currentIndexStream` listener.
+      audioHandler.mediaItem.add(mediaItems[initialIndex]);
+
+      await _player.setAudioSource(playlist, initialIndex: initialIndex);
       await _player.play();
 
       _playStart = (trackId: trackId, startTime: DateTime.now());
@@ -520,42 +617,66 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
 
   Future<void> playNext() async {
     if (!state.hasNext) return;
-
-    final nextIndex = state.currentIndex + 1;
-    final nextTrackId = state.queue[nextIndex];
-
-    state = state.copyWith(
-      currentTrackId: nextTrackId,
-      currentIndex: nextIndex,
-      position: Duration.zero,
-      duration: Duration.zero,
-    );
-
-    await _loadAndPlay(nextTrackId);
+    await _player.seekToNext();
   }
 
   Future<void> playPrevious() async {
-    if (_player.position > const Duration(seconds: 3)) {
+    if (_player.position > const Duration(seconds: 3) || !state.hasPrevious) {
       await _player.seek(Duration.zero);
       return;
     }
+    await _player.seekToPrevious();
+  }
 
-    if (!state.hasPrevious) {
-      await _player.seek(Duration.zero);
+  // ---------------------------------------------------
+  // Queue mutation (user-triggered "Play next" / "Add to queue")
+  // ---------------------------------------------------
+
+  /// Insert [track] into the queue immediately AFTER the currently-playing
+  /// track, so it plays next when the current track ends (or the user taps
+  /// skip-next).
+  ///
+  /// If the queue is empty / nothing is playing, this delegates to
+  /// [playTrack] — the user-visible behavior is "play this track now,"
+  /// which matches their expectation when there's nothing to queue after.
+  void enqueueNext(MadhaWithRelations track) {
+    _cacheTrack(track);
+    if (state.queue.isEmpty || state.currentIndex < 0) {
+      // ignore: discarded_futures — fire-and-forget; the caller doesn't
+      // await queue mutations and shouldn't await playback start either.
+      playTrack(track.id);
       return;
     }
+    final newQueue = [...state.queue];
+    newQueue.insert(state.currentIndex + 1, track.id);
+    state = state.copyWith(queue: newQueue);
+  }
 
-    final prevIndex = state.currentIndex - 1;
-    final prevTrackId = state.queue[prevIndex];
+  /// Append [track] to the END of the queue. Plays after every other queued
+  /// track finishes.
+  ///
+  /// If the queue is empty / nothing is playing, delegates to [playTrack]
+  /// for the same reason as [enqueueNext].
+  void enqueueLast(MadhaWithRelations track) {
+    _cacheTrack(track);
+    if (state.queue.isEmpty || state.currentIndex < 0) {
+      // ignore: discarded_futures
+      playTrack(track.id);
+      return;
+    }
+    state = state.copyWith(queue: [...state.queue, track.id]);
+  }
 
-    state = state.copyWith(
-      currentTrackId: prevTrackId,
-      currentIndex: prevIndex,
-      position: Duration.zero,
-      duration: Duration.zero,
-    );
-
-    await _loadAndPlay(prevTrackId);
+  /// Stash a track in the cache so the player can resolve its ID to the
+  /// full [MadhaWithRelations] object later (cover art, lyrics, etc.).
+  /// Required for any queue mutation that adds an unknown track.
+  void _cacheTrack(MadhaWithRelations track) {
+    final cache = _ref.read(trackCacheProvider);
+    if (cache.containsKey(track.id)) return; // already cached, skip alloc
+    _ref.read(trackCacheProvider.notifier).state = {
+      ...cache,
+      track.id: track,
+    };
   }
 
   // ---------------------------------------------------
@@ -610,6 +731,9 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     _durationSub?.cancel();
     _playerStateSub?.cancel();
     _processingStateSub?.cancel();
+    _currentIndexSub?.cancel();
+    _interruptionSub?.cancel();
+    _becomingNoisySub?.cancel();
     super.dispose();
   }
 }

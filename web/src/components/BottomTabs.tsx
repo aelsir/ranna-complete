@@ -1,6 +1,7 @@
 import { Home, Search, Heart, UserCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
+import { haptic } from "@/lib/haptic";
 
 const tabs = [
   { label: "السَّاحة", icon: Home, path: "/" },
@@ -24,7 +25,11 @@ const BottomTabs = () => {
           return (
             <motion.button
               key={tab.path}
-              onClick={() => navigate(tab.path)}
+              onClick={() => {
+                // Skip haptic when re-tapping the active tab (no nav change).
+                if (!isActive) haptic.selection();
+                navigate(tab.path);
+              }}
               whileTap={{ scale: 0.92 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className={`relative flex flex-col items-center gap-0.5 px-6 py-1.5 rounded-2xl transition-colors duration-200 ${

@@ -11,6 +11,7 @@ import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/utils/haptics.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -40,6 +41,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _setFilter(SearchFilter filter) {
+    // Tap the same chip twice → no haptic (no state change to confirm).
+    if (ref.read(searchFilterProvider) == filter) return;
+    Haptics.selection();
     ref.read(searchFilterProvider.notifier).state = filter;
   }
 
