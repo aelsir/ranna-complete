@@ -6,12 +6,12 @@ import 'package:go_router/go_router.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
+import 'package:ranna/components/track/play_all_button.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/providers/follows_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
-import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 
@@ -156,6 +156,48 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
       flexibleSpace: FlexibleSpaceBar(
+        // Title goes in `title:` (not as a Positioned in `background:`) so
+        // that when the user scrolls and the bar collapses, Flutter
+        // animates the text into the toolbar slot with the correct
+        // foreground styling. Putting the name in `background` instead
+        // made it disappear on collapse — the background fades out, and
+        // there was no title to take its place.
+        centerTitle: false,
+        titlePadding: const EdgeInsetsDirectional.only(
+          start: 64,
+          bottom: 16,
+          end: 16,
+        ),
+        title: name == null
+            ? null
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontFamily: RannaTheme.fontFustat,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$roleLabel · ${toArabicNum(trackCount ?? 0)} مدحة',
+                    style: TextStyle(
+                      fontFamily: RannaTheme.fontNotoNaskh,
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
         background: Stack(
           fit: StackFit.expand,
           children: [
@@ -186,36 +228,6 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            if (name != null)
-              Positioned(
-                bottom: 16,
-                right: 20,
-                left: 20,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: RannaTheme.foreground,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$roleLabel · ${toArabicNum(trackCount ?? 0)} مدحة',
-                      style: TextStyle(
-                        fontFamily: RannaTheme.fontNotoNaskh,
-                        fontSize: 13,
-                        color: RannaTheme.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
           ],
         ),
       ),
@@ -248,10 +260,7 @@ class ProfileScreen extends ConsumerWidget {
             padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 8),
             child: Row(
               children: [
-                _PlayAllButton(
-                  enabled: tracks.isNotEmpty,
-                  onTap: () => _playAll(ref, tracks),
-                ),
+                PlayAllButton.compact(tracks: tracks),
                 const Spacer(),
                 _FollowButton(targetType: followType, targetId: id),
               ],
@@ -274,65 +283,11 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _playAll(WidgetRef ref, List<MadhaWithRelations> tracks) {
-    if (tracks.isEmpty) return;
-
-    // Populate the track cache
-    final cache = Map<String, MadhaWithRelations>.from(
-      ref.read(trackCacheProvider),
-    );
-    for (final track in tracks) {
-      cache[track.id] = track;
-    }
-    ref.read(trackCacheProvider.notifier).state = cache;
-
-    // Play the first track with the full queue
-    ref
-        .read(audioPlayerProvider.notifier)
-        .playTrack(tracks.first.id, queue: tracks.map((t) => t.id).toList());
-  }
 }
 
 // =============================================================================
 // Action-row components
 // =============================================================================
-
-/// Circular play-all button. Icon-only — the track count beside the title
-/// already communicates "play these N tracks", so the "تشغيل الكل" text is
-/// redundant here.
-class _PlayAllButton extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback onTap;
-
-  const _PlayAllButton({required this.enabled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = enabled ? RannaTheme.secondary : RannaTheme.muted;
-    return Material(
-      color: color,
-      shape: const CircleBorder(),
-      elevation: enabled ? 4 : 0,
-      shadowColor: RannaTheme.secondary.withValues(alpha: 0.3),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: enabled ? onTap : null,
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(
-            // RTL-aware play glyph already chosen by the theme.
-            RannaTheme.playIcon,
-            size: 24,
-            color: enabled
-                ? RannaTheme.secondaryForeground
-                : RannaTheme.mutedForeground,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// Outlined Follow / Following toggle. Tapping flips the state with an
 /// optimistic update + Supabase write. On the unfollowed → followed

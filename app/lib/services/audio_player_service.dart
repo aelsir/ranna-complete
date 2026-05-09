@@ -667,6 +667,34 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     state = state.copyWith(queue: [...state.queue, track.id]);
   }
 
+  /// Play [tracks] as an ordered queue, starting from the first one.
+  ///
+  /// Hydrates the track cache before starting playback so the player can
+  /// resolve every queued ID to its full [MadhaWithRelations] later
+  /// (artwork, duration, lyrics) — without this, auto-advance to track #2
+  /// would render with placeholder metadata until the cache caught up.
+  ///
+  /// No-op when [tracks] is empty. Use this from any "play list" entry
+  /// point (profile pages, playlists, "play all" buttons) so the queue
+  /// priming logic stays in one place.
+  void playAll(List<MadhaWithRelations> tracks) {
+    if (tracks.isEmpty) return;
+
+    final cache = Map<String, MadhaWithRelations>.from(
+      _ref.read(trackCacheProvider),
+    );
+    for (final t in tracks) {
+      cache[t.id] = t;
+    }
+    _ref.read(trackCacheProvider.notifier).state = cache;
+
+    // ignore: discarded_futures — callers don't await playback start.
+    playTrack(
+      tracks.first.id,
+      queue: tracks.map((t) => t.id).toList(),
+    );
+  }
+
   /// Stash a track in the cache so the player can resolve its ID to the
   /// full [MadhaWithRelations] object later (cover art, lyrics, etc.).
   /// Required for any queue mutation that adds an unknown track.

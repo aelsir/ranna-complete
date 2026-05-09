@@ -4,10 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
+import 'package:ranna/components/track/play_all_button.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/supabase_providers.dart';
-import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 
@@ -200,23 +200,7 @@ class PlaylistScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        boxShadow: RannaTheme.shadowGlowAccent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: tracks.isEmpty
-                            ? null
-                            : () => _playAll(ref, tracks),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: RannaTheme.accent,
-                          foregroundColor: RannaTheme.accentForeground,
-                        ),
-                        icon: Icon(RannaTheme.playIcon),
-                        label: const Text('تشغيل'),
-                      ),
-                    ),
+                    PlayAllButton.pill(tracks: tracks),
                     const SizedBox(width: 12),
                     Text(
                       '${toArabicNum(tracks.length)} مدحة',
@@ -255,21 +239,4 @@ class PlaylistScreen extends ConsumerWidget {
     );
   }
 
-  void _playAll(WidgetRef ref, List<MadhaWithRelations> tracks) {
-    if (tracks.isEmpty) return;
-
-    // Populate the track cache
-    final cache = Map<String, MadhaWithRelations>.from(
-      ref.read(trackCacheProvider),
-    );
-    for (final track in tracks) {
-      cache[track.id] = track;
-    }
-    ref.read(trackCacheProvider.notifier).state = cache;
-
-    // Play the first track with the full queue
-    ref
-        .read(audioPlayerProvider.notifier)
-        .playTrack(tracks.first.id, queue: tracks.map((t) => t.id).toList());
-  }
 }

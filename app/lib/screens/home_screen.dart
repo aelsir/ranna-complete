@@ -16,6 +16,7 @@ import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
+import 'package:ranna/utils/haptics.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -986,8 +987,10 @@ class _TrendingTrackRow extends ConsumerWidget {
                     favoritesProvider.select((s) => s.contains(track.id)),
                   );
                   return GestureDetector(
-                    onTap: () =>
-                        ref.read(favoritesProvider.notifier).toggle(track.id),
+                    onTap: () {
+                      isFav ? Haptics.selection() : Haptics.light();
+                      ref.read(favoritesProvider.notifier).toggle(track.id);
+                    },
                     child: Icon(
                       isFav
                           ? Icons.favorite_rounded
