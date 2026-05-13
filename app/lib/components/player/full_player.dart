@@ -559,7 +559,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
       color: RannaTheme.muted,
       child: Center(
         child: Image.asset(
-          'assets/images/logo-ranna.png',
+          'assets/images/ranna_logo_white.png',
           width: 120,
           height: 120,
           fit: BoxFit.contain,

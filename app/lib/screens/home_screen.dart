@@ -197,7 +197,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         preferredSize: Size.fromHeight(0.5),
         child: Divider(height: 0.5, thickness: 0.5, color: RannaTheme.border),
       ),
-      title: Image.asset('assets/images/logo-ranna.png', height: 32),
+      title: Image.asset('assets/images/ranna_logo_white.png', height: 32),
       actions: [
         IconButton(
           icon: Icon(Icons.search_rounded, color: RannaTheme.foreground),

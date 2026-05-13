@@ -149,7 +149,7 @@ class RannaImage extends StatelessWidget {
       color: RannaTheme.muted,
       child: Center(
         child: Image.asset(
-          'assets/images/logo-ranna.png',
+          'assets/images/ranna_logo_white.png',
           width: logoSize,
           height: logoSize,
           fit: BoxFit.contain,
