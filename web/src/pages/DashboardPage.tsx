@@ -390,7 +390,13 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     title: p.name,
     desc: p.description || "",
     image: p.image_url || "",
-    trackIds: (p.collection_items || []).map((ci: any) => ci.track_id) as string[],
+    // Sort by position before mapping — Supabase's foreign-table .order()
+    // is best-effort, so we belt-and-braces it client-side too.
+    trackIds: (
+      [...(p.collection_items || [])] as { track_id: string; position?: number }[]
+    )
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((ci) => ci.track_id),
   }));
 
   const tariqas = (fetchedTariqas || []).map(t => ({

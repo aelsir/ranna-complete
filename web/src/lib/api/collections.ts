@@ -23,37 +23,39 @@ import { supabase } from "./_shared";
 export async function getActiveCollections(): Promise<
   (Collection & {
     item_count: number;
-    collection_items: { track_id: string }[];
+    collection_items: { track_id: string; position: number }[];
   })[]
 > {
   const { data, error } = await supabase
     .from("collections")
-    .select("*, collection_items(track_id)")
+    .select("*, collection_items(track_id, position)")
     .eq("is_active", true)
-    .order("display_order");
+    .order("display_order")
+    .order("position", { foreignTable: "collection_items", ascending: true });
 
   if (error) throw error;
   return (
     (data as unknown as (Collection & {
       item_count: number;
-      collection_items: { track_id: string }[];
+      collection_items: { track_id: string; position: number }[];
     })[]) || []
   );
 }
 
 /** Admin variant — returns all collections including inactive ones. */
 export async function getAdminCollections(): Promise<
-  (Collection & { collection_items: { track_id: string }[] })[]
+  (Collection & { collection_items: { track_id: string; position: number }[] })[]
 > {
   const { data, error } = await supabase
     .from("collections")
-    .select("*, collection_items(track_id)")
-    .order("display_order");
+    .select("*, collection_items(track_id, position)")
+    .order("display_order")
+    .order("position", { foreignTable: "collection_items", ascending: true });
 
   if (error) throw error;
   return (
     (data as unknown as (Collection & {
-      collection_items: { track_id: string }[];
+      collection_items: { track_id: string; position: number }[];
     })[]) || []
   );
 }
