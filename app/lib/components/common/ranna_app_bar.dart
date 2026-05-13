@@ -5,9 +5,15 @@ import 'package:ranna/theme/app_theme.dart';
 class RannaAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
 
+  /// Optional trailing actions. In RTL these render on the left
+  /// (leading-visual / trailing-logical) — typically used for a search
+  /// icon on list pages.
+  final List<Widget>? actions;
+
   const RannaAppBar({
     super.key,
     required this.title,
+    this.actions,
   });
 
   @override
@@ -42,6 +48,7 @@ class RannaAppBar extends StatelessWidget implements PreferredSizeWidget {
         padding: EdgeInsets.all(8.0),
         child: CircleBackButton(fallbackPath: '/'),
       ),
+      actions: actions,
     );
   }
 

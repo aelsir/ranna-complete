@@ -53,6 +53,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final activeFilter = ref.watch(searchFilterProvider);
     final searchResults = ref.watch(searchResultsProvider);
 
+    // Keep the local TextField controller in sync with the provider so
+    // external resets — e.g. the search button on the all-artists /
+    // all-narrators pages clears the query before switching tab — are
+    // reflected in the visible text field. We only push from provider →
+    // controller (not the reverse) so user typing isn't disturbed.
+    ref.listen<String>(searchQueryProvider, (_, next) {
+      if (_controller.text != next) {
+        _controller.text = next;
+      }
+    });
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Column(
