@@ -233,7 +233,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ];
       },
       loading: () => [], // Don't block the page while loading
-      error: (_, __) => [], // Silently skip on error
+      error: (_, _) => [], // Silently skip on error
     );
   }
 
