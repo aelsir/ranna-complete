@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -22,6 +22,8 @@ import {
   GripVertical,
   X as XIcon,
   Search,
+  ArrowUpDown,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +35,35 @@ export type PickerTrack = {
   narratorName?: string;
   madihId?: string;
 };
+
+/**
+ * Normalise Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) and Eastern Arabic
+ * (۰۱۲۳۴۵۶۷۸۹) to ASCII so JS parseInt sees them.
+ */
+function normaliseDigits(s: string): string {
+  return s
+    .replace(/[٠-٩]/g, (d) =>
+      String.fromCharCode(d.charCodeAt(0) - 0x0660 + 0x30),
+    )
+    .replace(/[۰-۹]/g, (d) =>
+      String.fromCharCode(d.charCodeAt(0) - 0x06f0 + 0x30),
+    );
+}
+
+/** Extract the leading integer from a title, e.g. "1. الفاتحة" → 1. */
+function extractLeadingNumber(title: string): number | null {
+  const m = normaliseDigits(title.trim()).match(/^(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/** Move `arr[fromIndex]` to `toIndex`, returning a new array. */
+function moveToIndex<T>(arr: T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex === toIndex) return arr;
+  const next = [...arr];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(Math.max(0, Math.min(toIndex, next.length)), 0, item);
+  return next;
+}
 
 export type PickerArtist = { id: string; name: string };
 
@@ -142,6 +173,34 @@ export function CollectionTrackPicker({
     }
   };
 
+  const moveTo = (fromIndex: number, toIndex: number) => {
+    if (fromIndex < 0 || fromIndex >= selectedIds.length) return;
+    const clamped = Math.max(0, Math.min(toIndex, selectedIds.length - 1));
+    if (clamped === fromIndex) return;
+    onChange(moveToIndex(selectedIds, fromIndex, clamped));
+  };
+
+  /** Sort selected tracks by the leading number in their title.
+   *  Tracks without a leading number land at the end (alphabetically). */
+  const autoSortByTitleNumber = () => {
+    const decorated = orderedSelected.map((t) => ({
+      id: t.id,
+      num: extractLeadingNumber(t.title),
+      title: t.title,
+    }));
+    decorated.sort((a, b) => {
+      if (a.num != null && b.num != null) return a.num - b.num;
+      if (a.num != null) return -1;
+      if (b.num != null) return 1;
+      return a.title.localeCompare(b.title, "ar");
+    });
+    onChange(decorated.map((d) => d.id));
+  };
+
+  const reverseOrder = () => {
+    onChange([...selectedIds].reverse());
+  };
+
   return (
     <div className="space-y-4">
       {/* ───── Selected (sortable) ───── */}
@@ -149,11 +208,37 @@ export function CollectionTrackPicker({
         <div>
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <label className="text-xs font-fustat text-muted-foreground">
-              المقاطع المحددة (اسحب لإعادة الترتيب)
+              المقاطع المحددة — اسحب أو اكتب الرقم لإعادة الترتيب
             </label>
             <span className="text-[11px] text-primary font-medium">
               {selectedIds.length} مقطع
             </span>
+          </div>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-[11px] h-7 px-2 gap-1.5"
+              onClick={autoSortByTitleNumber}
+              disabled={disabled}
+              title="يستخرج الرقم من بداية كل عنوان ويرتّب المقاطع تصاعديًا"
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              ترتيب تلقائي حسب رقم العنوان
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-[11px] h-7 px-2 gap-1.5"
+              onClick={reverseOrder}
+              disabled={disabled}
+              title="عكس الترتيب الحالي"
+            >
+              <RotateCcw className="h-3 w-3" />
+              عكس الترتيب
+            </Button>
           </div>
           <div className="border border-border rounded-xl max-h-[35vh] overflow-auto p-2 space-y-1 bg-muted/30">
             <DndContext
@@ -170,7 +255,9 @@ export function CollectionTrackPicker({
                     key={t.id}
                     track={t}
                     index={idx}
+                    total={selectedIds.length}
                     disabled={disabled}
+                    onMoveTo={(toIdx) => moveTo(idx, toIdx)}
                     onRemove={() => togglePicker(t.id)}
                   />
                 ))}
@@ -275,11 +362,20 @@ export function CollectionTrackPicker({
 interface RowProps {
   track: PickerTrack;
   index: number;
+  total: number;
   disabled: boolean;
+  onMoveTo: (toIndex: number) => void;
   onRemove: () => void;
 }
 
-function SortableTrackRow({ track, index, disabled, onRemove }: RowProps) {
+function SortableTrackRow({
+  track,
+  index,
+  total,
+  disabled,
+  onMoveTo,
+  onRemove,
+}: RowProps) {
   const {
     attributes,
     listeners,
@@ -288,6 +384,38 @@ function SortableTrackRow({ track, index, disabled, onRemove }: RowProps) {
     transition,
     isDragging,
   } = useSortable({ id: track.id, disabled });
+
+  // Editable 1-based position. Locally controlled so the user can type
+  // freely; we commit on Enter / blur. Keeps in sync if the index changes
+  // externally (e.g. another row was reordered).
+  const [draft, setDraft] = useState(String(index + 1));
+  useEffect(() => {
+    setDraft(String(index + 1));
+  }, [index]);
+
+  const commit = () => {
+    const parsed = parseInt(normaliseDigits(draft), 10);
+    if (Number.isNaN(parsed)) {
+      setDraft(String(index + 1));
+      return;
+    }
+    const clamped = Math.max(1, Math.min(parsed, total));
+    if (clamped !== index + 1) {
+      onMoveTo(clamped - 1);
+    } else {
+      setDraft(String(clamped));
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === "Escape") {
+      setDraft(String(index + 1));
+      (e.target as HTMLInputElement).blur();
+    }
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -305,7 +433,7 @@ function SortableTrackRow({ track, index, disabled, onRemove }: RowProps) {
     >
       <button
         type="button"
-        aria-label="إعادة ترتيب"
+        aria-label="إعادة ترتيب بالسحب"
         className="cursor-grab active:cursor-grabbing touch-none p-1 -m-1 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         disabled={disabled}
         {...attributes}
@@ -313,9 +441,20 @@ function SortableTrackRow({ track, index, disabled, onRemove }: RowProps) {
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <span className="text-[10px] font-mono text-muted-foreground w-5 text-center shrink-0">
-        {index + 1}
-      </span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={onKeyDown}
+        onFocus={(e) => e.currentTarget.select()}
+        disabled={disabled}
+        aria-label={`الترتيب — حاليًا ${index + 1}، اكتب رقمًا بين 1 و ${total}`}
+        title={`اكتب رقمًا بين 1 و ${total} ثم اضغط Enter`}
+        className="w-10 h-6 text-[11px] font-mono text-center rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary shrink-0"
+        dir="ltr"
+      />
       <span className="truncate flex-1">{track.title}</span>
       {track.artistName && (
         <span className="text-[10px] text-muted-foreground hidden sm:inline truncate max-w-[120px]">
