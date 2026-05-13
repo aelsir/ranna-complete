@@ -203,7 +203,7 @@ class PlaylistScreen extends ConsumerWidget {
                     PlayAllButton.pill(tracks: tracks),
                     const SizedBox(width: 12),
                     Text(
-                      '${toArabicNum(tracks.length)} مدحة',
+                      '${toArabicNum(tracks.length)} مقطع',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: RannaTheme.mutedForeground,
                       ),
@@ -238,5 +238,4 @@ class PlaylistScreen extends ConsumerWidget {
       ],
     );
   }
-
 }

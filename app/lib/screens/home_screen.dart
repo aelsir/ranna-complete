@@ -534,7 +534,7 @@ class _HeroBanner extends StatelessWidget {
 
                 // Subtitle
                 Text(
-                  'أجمل المدائح والأذكار من أشهر المادحين السودانيين',
+                  'أجمل المدائح والأناشيد من أشهر المادحين السودانيين',
                   style: TextStyle(
                     fontFamily: RannaTheme.fontNotoNaskh,
                     color: Colors.white.withValues(alpha: 0.65),

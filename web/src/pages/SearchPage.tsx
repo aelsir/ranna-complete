@@ -100,7 +100,7 @@ const SearchPage = () => {
     const artistResults: SearchResult[] = (searchData.artists || []).map((a: any) => ({
       id: a.id,
       title: a.name,
-      subtitle: `مادح · ${a.track_count || 0} مدحة`,
+      subtitle: `مادح · ${a.track_count || 0} مقطع`,
       type: "مادح" as ResultType,
       image: getImageUrl(a.image_url),
       linkTo: "/profile/artist/" + a.id,
@@ -109,7 +109,7 @@ const SearchPage = () => {
     const narratorResults: SearchResult[] = (searchData.narrators || []).map((n: any) => ({
       id: n.id,
       title: n.name,
-      subtitle: `راوي · ${n.track_count || 0} مدحة`,
+      subtitle: `راوي · ${n.track_count || 0} مقطع`,
       type: "راوي" as ResultType,
       image: getImageUrl(n.image_url),
       linkTo: "/profile/narrator/" + n.id,
