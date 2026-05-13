@@ -52,7 +52,7 @@ const PlaylistPage = () => {
     >
       <Helmet>
         <title>{`${playlist?.name || "قائمة تشغيل"} | رنّة`}</title>
-        <meta name="description" content={playlist?.description || `قائمة تشغيل على رنّة — ${(playlistTracks || []).length} مدحة`} />
+        <meta name="description" content={playlist?.description || `قائمة تشغيل على رنّة — ${(playlistTracks || []).length} مقطع`} />
       </Helmet>
       {/* Header */}
       <div className="relative">

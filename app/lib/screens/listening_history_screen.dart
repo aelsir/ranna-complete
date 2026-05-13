@@ -27,105 +27,114 @@ class ListeningHistoryScreen extends ConsumerWidget {
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // ── Header (back button + title) ──
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 20, 8),
-            child: Row(
-              children: [
-                const CircleBackButton(),
-                const SizedBox(width: 12),
-                Text(
-                  'سجل الاستماع',
-                  style: TextStyle(
-                    fontFamily: RannaTheme.fontFustat,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: RannaTheme.foreground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Content ──
-          Expanded(
-            child: history.when(
-              loading: () => ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemCount: 6,
-                itemBuilder: (_, _) => const ShimmerTrackRow(),
-              ),
-              error: (e, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'تعذّر تحميل سجل الاستماع',
+            // ── Header (back button + title) ──
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 20, 8),
+              child: Row(
+                children: [
+                  const CircleBackButton(),
+                  const SizedBox(width: 12),
+                  Text(
+                    'سجل الاستماع',
                     style: TextStyle(
-                      fontFamily: RannaTheme.fontNotoNaskh,
-                      fontSize: 14,
-                      color: RannaTheme.mutedForeground,
+                      fontFamily: RannaTheme.fontFustat,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: RannaTheme.foreground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Content ──
+            Expanded(
+              child: history.when(
+                loading: () => ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: 6,
+                  itemBuilder: (_, _) => const ShimmerTrackRow(),
+                ),
+                error: (e, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'تعذّر تحميل سجل الاستماع',
+                      style: TextStyle(
+                        fontFamily: RannaTheme.fontNotoNaskh,
+                        fontSize: 14,
+                        color: RannaTheme.mutedForeground,
+                      ),
                     ),
                   ),
                 ),
+                data: (entries) {
+                  if (entries.isEmpty) return _buildEmptyState();
+                  final tracks = entries.map((e) => e.track).toList();
+                  // The whole list shares one queue → wrap once. Every
+                  // TrackRow inside reads it from the scope automatically;
+                  // no per-row `queue:` plumbing needed.
+                  return TrackQueueScope(
+                    tracks: tracks,
+                    child: ListView.separated(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        8,
+                        4,
+                        8,
+                        120,
+                      ),
+                      itemCount: entries.length,
+                      separatorBuilder: (_, _) => Divider(
+                        height: 1,
+                        indent: 72,
+                        color: RannaTheme.border.withValues(alpha: 0.3),
+                      ),
+                      itemBuilder: (context, index) {
+                        final entry = entries[index];
+                        return Row(
+                              children: [
+                                Expanded(
+                                  child: TrackRow(
+                                    track: entry.track,
+                                    index: index,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsetsDirectional.fromSTEB(
+                                    0,
+                                    0,
+                                    12,
+                                    0,
+                                  ),
+                                  child: Text(
+                                    _formatRelativeTime(entry.playedAt),
+                                    style: TextStyle(
+                                      fontFamily: RannaTheme.fontNotoNaskh,
+                                      fontSize: 11,
+                                      color: RannaTheme.mutedForeground,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                            .animate()
+                            .fadeIn(
+                              duration: 220.ms,
+                              delay: Duration(milliseconds: 18 * index),
+                            )
+                            .slideX(
+                              begin: 0.03,
+                              end: 0,
+                              duration: 220.ms,
+                              delay: Duration(milliseconds: 18 * index),
+                              curve: Curves.easeOut,
+                            );
+                      },
+                    ),
+                  );
+                },
               ),
-              data: (entries) {
-                if (entries.isEmpty) return _buildEmptyState();
-                final tracks = entries.map((e) => e.track).toList();
-                // The whole list shares one queue → wrap once. Every
-                // TrackRow inside reads it from the scope automatically;
-                // no per-row `queue:` plumbing needed.
-                return TrackQueueScope(
-                  tracks: tracks,
-                  child: ListView.separated(
-                  padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 8, 120),
-                  itemCount: entries.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    indent: 72,
-                    color: RannaTheme.border.withValues(alpha: 0.3),
-                  ),
-                  itemBuilder: (context, index) {
-                    final entry = entries[index];
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: TrackRow(
-                            track: entry.track,
-                            index: index,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              0, 0, 12, 0),
-                          child: Text(
-                            _formatRelativeTime(entry.playedAt),
-                            style: TextStyle(
-                              fontFamily: RannaTheme.fontNotoNaskh,
-                              fontSize: 11,
-                              color: RannaTheme.mutedForeground,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                        .animate()
-                        .fadeIn(
-                          duration: 220.ms,
-                          delay: Duration(milliseconds: 18 * index),
-                        )
-                        .slideX(
-                          begin: 0.03,
-                          end: 0,
-                          duration: 220.ms,
-                          delay: Duration(milliseconds: 18 * index),
-                          curve: Curves.easeOut,
-                        );
-                  },
-                ),
-                );
-              },
             ),
-          ),
           ],
         ),
       ),
@@ -157,7 +166,7 @@ class ListeningHistoryScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'استمع إلى أي مدحة وستظهر هنا',
+              'استمع إلى أي مقطع وستظهر هنا',
               style: TextStyle(
                 fontFamily: RannaTheme.fontNotoNaskh,
                 fontSize: 14,
@@ -182,4 +191,3 @@ class ListeningHistoryScreen extends ConsumerWidget {
     return '${toArabicNum(when.day)}/${toArabicNum(when.month)}/${toArabicNum(when.year)}';
   }
 }
-

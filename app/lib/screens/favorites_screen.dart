@@ -77,53 +77,63 @@ class FavoritesScreen extends ConsumerWidget {
                             ),
                           ),
                           error: (_, _) => SliverToBoxAdapter(
-                            child: _buildErrorMessage('حدث خطأ في تحميل المفضلة'),
+                            child: _buildErrorMessage(
+                              'حدث خطأ في تحميل المفضلة',
+                            ),
                           ),
                           data: (tracks) => SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final track = tracks[index];
-                                return Padding(
-                                  padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 8, 0),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: TrackRow(
-                                              track: track,
-                                              index: index,
-                                              queue: tracks,
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              final track = tracks[index];
+                              return Padding(
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                          8,
+                                          0,
+                                          8,
+                                          0,
+                                        ),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: TrackRow(
+                                                track: track,
+                                                index: index,
+                                                queue: tracks,
+                                              ),
+                                            ),
+                                            DownloadButton(track: track),
+                                            const SizedBox(width: 4),
+                                          ],
+                                        ),
+                                        if (index < tracks.length - 1)
+                                          Divider(
+                                            height: 1,
+                                            indent: 72,
+                                            color: RannaTheme.border.withValues(
+                                              alpha: 0.3,
                                             ),
                                           ),
-                                          DownloadButton(track: track),
-                                          const SizedBox(width: 4),
-                                        ],
-                                      ),
-                                      if (index < tracks.length - 1)
-                                        Divider(
-                                          height: 1,
-                                          indent: 72,
-                                          color: RannaTheme.border.withValues(alpha: 0.3),
-                                        ),
-                                    ],
-                                  ),
-                                )
-                                    .animate()
-                                    .fadeIn(
-                                      duration: 250.ms,
-                                      delay: Duration(milliseconds: 20 * index),
-                                    )
-                                    .slideX(
-                                      begin: 0.03,
-                                      end: 0,
-                                      duration: 250.ms,
-                                      delay: Duration(milliseconds: 20 * index),
-                                      curve: Curves.easeOut,
-                                    );
-                              },
-                              childCount: tracks.length,
-                            ),
+                                      ],
+                                    ),
+                                  )
+                                  .animate()
+                                  .fadeIn(
+                                    duration: 250.ms,
+                                    delay: Duration(milliseconds: 20 * index),
+                                  )
+                                  .slideX(
+                                    begin: 0.03,
+                                    end: 0,
+                                    duration: 250.ms,
+                                    delay: Duration(milliseconds: 20 * index),
+                                    curve: Curves.easeOut,
+                                  );
+                            }, childCount: tracks.length),
                           ),
                         ),
                       ],
@@ -158,7 +168,9 @@ class FavoritesScreen extends ConsumerWidget {
                             ),
                           ),
                           error: (_, _) => SliverToBoxAdapter(
-                            child: _buildErrorMessage('حدث خطأ في تحميل المحفوظات'),
+                            child: _buildErrorMessage(
+                              'حدث خطأ في تحميل المحفوظات',
+                            ),
                           ),
                           data: (rows) {
                             // Pre-decode the JSON metadata for every row once
@@ -173,8 +185,10 @@ class FavoritesScreen extends ConsumerWidget {
                                 )
                                 .toList();
                             return SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
                                 final row = rows[index];
                                 final track = downloadedTracks[index];
                                 return Dismissible(
@@ -184,7 +198,10 @@ class FavoritesScreen extends ConsumerWidget {
                                     alignment: Alignment.centerLeft,
                                     padding: const EdgeInsets.only(left: 24),
                                     color: Colors.red.shade700,
-                                    child: const Icon(Icons.delete_rounded, color: Colors.white),
+                                    child: const Icon(
+                                      Icons.delete_rounded,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                   confirmDismiss: (_) async {
                                     return await showDialog<bool>(
@@ -192,28 +209,58 @@ class FavoritesScreen extends ConsumerWidget {
                                       builder: (ctx) => Directionality(
                                         textDirection: TextDirection.rtl,
                                         child: AlertDialog(
-                                          title: const Text('حذف المحفوظة', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
+                                          title: const Text(
+                                            'حذف المحفوظة',
+                                            style: TextStyle(
+                                              fontFamily: RannaTheme.fontKufam,
+                                            ),
+                                          ),
                                           content: Text(
                                             'هل تريد حذف "${track.title}" من المحفوظات المحلية؟',
-                                            style: const TextStyle(fontFamily: RannaTheme.fontReadexPro),
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  RannaTheme.fontReadexPro,
+                                            ),
                                           ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.pop(ctx, false),
-                                              child: const Text('إلغاء', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, false),
+                                              child: const Text(
+                                                'إلغاء',
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      RannaTheme.fontKufam,
+                                                ),
+                                              ),
                                             ),
                                             TextButton(
-                                              onPressed: () => Navigator.pop(ctx, true),
-                                              child: Text('حذف', style: TextStyle(fontFamily: RannaTheme.fontKufam, color: Colors.red.shade700)),
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, true),
+                                              child: Text(
+                                                'حذف',
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      RannaTheme.fontKufam,
+                                                  color: Colors.red.shade700,
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
                                     );
                                   },
-                                  onDismissed: (_) => removeDownload(ref, row.trackId),
+                                  onDismissed: (_) =>
+                                      removeDownload(ref, row.trackId),
                                   child: Padding(
-                                    padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 8, 0),
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                          8,
+                                          0,
+                                          8,
+                                          0,
+                                        ),
                                     child: Column(
                                       children: [
                                         Row(
@@ -232,11 +279,16 @@ class FavoritesScreen extends ConsumerWidget {
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              _formatStorageSize(row.fileSizeBytes),
+                                              _formatStorageSize(
+                                                row.fileSizeBytes,
+                                              ),
                                               style: TextStyle(
-                                                fontFamily: RannaTheme.fontFustat,
+                                                fontFamily:
+                                                    RannaTheme.fontFustat,
                                                 fontSize: 10,
-                                                color: RannaTheme.mutedForeground.withValues(alpha: 0.5),
+                                                color: RannaTheme
+                                                    .mutedForeground
+                                                    .withValues(alpha: 0.5),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
@@ -246,15 +298,15 @@ class FavoritesScreen extends ConsumerWidget {
                                           Divider(
                                             height: 1,
                                             indent: 72,
-                                            color: RannaTheme.border.withValues(alpha: 0.3),
+                                            color: RannaTheme.border.withValues(
+                                              alpha: 0.3,
+                                            ),
                                           ),
                                       ],
                                     ),
                                   ),
                                 );
-                              },
-                              childCount: rows.length,
-                            ),
+                              }, childCount: rows.length),
                             );
                           },
                         ),
@@ -262,7 +314,10 @@ class FavoritesScreen extends ConsumerWidget {
                         // Delete all button
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 final confirmed = await showDialog<bool>(
@@ -270,19 +325,39 @@ class FavoritesScreen extends ConsumerWidget {
                                   builder: (ctx) => Directionality(
                                     textDirection: TextDirection.rtl,
                                     child: AlertDialog(
-                                      title: const Text('حذف جميع المحفوظات', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
+                                      title: const Text(
+                                        'حذف جميع المحفوظات',
+                                        style: TextStyle(
+                                          fontFamily: RannaTheme.fontKufam,
+                                        ),
+                                      ),
                                       content: Text(
-                                        'سيتم حذف ${downloadedIds.length} مدحة محفوظة محلياً. لن يتم حذفها من المفضلة.',
-                                        style: const TextStyle(fontFamily: RannaTheme.fontReadexPro),
+                                        'سيتم حذف ${downloadedIds.length} مقطع محفوظة محلياً. لن يتم حذفها من المفضلة.',
+                                        style: const TextStyle(
+                                          fontFamily: RannaTheme.fontReadexPro,
+                                        ),
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () => Navigator.pop(ctx, false),
-                                          child: const Text('إلغاء', style: TextStyle(fontFamily: RannaTheme.fontKufam)),
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text(
+                                            'إلغاء',
+                                            style: TextStyle(
+                                              fontFamily: RannaTheme.fontKufam,
+                                            ),
+                                          ),
                                         ),
                                         TextButton(
-                                          onPressed: () => Navigator.pop(ctx, true),
-                                          child: Text('حذف الكل', style: TextStyle(fontFamily: RannaTheme.fontKufam, color: Colors.red.shade700)),
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: Text(
+                                            'حذف الكل',
+                                            style: TextStyle(
+                                              fontFamily: RannaTheme.fontKufam,
+                                              color: Colors.red.shade700,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -292,7 +367,11 @@ class FavoritesScreen extends ConsumerWidget {
                                   await removeAllDownloads(ref);
                                 }
                               },
-                              icon: Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red.shade400),
+                              icon: Icon(
+                                Icons.delete_outline_rounded,
+                                size: 16,
+                                color: Colors.red.shade400,
+                              ),
                               label: Text(
                                 'حذف جميع المحفوظات',
                                 style: TextStyle(
@@ -302,9 +381,15 @@ class FavoritesScreen extends ConsumerWidget {
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: Colors.red.shade200.withValues(alpha: 0.3)),
+                                side: BorderSide(
+                                  color: Colors.red.shade200.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
+                                  borderRadius: BorderRadius.circular(
+                                    RannaTheme.radiusLg,
+                                  ),
                                 ),
                               ),
                             ),
@@ -350,7 +435,7 @@ class FavoritesScreen extends ConsumerWidget {
                 ),
             const SizedBox(height: 24),
             Text(
-              'لم تقم بتفضيل أي مدحة بعد',
+              'لم تقم بتفضيل أي مقطع بعد',
               style: TextStyle(
                 fontFamily: RannaTheme.fontFustat,
                 fontSize: 18,
@@ -361,7 +446,7 @@ class FavoritesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'اضغط على أيقونة القلب في أي مدحة\nلإضافتها إلى مختاراتك',
+              'اضغط على أيقونة القلب في أي مقطع\nلإضافتها إلى مختاراتك',
               style: TextStyle(
                 fontFamily: RannaTheme.fontNotoNaskh,
                 fontSize: 14,

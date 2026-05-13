@@ -16,7 +16,8 @@ class TrackDeepLinkScreen extends ConsumerStatefulWidget {
   const TrackDeepLinkScreen({super.key, required this.trackId});
 
   @override
-  ConsumerState<TrackDeepLinkScreen> createState() => _TrackDeepLinkScreenState();
+  ConsumerState<TrackDeepLinkScreen> createState() =>
+      _TrackDeepLinkScreenState();
 }
 
 class _TrackDeepLinkScreenState extends ConsumerState<TrackDeepLinkScreen> {
@@ -42,7 +43,7 @@ class _TrackDeepLinkScreenState extends ConsumerState<TrackDeepLinkScreen> {
       if (result == null) {
         setState(() {
           _loading = false;
-          _error = 'لم يتم العثور على المدحة';
+          _error = 'لم يتم العثور على المقطع';
         });
         return;
       }
@@ -66,7 +67,7 @@ class _TrackDeepLinkScreenState extends ConsumerState<TrackDeepLinkScreen> {
     } catch (e) {
       setState(() {
         _loading = false;
-        _error = 'حدث خطأ في تحميل المدحة';
+        _error = 'حدث خطأ في تحميل المقطع';
       });
     }
   }

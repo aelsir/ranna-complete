@@ -405,13 +405,12 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader) {
-    return jsonResponse(
-      { ok: false, error: "Missing Authorization header" },
-      401,
-    );
-  }
+  // REMOVE these lines:
+  // const authHeader = req.headers.get("Authorization") ?? "";
+  // if (!authHeader) {
+  //   return jsonResponse({ ok: false, error: "Missing Authorization header" }, 401);
+  // }
+
 
   const supabase: SupabaseClient = createClient(
     SUPABASE_URL,

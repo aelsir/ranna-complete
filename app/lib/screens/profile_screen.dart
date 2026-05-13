@@ -187,7 +187,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$roleLabel · ${toArabicNum(trackCount ?? 0)} مدحة',
+                    '$roleLabel · ${toArabicNum(trackCount ?? 0)} مقطع',
                     style: TextStyle(
                       fontFamily: RannaTheme.fontNotoNaskh,
                       fontSize: 11,
@@ -282,7 +282,6 @@ class ProfileScreen extends ConsumerWidget {
       ],
     );
   }
-
 }
 
 // =============================================================================
