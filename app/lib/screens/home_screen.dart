@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -9,9 +10,11 @@ import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/components/home/collection_card.dart';
 import 'package:ranna/components/home/section_header.dart';
 import 'package:ranna/components/track/track_row.dart';
+import 'package:ranna/models/hero_image.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/models/rawi.dart';
 import 'package:ranna/providers/favorites_provider.dart';
+import 'package:ranna/providers/supabase_internals.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -254,8 +257,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
         CupertinoSliverRefreshControl(
           onRefresh: () async {
+            // Bust the SQLite disk cache first so the provider always
+            // fetches fresh data from the network, not the stale cache.
+            await cacheService.invalidate('home_data');
+            // Stale hero-images cache from an earlier app version that
+            // disk-cached this provider — wipe it so the new no-cache
+            // path can write fresh data on first run.
+            await cacheService.invalidate('hero_images:active');
             ref.invalidate(homeDataProvider);
             ref.invalidate(listeningHistoryProvider);
+            ref.invalidate(heroImagesProvider);
             // Wait for the provider to finish refetching
             await ref.read(homeDataProvider.future);
           },
@@ -450,26 +461,103 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // Hero Banner — full-bleed with gradient overlays
 // =============================================================================
 
-class _HeroBanner extends StatelessWidget {
+class _HeroBanner extends ConsumerStatefulWidget {
   final HomeData data;
   final VoidCallback? onShufflePlay;
 
   const _HeroBanner({required this.data, this.onShufflePlay});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(color: RannaTheme.background),
-      child: Stack(
-        children: [
-          // Non-positioned child to give Stack its intrinsic size
-          const SizedBox(height: 480, width: double.infinity),
+  ConsumerState<_HeroBanner> createState() => _HeroBannerState();
+}
 
-          // Background image — local asset
-          Positioned.fill(
-            child: Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover),
-          ),
+class _HeroBannerState extends ConsumerState<_HeroBanner> {
+  /// Time each hero is on screen before crossfading.
+  static const _slideInterval = Duration(seconds: 7);
+
+  int _currentIndex = 0;
+  Timer? _timer;
+  int _slidesCount = 1;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _ensureTimer(int slidesCount) {
+    // Restart the timer whenever the active slide count changes (e.g.
+    // admin enables/disables a hero while the user is on the screen).
+    if (_slidesCount == slidesCount && _timer != null) return;
+    _slidesCount = slidesCount;
+    _timer?.cancel();
+    if (slidesCount <= 1) {
+      _timer = null;
+      return;
+    }
+    _timer = Timer.periodic(_slideInterval, (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentIndex = (_currentIndex + 1) % _slidesCount;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final heroesAsync = ref.watch(heroImagesProvider);
+    // Build the slide list. Empty / loading / error → fallback to the
+    // bundled asset so the banner never appears empty.
+    final heroes = heroesAsync.maybeWhen(
+      data: (rows) => rows,
+      orElse: () => const <HeroImage>[],
+    );
+
+    // Defer setState into a post-frame callback so we don't trigger a
+    // rebuild during the current build phase.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _ensureTimer(heroes.isEmpty ? 1 : heroes.length);
+      if (_currentIndex >= (heroes.isEmpty ? 1 : heroes.length)) {
+        setState(() => _currentIndex = 0);
+      }
+    });
+
+    final activeLinkUrl =
+        heroes.isNotEmpty && _currentIndex < heroes.length
+            ? heroes[_currentIndex].linkUrl
+            : null;
+
+    return GestureDetector(
+      onTap: activeLinkUrl != null && activeLinkUrl.isNotEmpty
+          ? () => context.push(activeLinkUrl)
+          : null,
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: const BoxDecoration(color: RannaTheme.background),
+        child: Stack(
+          children: [
+            // Non-positioned child to give Stack its intrinsic size
+            const SizedBox(height: 480, width: double.infinity),
+
+            // Background layer(s) — stacked AnimatedSwitcher crossfades
+            // through the active heroes. Empty list → fallback asset.
+            Positioned.fill(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 800),
+                transitionBuilder: (child, animation) =>
+                    FadeTransition(opacity: animation, child: child),
+                child: _BackgroundForIndex(
+                  key: ValueKey<String>(
+                    heroes.isEmpty
+                        ? 'fallback'
+                        : heroes[_currentIndex.clamp(0, heroes.length - 1)].id,
+                  ),
+                  heroes: heroes,
+                  index: _currentIndex.clamp(0, max(0, heroes.length - 1)),
+                ),
+              ),
+            ),
 
           // Gradient overlay: bottom fade to background (black)
           Positioned.fill(
@@ -499,7 +587,7 @@ class _HeroBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Live badge pill
-                _LiveBadge(totalTracks: data.totalTracks)
+                _LiveBadge(totalTracks: widget.data.totalTracks)
                     .animate()
                     .fadeIn(duration: 600.ms)
                     .slideY(
@@ -556,7 +644,7 @@ class _HeroBanner extends StatelessWidget {
                         boxShadow: RannaTheme.shadowGlowAccent,
                       ),
                       child: ElevatedButton.icon(
-                        onPressed: onShufflePlay,
+                        onPressed: widget.onShufflePlay,
                         icon: Transform.rotate(
                           angle: pi,
                           child: const Icon(Icons.shuffle_rounded, size: 18),
@@ -597,6 +685,39 @@ class _HeroBanner extends StatelessWidget {
           ),
         ],
       ),
+      ),
+    );
+  }
+}
+
+/// Renders the active hero's background image (or the bundled fallback
+/// when no admin-managed heroes are present). Extracted so AnimatedSwitcher
+/// has a discrete subtree to crossfade between.
+class _BackgroundForIndex extends StatelessWidget {
+  final List<HeroImage> heroes;
+  final int index;
+
+  const _BackgroundForIndex({
+    super.key,
+    required this.heroes,
+    required this.index,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (heroes.isEmpty) {
+      return Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover);
+    }
+    final url = getImageUrl(heroes[index].imageUrl);
+    if (url.isEmpty) {
+      return Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover);
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      // Fallback if R2 image fails (e.g. file deleted, network down).
+      errorBuilder: (_, _, _) =>
+          Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover),
     );
   }
 }

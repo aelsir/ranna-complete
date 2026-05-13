@@ -62,9 +62,21 @@ import {
   getAdminCollections,
   getContentTypeCounts,
   getDownloadAnalytics,
+  getActiveHeroImages,
+  getAllHeroImages,
+  createHeroImage,
+  updateHeroImage,
+  deleteHeroImage,
+  swapHeroImageOrder,
 } from "./queries";
 
-import type { MadhaInsert, MadihInsert, RawiInsert, CollectionInsert } from "@/types/database";
+import type {
+  MadhaInsert,
+  MadihInsert,
+  RawiInsert,
+  CollectionInsert,
+  HeroImageInsert,
+} from "@/types/database";
 
 // ============================================
 // Query keys
@@ -92,6 +104,7 @@ export const queryKeys = {
   collections: ["collections"] as const,
   collection: (id: string) => ["collection", id] as const,
   collectionItems: (id: string) => ["collection", id, "items"] as const,
+  heroImages: ["heroImages"] as const,
   favoriteIds: (userId: string) => ["favorites", userId] as const,
   favorites: (userId: string) => ["favorites", userId, "full"] as const,
   listeningHistory: (userId: string) => ["history", userId] as const,
@@ -383,6 +396,80 @@ export function useCollectionItems(collectionId: string | undefined) {
     queryKey: queryKeys.collectionItems(collectionId!),
     queryFn: () => getCollectionItems(collectionId!),
     enabled: !!collectionId,
+  });
+}
+
+// ============================================
+// Hero Image hooks
+// ============================================
+
+/** Active heroes for the public landing page. 5-min stale time — content
+ *  changes on the order of days/weeks, not minutes. */
+export function useActiveHeroImages() {
+  return useQuery({
+    queryKey: queryKeys.heroImages,
+    queryFn: getActiveHeroImages,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Every hero (including inactive). Admin-only via RLS. */
+export function useAdminHeroImages() {
+  return useQuery({
+    queryKey: [...queryKeys.heroImages, "admin"],
+    queryFn: getAllHeroImages,
+  });
+}
+
+export function useCreateHeroImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: HeroImageInsert) => createHeroImage(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.heroImages });
+    },
+  });
+}
+
+export function useUpdateHeroImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<HeroImageInsert>;
+    }) => updateHeroImage(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.heroImages });
+    },
+  });
+}
+
+export function useDeleteHeroImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteHeroImage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.heroImages });
+    },
+  });
+}
+
+export function useSwapHeroImageOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      a,
+      b,
+    }: {
+      a: { id: string; display_order: number };
+      b: { id: string; display_order: number };
+    }) => swapHeroImageOrder(a, b),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.heroImages });
+    },
   });
 }
 

@@ -1,21 +1,65 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Shuffle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useMadhaat, useHomePageData } from "@/lib/api/hooks";
+import {
+  useActiveHeroImages,
+  useMadhaat,
+  useHomePageData,
+} from "@/lib/api/hooks";
 import { usePlayer } from "@/context/PlayerContext";
 import { useCountUp } from "@/lib/useCountUp";
-import heroBg from "@/assets/hero-bg.jpg";
+import { getImageUrl } from "@/lib/format";
+import heroBgFallback from "@/assets/hero-bg.jpg";
+
+/** Time each hero is on screen before crossfading. */
+const SLIDE_INTERVAL_MS = 7000;
+
+interface Slide {
+  id: string;
+  src: string;
+  linkUrl: string | null;
+}
 
 const HeroSection = () => {
   const { data: madhaat } = useMadhaat();
   const { data: homeData } = useHomePageData();
+  const { data: heroes } = useActiveHeroImages();
+  const navigate = useNavigate();
   const count = homeData?.totalTracks;
-  // Count-up hook returns `null` until `count` is a positive number, then
-  // animates 0 → count over 2s. Re-mount of HeroSection (e.g. page
-  // refresh / nav back to Home) restarts the animation by design.
   const animatedCount = useCountUp(count);
   const { playTrack } = usePlayer();
+
+  // Build the slide list. If admin hasn't set anything (or fetch failed),
+  // fall back to the bundled asset so we never render an empty banner.
+  const slides: Slide[] =
+    heroes && heroes.length > 0
+      ? heroes.map((h) => ({
+          id: h.id,
+          src: getImageUrl(h.image_url),
+          linkUrl: h.link_url,
+        }))
+      : [{ id: "fallback", src: heroBgFallback, linkUrl: null }];
+
+  // Index of the currently visible slide.
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Reset index if the slide set shrinks (e.g. admin disabled some).
+  useEffect(() => {
+    if (currentIndex >= slides.length) setCurrentIndex(0);
+  }, [slides.length, currentIndex]);
+
+  // Auto-advance. Only if more than one slide.
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = setInterval(() => {
+      setCurrentIndex((i) => (i + 1) % slides.length);
+    }, SLIDE_INTERVAL_MS);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  const activeSlide = slides[currentIndex] ?? slides[0];
 
   const handlePickForYou = useCallback(() => {
     if (!madhaat || madhaat.length === 0) return;
@@ -25,21 +69,55 @@ const HeroSection = () => {
     playTrack(picked.id, allIds);
   }, [madhaat, playTrack]);
 
+  const handleHeroClick = () => {
+    if (activeSlide?.linkUrl) navigate(activeSlide.linkUrl);
+  };
+
   return (
     <section className="relative h-[56vh] min-h-[360px] overflow-hidden">
-      {/* Parallax-like bg */}
-      <motion.div
-        initial={{ scale: 1.1 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroBg})` }}
-      />
-      {/* Rich gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-primary/30 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/10" />
+      {/* Background layer(s) — each slide is its own absolutely-positioned
+          div, crossfaded via opacity. The very first slide also gets a
+          subtle 1.1 → 1 scale-in (preserved from the previous design)
+          so the page entry still feels alive on first paint. */}
+      {slides.map((slide, idx) => {
+        const isActive = idx === currentIndex;
+        const isFirstSlide = idx === 0;
+        return (
+          <motion.div
+            key={slide.id}
+            initial={isFirstSlide ? { scale: 1.1 } : false}
+            animate={isFirstSlide ? { scale: 1 } : undefined}
+            transition={
+              isFirstSlide
+                ? { duration: 1.2, ease: [0.16, 1, 0.3, 1] }
+                : undefined
+            }
+            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+              isActive ? "opacity-100" : "opacity-0"
+            }`}
+            style={{ backgroundImage: `url(${slide.src})` }}
+            aria-hidden={!isActive}
+          />
+        );
+      })}
 
-      <div className="relative z-10 flex h-full flex-col items-start justify-end px-6 pb-10 md:px-12">
+      {/* Rich gradient overlay (unchanged) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-background via-primary/30 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/10 pointer-events-none" />
+
+      {/* Clickable hero-link layer — only present when the active slide
+          has a link_url. Sits below the foreground content so the
+          "إخترنا لك" button keeps working. */}
+      {activeSlide?.linkUrl && (
+        <button
+          type="button"
+          onClick={handleHeroClick}
+          aria-label="افتح المحتوى المميّز"
+          className="absolute inset-0 z-[5] cursor-pointer focus:outline-none"
+        />
+      )}
+
+      <div className="relative z-10 flex h-full flex-col items-start justify-end px-6 pb-10 md:px-12 pointer-events-none">
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -65,10 +143,6 @@ const HeroSection = () => {
             {animatedCount != null ? (
               <>
                 استمع الآن لأكثر من{" "}
-                {/* `tabular-nums` keeps the badge width stable while the
-                    digit count grows mid-animation; without it, the
-                    surrounding Arabic text shifts left/right by a pixel
-                    or two on each tick. */}
                 <span className="tabular-nums">{animatedCount}</span> مدحة
               </>
             ) : (
@@ -96,7 +170,12 @@ const HeroSection = () => {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
+          transition={{
+            duration: 0.5,
+            delay: 0.35,
+            ease: [0.34, 1.56, 0.64, 1],
+          }}
+          className="pointer-events-auto"
         >
           <Button
             variant="secondary"

@@ -269,6 +269,28 @@ export interface CollectionItemInsert {
 }
 
 // ============================================
+// Hero Images (صور الواجهة)
+// ============================================
+
+export interface HeroImage {
+  id: string;
+  image_url: string;
+  title: string | null;
+  link_url: string | null;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+}
+
+export interface HeroImageInsert {
+  image_url: string;
+  title?: string | null;
+  link_url?: string | null;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+// ============================================
 // User Profiles
 // ============================================
 

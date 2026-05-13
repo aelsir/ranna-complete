@@ -22,6 +22,7 @@ export * from "./tracks";
 export * from "./people";
 export * from "./categories";
 export * from "./collections";
+export * from "./hero_images";
 export * from "./library";
 export * from "./search";
 export * from "./home";

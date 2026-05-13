@@ -23,3 +23,4 @@ export 'library_provider.dart';
 export 'people_provider.dart';
 export 'categories_provider.dart';
 export 'collections_provider.dart';
+export 'hero_images_provider.dart';

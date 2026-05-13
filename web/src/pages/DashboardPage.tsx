@@ -17,6 +17,7 @@ import {
   Upload,
   ImagePlus,
   Clipboard,
+  GalleryHorizontal,
   GripVertical,
   Play,
   Pause,
@@ -60,6 +61,7 @@ import { FloatingActionBar } from "@/components/FloatingActionBar";
 import { InlineEditTable } from "@/components/InlineEditTable";
 import { FindReplaceDialog } from "@/components/FindReplaceDialog";
 import { CollectionTrackPicker } from "@/components/CollectionTrackPicker";
+import { HeroImagesPanel } from "@/components/HeroImagesPanel";
 import { useToast } from "@/hooks/use-toast";
 import type { PendingEdits } from "@/types/bulk-edit";
 import {
@@ -116,7 +118,7 @@ import { Link } from "react-router-dom";
 import { usePlayer } from "@/context/PlayerContext";
 import { useAuth } from "@/context/AuthContext";
 
-type SidebarItem = "madhat" | "quran" | "lectures" | "dhikr" | "inshad" | "playlists" | "madiheen" | "ruwat" | "analytics";
+type SidebarItem = "madhat" | "quran" | "lectures" | "dhikr" | "inshad" | "playlists" | "hero_images" | "madiheen" | "ruwat" | "analytics";
 
 /** Map sidebar tabs to their content_type filter */
 const SECTION_CONTENT_TYPE: Partial<Record<SidebarItem, string>> = {
@@ -1272,6 +1274,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     { id: "madiheen", label: "المادحين",   icon: AudioLines, count: artists.length },
     { id: "ruwat",    label: "الرواة",     icon: PenTool,    count: narrators.length },
     { id: "playlists",label: "قوائم مميزة",icon: ListMusic,  count: playlistsList.length },
+    { id: "hero_images", label: "صور الواجهة", icon: GalleryHorizontal },
     { divider: true },
     { id: "analytics",label: "الإحصائيات",icon: BarChart3 },
   ] as const as ({ divider: true } | { id: SidebarItem; label: string; icon: React.ElementType; count?: number })[];
@@ -1347,6 +1350,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 : isContentSection ? `إدارة ${sectionLabels?.plural || "المحتوى"}`
                 : activeSection === "madiheen" ? "إدارة المادحين"
                 : activeSection === "ruwat" ? "إدارة الرواة"
+                : activeSection === "hero_images" ? "صور الواجهة"
                 : "إدارة القوائم المميزة"}
             </h2>
             {selectedTracks.size > 0 && isContentSection && (
@@ -1393,30 +1397,32 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                 {sectionLabels?.uploadBulk || "رفع مجمّع"}
               </Button>
             )}
-            <Button
-              size="sm"
-              className="!gap-1.5 bg-primary hover:bg-primary/90 text-xs font-fustat"
-              onClick={() => {
-                if (isContentSection) {
-                  setNewTrack({ ...newTrack, contentType: activeContentType || "madha" });
-                  setIsAddDialogOpen(true);
-                }
-                else if (activeSection === "playlists") setIsPlaylistDialogOpen(true);
-                else if (activeSection === "madiheen") setIsAddMadihDialogOpen(true);
-                else if (activeSection === "ruwat") setIsAddRawiDialogOpen(true);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {isContentSection ? (sectionLabels?.uploadSingle || "إضافة محتوى")
-                : activeSection === "madiheen" ? "إضافة مادح"
-                : activeSection === "ruwat" ? "إضافة راوي"
-                : "إنشاء قائمة"}
-            </Button>
+            {activeSection !== "hero_images" && activeSection !== "analytics" && (
+              <Button
+                size="sm"
+                className="!gap-1.5 bg-primary hover:bg-primary/90 text-xs font-fustat"
+                onClick={() => {
+                  if (isContentSection) {
+                    setNewTrack({ ...newTrack, contentType: activeContentType || "madha" });
+                    setIsAddDialogOpen(true);
+                  }
+                  else if (activeSection === "playlists") setIsPlaylistDialogOpen(true);
+                  else if (activeSection === "madiheen") setIsAddMadihDialogOpen(true);
+                  else if (activeSection === "ruwat") setIsAddRawiDialogOpen(true);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {isContentSection ? (sectionLabels?.uploadSingle || "إضافة محتوى")
+                  : activeSection === "madiheen" ? "إضافة مادح"
+                  : activeSection === "ruwat" ? "إضافة راوي"
+                  : "إنشاء قائمة"}
+              </Button>
+            )}
           </div>
         </header>
 
         {/* Search + Filters */}
-        {activeSection !== "analytics" && (
+        {activeSection !== "analytics" && activeSection !== "hero_images" && (
           <div className="px-6 py-3 border-b border-border bg-card/50 space-y-3">
           <div className="flex items-center gap-2 relative z-10">
             <div className="relative flex-1 max-w-md">
@@ -1768,6 +1774,18 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
                     </div>
                   </div>
                 )}
+              </motion.div>
+            )}
+
+            {activeSection === "hero_images" && (
+              <motion.div
+                key="hero_images"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <HeroImagesPanel />
               </motion.div>
             )}
 
