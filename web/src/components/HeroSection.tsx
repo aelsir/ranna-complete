@@ -75,10 +75,11 @@ const HeroSection = () => {
 
   return (
     <section className="relative h-[56vh] min-h-[360px] overflow-hidden">
-      {/* Background layer(s) — each slide is its own absolutely-positioned
-          div, crossfaded via opacity. The very first slide also gets a
-          subtle 1.1 → 1 scale-in (preserved from the previous design)
-          so the page entry still feels alive on first paint. */}
+      {/* Background layer(s) — each slide is its own <img> so we can
+          catch onError and fall back to the bundled asset if the R2
+          URL fails (the equivalent of Image.network's errorBuilder
+          on the Flutter side). The first slide also gets a subtle
+          1.1 → 1 scale-in so the page entry still feels alive. */}
       {slides.map((slide, idx) => {
         const isActive = idx === currentIndex;
         const isFirstSlide = idx === 0;
@@ -92,12 +93,28 @@ const HeroSection = () => {
                 ? { duration: 1.2, ease: [0.16, 1, 0.3, 1] }
                 : undefined
             }
-            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
+            className={`absolute inset-0 transition-opacity duration-1000 ${
               isActive ? "opacity-100" : "opacity-0"
             }`}
-            style={{ backgroundImage: `url(${slide.src})` }}
             aria-hidden={!isActive}
-          />
+          >
+            <img
+              src={slide.src}
+              alt=""
+              loading={isFirstSlide ? "eager" : "lazy"}
+              decoding="async"
+              className="w-full h-full object-cover select-none"
+              onError={(e) => {
+                // R2 URL failed (deleted, network blip, CORS, etc.) —
+                // swap to the bundled asset so the banner never shows
+                // a broken-image icon or a bare gradient. Detach the
+                // handler so a failing fallback can't loop.
+                const img = e.currentTarget;
+                img.onerror = null;
+                img.src = heroBgFallback;
+              }}
+            />
+          </motion.div>
         );
       })}
 
