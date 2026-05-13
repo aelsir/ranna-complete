@@ -88,85 +88,86 @@ class _AllArtistsScreenState extends ConsumerState<AllArtistsScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        data: (_) => CustomScrollView(
+        data: (_) => ListView.separated(
           controller: _scrollController,
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsetsDirectional.all(16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.75,
-                ),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  if (index >= _artists.length) return null;
-                  final artist = _artists[index];
-                  return GestureDetector(
-                    onTap: () => context.push('/profile/artist/${artist.id}'),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ClipOval(
-                          child: RannaImage(
-                            url: artist.imageUrl,
-                            width: 80,
-                            height: 80,
-                            fallbackWidget: _buildGradientFallback(artist.name),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          artist.name,
-                          style: const TextStyle(
-                            fontFamily: RannaTheme.fontFustat,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: RannaTheme.foreground,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                }, childCount: _artists.length),
-              ),
-            ),
-            // Loading indicator at bottom
-            if (_hasMore)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+          padding: const EdgeInsets.only(top: 8, bottom: 120),
+          itemCount: _artists.length + (_hasMore ? 1 : 0),
+          separatorBuilder: (_, _) =>
+              const Divider(indent: 84, endIndent: 16),
+          itemBuilder: (context, index) {
+            // Loading indicator at the end
+            if (index >= _artists.length) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
+              );
+            }
+            final artist = _artists[index];
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
               ),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
+              leading: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: RannaTheme.primary.withValues(alpha: 0.1),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: artist.imageUrl != null
+                    ? RannaImage(
+                        url: artist.imageUrl,
+                        width: 56,
+                        height: 56,
+                        fallbackWidget: _buildGradientFallback(artist.name),
+                      )
+                    : _buildGradientFallback(artist.name),
+              ),
+              title: Text(
+                artist.name,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontFamily: RannaTheme.fontFustat,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: artist.trackCount > 0
+                  ? Text(
+                      '${artist.trackCount} مدحة',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: RannaTheme.mutedForeground,
+                          ),
+                    )
+                  : null,
+              onTap: () => context.push('/profile/artist/${artist.id}'),
+            );
+          },
         ),
       ),
     );
   }
 
   Widget _buildLoading() {
-    return GridView.builder(
-      padding: const EdgeInsetsDirectional.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.75,
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 8),
+      itemCount: 8,
+      separatorBuilder: (_, _) =>
+          const Divider(indent: 84, endIndent: 16),
+      itemBuilder: (_, _) => const ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: ShimmerBox(width: 56, height: 56, borderRadius: 28),
+        title: ShimmerBox(width: 120, height: 14, borderRadius: 4),
+        subtitle: ShimmerBox(width: 60, height: 12, borderRadius: 4),
       ),
-      itemCount: 9,
-      itemBuilder: (_, _) => const ShimmerArtistCard(),
     );
   }
 

@@ -38,7 +38,11 @@ class BrowseScreen extends ConsumerWidget {
           ),
         ),
         data: (collections) {
-          if (collections.isEmpty) {
+          // Sort by display_order client-side as a safety net — the DB query
+          // orders by this column but nulls or RPC overrides can shuffle them.
+          final sorted = [...collections]
+            ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+          if (sorted.isEmpty) {
             return Center(
               child: Text(
                 'لا توجد قوائم مميزة',
@@ -51,12 +55,16 @@ class BrowseScreen extends ConsumerWidget {
 
           return ListView.separated(
             padding: const EdgeInsets.only(top: 8, bottom: 120),
-            itemCount: collections.length,
-            separatorBuilder: (_, _) => const Divider(indent: 84, endIndent: 16),
+            itemCount: sorted.length,
+            separatorBuilder: (_, _) =>
+                const Divider(indent: 84, endIndent: 16),
             itemBuilder: (context, index) {
-              final collection = collections[index];
+              final collection = sorted[index];
               return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 leading: Container(
                   width: 56,
                   height: 56,
@@ -70,33 +78,37 @@ class BrowseScreen extends ConsumerWidget {
                           url: collection.imageUrl,
                           width: 56,
                           height: 56,
-                          fallbackWidget: const Icon(Icons.queue_music, color: RannaTheme.primary),
+                          fallbackWidget: const Icon(
+                            Icons.queue_music,
+                            color: RannaTheme.primary,
+                          ),
                         )
-                      : const Icon(Icons.queue_music, color: RannaTheme.primary),
+                      : const Icon(
+                          Icons.queue_music,
+                          color: RannaTheme.primary,
+                        ),
                 ),
                 title: Text(
                   collection.name,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontFamily: RannaTheme.fontFustat,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    fontFamily: RannaTheme.fontFustat,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: collection.description != null && collection.description!.isNotEmpty
+                subtitle:
+                    collection.description != null &&
+                        collection.description!.isNotEmpty
                     ? Text(
                         collection.description!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: RannaTheme.mutedForeground,
-                            ),
+                          color: RannaTheme.mutedForeground,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       )
                     : null,
-                trailing: const Icon(
-                  Icons.chevron_left,
-                  color: RannaTheme.mutedForeground,
-                ),
                 onTap: () => context.push('/playlist/${collection.id}'),
               );
             },

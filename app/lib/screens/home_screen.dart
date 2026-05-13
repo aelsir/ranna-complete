@@ -706,18 +706,34 @@ class _BackgroundForIndex extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (heroes.isEmpty) {
-      return Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover);
+      return Image.asset(
+        'assets/images/hero-bg.webp',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
     }
     final url = getImageUrl(heroes[index].imageUrl);
     if (url.isEmpty) {
-      return Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover);
+      return Image.asset(
+        'assets/images/hero-bg.webp',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
     }
     return Image.network(
       url,
       fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
       // Fallback if R2 image fails (e.g. file deleted, network down).
-      errorBuilder: (_, _, _) =>
-          Image.asset('assets/images/hero-bg.webp', fit: BoxFit.cover),
+      errorBuilder: (_, _, _) => Image.asset(
+        'assets/images/hero-bg.webp',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      ),
     );
   }
 }
