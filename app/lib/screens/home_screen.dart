@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:hijri/hijri_calendar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -197,7 +198,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         preferredSize: Size.fromHeight(0.5),
         child: Divider(height: 0.5, thickness: 0.5, color: RannaTheme.border),
       ),
-      title: Image.asset('assets/images/ranna_logo_white.png', height: 32),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset('assets/images/ranna_logo_white.png', height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Container(
+              width: 1,
+              height: 20,
+              color: RannaTheme.mutedForeground.withValues(alpha: 0.3),
+            ),
+          ),
+          Builder(builder: (_) {
+            HijriCalendar.setLocal('ar');
+            final hijri = HijriCalendar.now();
+            return Text(
+              '${toArabicNum(hijri.hDay)} ${hijri.getLongMonthName()} ${toArabicNum(hijri.hYear)}',
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: RannaTheme.mutedForeground,
+              ),
+            );
+          }),
+        ],
+      ),
       actions: [
         IconButton(
           icon: Icon(Icons.search_rounded, color: RannaTheme.foreground),

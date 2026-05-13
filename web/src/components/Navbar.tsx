@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,14 +6,34 @@ import { Button } from "@/components/ui/button";
 const Navbar = () => {
   const navigate = useNavigate();
 
+  const hijriDate = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("ar-SA-u-ca-islamic", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date());
+    } catch {
+      return "";
+    }
+  }, []);
+
   return (
     <nav className="sticky top-0 z-20 glass-heavy border-b border-border/40 rounded-t-3xl">
       <div className="flex items-center justify-between px-5 py-3 md:px-12">
         <div
           onClick={() => navigate("/")}
-          className="cursor-pointer select-none flex items-center"
+          className="cursor-pointer select-none flex items-center gap-3"
         >
           <img src="/logo-ranna.png" alt="رنّة" className="h-8" />
+          {hijriDate && (
+            <>
+              <div className="w-px h-5 bg-muted-foreground/30" />
+              <span className="text-[13px] font-fustat font-medium text-muted-foreground whitespace-nowrap">
+                {hijriDate}
+              </span>
+            </>
+          )}
         </div>
         <Button
           variant="ghost"
