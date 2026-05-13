@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,41 +12,55 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/db/local_db.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  usePathUrlStrategy();
+void main() {
+  // Wrap the whole bootstrap in a single Zone. `audio_service.init()`
+  // internally uses `runZonedGuarded` for its handler — without this
+  // outer wrapper, `WidgetsFlutterBinding.ensureInitialized()` would be
+  // bound to the root Zone while `runApp` later runs in a different one,
+  // tripping Flutter's debug "Zone mismatch" assertion.
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      usePathUrlStrategy();
 
-  const sentryDsn = String.fromEnvironment('SENTRY_DSN', defaultValue: '');
+      const sentryDsn = String.fromEnvironment('SENTRY_DSN', defaultValue: '');
 
-  if (sentryDsn.isNotEmpty) {
-    // ── Production: Sentry enabled ──
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = sentryDsn;
-        options.tracesSampleRate = 0.2;
-        options.environment = kReleaseMode ? 'production' : 'development';
-        options.sendDefaultPii = false;
-      },
-      appRunner: () async => _startApp(),
-    );
-  } else {
-    // ── Development: no Sentry, just console logging ──
-    FlutterError.onError = (details) {
-      FlutterError.presentError(details);
-      debugPrint('━━━ FLUTTER ERROR ━━━');
-      debugPrint(details.exceptionAsString());
-      debugPrint('${details.stack}');
-    };
+      if (sentryDsn.isNotEmpty) {
+        // ── Production: Sentry enabled ──
+        await SentryFlutter.init(
+          (options) {
+            options.dsn = sentryDsn;
+            options.tracesSampleRate = 0.2;
+            options.environment = kReleaseMode ? 'production' : 'development';
+            options.sendDefaultPii = false;
+          },
+          appRunner: () async => _startApp(),
+        );
+      } else {
+        // ── Development: no Sentry, just console logging ──
+        FlutterError.onError = (details) {
+          FlutterError.presentError(details);
+          debugPrint('━━━ FLUTTER ERROR ━━━');
+          debugPrint(details.exceptionAsString());
+          debugPrint('${details.stack}');
+        };
 
-    PlatformDispatcher.instance.onError = (error, stack) {
-      debugPrint('━━━ PLATFORM ERROR ━━━');
+        PlatformDispatcher.instance.onError = (error, stack) {
+          debugPrint('━━━ PLATFORM ERROR ━━━');
+          debugPrint('$error');
+          debugPrint('$stack');
+          return true;
+        };
+
+        await _startApp();
+      }
+    },
+    (error, stack) {
+      debugPrint('━━━ ZONE ERROR ━━━');
       debugPrint('$error');
       debugPrint('$stack');
-      return true;
-    };
-
-    await _startApp();
-  }
+    },
+  );
 }
 
 Future<void> _startApp() async {
