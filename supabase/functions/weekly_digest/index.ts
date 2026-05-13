@@ -28,6 +28,8 @@ const RANNA_APP_URL = Deno.env.get("RANNA_APP_URL") ?? "https://ranna.aelsir.sd"
 const RANNA_IMAGE_BASE_URL =
   Deno.env.get("RANNA_IMAGE_BASE_URL") ??
   "https://pub-5231206b23e34ae59ce4f085c70f77be.r2.dev";
+const RANNA_FONT_BASE_URL =
+  Deno.env.get("RANNA_FONT_BASE_URL") ?? "https://hoosh.aelsir.sd/fonts";
 
 // Derive the sender domain from RANNA_APP_URL (handles missing protocol).
 const RANNA_SENDER_DOMAIN = (() => {
@@ -76,7 +78,21 @@ interface DigestRenderInput {
   displayName: string;
   appUrl: string;
   imageBaseUrl: string;
+  fontBaseUrl: string;
+  hijriDate: string;
   groups: DigestGroup[];
+}
+
+function formatHijriDate(d: Date): string {
+  try {
+    return new Intl.DateTimeFormat("ar-SA-u-ca-islamic-umalqura", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "";
+  }
 }
 
 interface RunReport {
@@ -164,13 +180,12 @@ function renderGroup(
 }
 
 function renderDigestHtml(input: DigestRenderInput): string {
-  const { displayName, appUrl, imageBaseUrl, groups } = input;
-  const greeting = displayName.trim()
-    ? `أهلاً ${escapeHtml(displayName.trim())}،`
-    : "أهلاً بك،";
+  const { displayName, appUrl, imageBaseUrl, fontBaseUrl, hijriDate, groups } = input;
+  const namePart = displayName.trim() ? ` ${escapeHtml(displayName.trim())}` : "";
+  const greeting = `جمعة مباركة${namePart}،`;
   const total = totalTracks(groups);
   const peopleCount = groups.length;
-  const lead = `هذه ${total === 1 ? "مدحة جديدة" : `${total} مدحة جديدة`} من ${peopleCount === 1 ? (groups[0].type === "artist" ? "مادح" : "راوي") : `${peopleCount} ممن تتابعهم`} في رنّة هذا الأسبوع.`;
+  const lead = `في يوم الجمعة، أكثروا من الصلاة على النبي ﷺ — وهذه ${total === 1 ? "مدحة جديدة" : `${total} مدحة جديدة`} من ${peopleCount === 1 ? (groups[0].type === "artist" ? "مادح" : "راوي") : `${peopleCount} ممن تتابعهم`} اخترناها لك من متابعاتك في رنّة.`;
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html dir="rtl" lang="ar" xmlns="http://www.w3.org/1999/xhtml">
@@ -181,12 +196,30 @@ function renderDigestHtml(input: DigestRenderInput): string {
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
   <meta name="color-scheme" content="light" />
   <meta name="supported-color-schemes" content="light" />
-  <title>جديد متابعاتك في رنّة</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;family=Noto+Naskh+Arabic:wght@400;700&amp;family=Fustat:wght@400;700;800&amp;display=swap" rel="stylesheet" />
+  <title>جمعة مباركة من رنّة</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;700&family=Fustat:wght@400;700;800&display=swap');
+    @font-face {
+      font-family: 'IBM Plex Sans Arabic';
+      src: url('${fontBaseUrl}/IBMPlexSansArabic-ExtraLight.woff2') format('woff2');
+      font-weight: 200;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'IBM Plex Sans Arabic';
+      src: url('${fontBaseUrl}/IBMPlexSansArabic-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'IBM Plex Sans Arabic';
+      src: url('${fontBaseUrl}/IBMPlexSansArabic-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    * { font-family: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; }
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse; }
     img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
@@ -214,7 +247,7 @@ function renderDigestHtml(input: DigestRenderInput): string {
 </head>
 <body style="margin:0; padding:0; background-color:#f5fffe;">
   <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f5fffe;">
-    ${escapeHtml(`${total} ${total === 1 ? "مدحة جديدة" : "مدائح جديدة"} في انتظارك`)}
+    ${escapeHtml(`جمعة مباركة — ${total} ${total === 1 ? "مدحة جديدة" : "مدائح جديدة"} من متابعاتك في رنّة`)}
   </div>
 
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" dir="rtl" style="background-color:#f5fffe;">
@@ -226,7 +259,7 @@ function renderDigestHtml(input: DigestRenderInput): string {
           <!-- BANNER -->
           <tr>
             <td align="center" style="background-color:#1b4144; line-height: 0;">
-              <img src="https://pub-5231206b23e34ae59ce4f085c70f77be.r2.dev/images/ranna-brand/Ranna%20Email%20Bannar.jpg" alt="رنّة" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0;" />
+              <img src="${escapeHtml(imageBaseUrl.replace(/\/$/, ""))}/images/ranna-brand/Ranna%20Email%20Bannar.jpg" alt="رنّة" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0;" />
             </td>
           </tr>
           <tr><td style="height:4px; background-color:#ccff00; line-height:4px; font-size:4px;">&nbsp;</td></tr>
@@ -234,12 +267,28 @@ function renderDigestHtml(input: DigestRenderInput): string {
           <!-- BODY -->
           <tr>
             <td class="px-mob" style="padding: 36px 48px 8px 48px;" dir="rtl">
-              <h1 class="body-heading" style="font-family:'IBM Plex Sans Arabic','Fustat',sans-serif; margin:0 0 12px 0; color:#0d2d2f; font-size:24px; font-weight:700; line-height:1.3; text-align:right;">
+              ${hijriDate ? `<div style="margin:0 0 8px 0; color:#6b7f80; font-size:12px; font-weight:400; line-height:1.4; text-align:right; letter-spacing:0.2px;">${escapeHtml(hijriDate)}</div>` : ""}
+              <h1 class="body-heading" style="margin:0 0 12px 0; color:#0d2d2f; font-size:24px; font-weight:700; line-height:1.3; text-align:right;">
                 ${greeting}
               </h1>
-              <p class="body-text" style="font-family:'IBM Plex Sans Arabic','Noto Naskh Arabic',sans-serif; margin:0 0 4px 0; color:#334649; font-size:16px; line-height:1.85; text-align:right;">
+              <p class="body-text" style="margin:0 0 4px 0; color:#334649; font-size:16px; font-weight:400; line-height:1.85; text-align:right;">
                 ${escapeHtml(lead)}
               </p>
+            </td>
+          </tr>
+
+          <!-- SALAWAT CARD -->
+          <tr>
+            <td class="px-mob" style="padding: 20px 48px 4px 48px;" dir="rtl">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f5fffe; border-right:3px solid #ccff00; border-radius:8px;">
+                <tr>
+                  <td style="padding:18px 20px;" dir="rtl">
+                    <p style="margin:0; color:#0d2d2f; font-size:17px; font-weight:700; line-height:1.7; text-align:right;">
+                      اللّهمَّ صلِّ وسلِّم وبارك على سيدنا محمد وعلى آله وصحبه أجمعين
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
@@ -303,11 +352,15 @@ function renderDigestHtml(input: DigestRenderInput): string {
 }
 
 function renderDigestText(input: DigestRenderInput): string {
-  const { displayName, appUrl, groups } = input;
-  const greeting = displayName.trim() ? `أهلاً ${displayName.trim()}،` : "أهلاً بك،";
+  const { displayName, appUrl, hijriDate, groups } = input;
+  const namePart = displayName.trim() ? ` ${displayName.trim()}` : "";
+  const greeting = `جمعة مباركة${namePart}،`;
   const total = totalTracks(groups);
   const lines: string[] = [
     greeting,
+    ...(hijriDate ? [hijriDate] : []),
+    "",
+    "اللّهمَّ صلِّ وسلِّم وبارك على سيدنا محمد وعلى آله وصحبه أجمعين.",
     "",
     `${total === 1 ? "مدحة جديدة" : `${total} مدائح جديدة`} من متابعاتك في رنّة هذا الأسبوع:`,
     "",
@@ -329,10 +382,10 @@ function renderDigestSubject(groups: DigestGroup[]): string {
   if (groups.length === 1) {
     const g = groups[0];
     const count = g.tracks.length;
-    return `جديد ${g.name} في رنّة — ${count === 1 ? "مدحة" : `${count} مدائح`}`;
+    return `جمعة مباركة — جديد ${g.name}: ${count === 1 ? "مدحة" : `${count} مدائح`}`;
   }
   const total = totalTracks(groups);
-  return `جديد متابعاتك — ${total === 1 ? "مدحة جديدة" : `${total} مدائح جديدة`}`;
+  return `جمعة مباركة — ${total === 1 ? "مدحة جديدة" : `${total} مدائح جديدة`} من متابعاتك`;
 }
 
 // =============================================================================
@@ -406,34 +459,57 @@ serve(async (req: Request): Promise<Response> => {
     subject: string;
     html: string;
     text: string;
+    headers: Record<string, string>;
   };
-  const emails: ResendEmail[] = rows.map((r) => {
+  const hijriDate = formatHijriDate(new Date());
+  const unsubscribeUrl = `${RANNA_APP_URL.replace(/\/$/, "")}/account`;
+  const emails: ResendEmail[] = rows.map((r): ResendEmail | null => {
     const groups = Array.isArray(r.digest) ? r.digest : [];
     if (groups.length === 0) return null;
     const ctx = {
       displayName: r.display_name ?? "",
       appUrl: RANNA_APP_URL,
       imageBaseUrl: RANNA_IMAGE_BASE_URL,
+      fontBaseUrl: RANNA_FONT_BASE_URL,
+      hijriDate,
       groups,
     };
     return {
-      from: `رنّة <noreply@${RANNA_SENDER_DOMAIN}>`,
+      from: `Ranna رنّة <noreply@${RANNA_SENDER_DOMAIN}>`,
       to: [r.email],
       subject: renderDigestSubject(groups),
       html: renderDigestHtml(ctx),
       text: renderDigestText(ctx),
+      headers: {
+        "List-Unsubscribe": `<${unsubscribeUrl}>, <mailto:unsubscribe@${RANNA_SENDER_DOMAIN}?subject=unsubscribe>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
     };
   }).filter((e): e is ResendEmail => e !== null);
+
+  // Idempotency key per cron firing (UTC week-start), so accidental
+  // double-invocations within the same Friday window don't double-send.
+  const weekStartKey = (() => {
+    const d = new Date();
+    const day = d.getUTCDay(); // 0=Sun..6=Sat; Friday=5
+    const daysSinceFri = (day - 5 + 7) % 7;
+    const fri = new Date(Date.UTC(
+      d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - daysSinceFri,
+    ));
+    return fri.toISOString().slice(0, 10);
+  })();
 
   // ─── Send to Resend in chunks of RESEND_BATCH_SIZE ───────────────────
   for (let i = 0; i < emails.length; i += RESEND_BATCH_SIZE) {
     const chunk = emails.slice(i, i + RESEND_BATCH_SIZE);
     try {
+      const chunkIndex = Math.floor(i / RESEND_BATCH_SIZE);
       const res = await fetch("https://api.resend.com/emails/batch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Idempotency-Key": `weekly-digest-${weekStartKey}-chunk-${chunkIndex}`,
         },
         body: JSON.stringify(chunk),
       });
