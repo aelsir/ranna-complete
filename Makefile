@@ -152,3 +152,4 @@ build-ipa: sync
 ## Build Android APK for direct distribution
 build-apk: sync
 	cd app && flutter build apk --release --dart-define-from-file=env.json --no-tree-shake-icons
+
