@@ -1,14 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Shuffle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import {
-  useActiveHeroImages,
-  useMadhaat,
-  useHomePageData,
-} from "@/lib/api/hooks";
-import { usePlayer } from "@/context/PlayerContext";
+import DownloadAppCTA from "@/components/DownloadAppCTA";
+import { useActiveHeroImages, useHomePageData } from "@/lib/api/hooks";
 import { useCountUp } from "@/lib/useCountUp";
 import { getImageUrl } from "@/lib/format";
 import heroBgFallback from "@/assets/hero-bg.jpg";
@@ -23,13 +17,11 @@ interface Slide {
 }
 
 const HeroSection = () => {
-  const { data: madhaat } = useMadhaat();
   const { data: homeData } = useHomePageData();
   const { data: heroes } = useActiveHeroImages();
   const navigate = useNavigate();
   const count = homeData?.totalTracks;
   const animatedCount = useCountUp(count);
-  const { playTrack } = usePlayer();
 
   // Build the slide list. If admin hasn't set anything (or fetch failed),
   // fall back to the bundled asset so we never render an empty banner.
@@ -60,14 +52,6 @@ const HeroSection = () => {
   }, [slides.length]);
 
   const activeSlide = slides[currentIndex] ?? slides[0];
-
-  const handlePickForYou = useCallback(() => {
-    if (!madhaat || madhaat.length === 0) return;
-    const randomIndex = Math.floor(Math.random() * madhaat.length);
-    const picked = madhaat[randomIndex];
-    const allIds = madhaat.map((m) => m.id);
-    playTrack(picked.id, allIds);
-  }, [madhaat, playTrack]);
 
   const handleHeroClick = () => {
     if (activeSlide?.linkUrl) navigate(activeSlide.linkUrl);
@@ -124,7 +108,7 @@ const HeroSection = () => {
 
       {/* Clickable hero-link layer — only present when the active slide
           has a link_url. Sits below the foreground content so the
-          "إخترنا لك" button keeps working. */}
+          download CTA stays clickable. */}
       {activeSlide?.linkUrl && (
         <button
           type="button"
@@ -194,15 +178,7 @@ const HeroSection = () => {
           }}
           className="pointer-events-auto"
         >
-          <Button
-            variant="secondary"
-            size="lg"
-            className="rounded-full gap-2.5 font-fustat font-bold shadow-glow-secondary hover:shadow-glow-secondary hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 px-7"
-            onClick={handlePickForYou}
-          >
-            <Shuffle className="h-4 w-4" strokeWidth={2.5} />
-            إخترنا لك
-          </Button>
+          <DownloadAppCTA />
         </motion.div>
       </div>
     </section>
