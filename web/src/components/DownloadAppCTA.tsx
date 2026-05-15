@@ -58,7 +58,7 @@ const DownloadAppCTA = () => {
         href={APP_STORE_URL}
         src={appStoreBadge}
         alt="حمّل التطبيق من App Store"
-        className="h-20 w-auto"
+        className="h-36 w-auto"
       />
     );
   }
@@ -71,20 +71,20 @@ const DownloadAppCTA = () => {
         href={PLAY_STORE_URL}
         src={playStoreBadge}
         alt="حمّل التطبيق من Google Play"
-        className="h-20 w-auto"
+        className="h-36 w-auto"
       />
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-col sm:flex-row flex-wrap items-start gap-3 sm:gap-4">
       <BadgeLink
         store="ios"
         detectedPlatform={platform}
         href={APP_STORE_URL}
         src={appStoreBadge}
         alt="حمّل التطبيق من App Store"
-        className="h-16 w-auto"
+        className="h-36 w-auto max-w-full"
       />
       <BadgeLink
         store="android"
@@ -92,7 +92,7 @@ const DownloadAppCTA = () => {
         href={PLAY_STORE_URL}
         src={playStoreBadge}
         alt="حمّل التطبيق من Google Play"
-        className="h-16 w-auto"
+        className="h-36 w-auto max-w-full"
       />
     </div>
   );
