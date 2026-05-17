@@ -542,3 +542,48 @@ export async function getDownloadAnalytics(
     dailyTrend,
   };
 }
+
+// ============================================================================
+// Stats overview — single-RPC aggregator for the redesigned stats page.
+// Pushes ALL of the heavy work server-side (see migration 039) so the page
+// loads with a single small JSON instead of paginating every play row twice
+// the way the legacy analytics summary did.
+// ============================================================================
+
+export interface StatsTrendRow {
+  date: string;       // YYYY-MM-DD in the requested timezone
+  plays: number;
+  minutes: number;
+}
+
+export interface StatsHeatmapCell {
+  dow: number;        // 0 = Sunday … 6 = Saturday
+  hour: number;       // 0–23
+  count: number;
+}
+
+export interface StatsOverview {
+  total_plays: number;
+  total_hours: number;       // numeric, 2 decimals
+  unique_listeners: number;
+  total_favorites: number;
+  trend_days: number;
+  trend: StatsTrendRow[];
+  heatmap_weeks: number;
+  heatmap: StatsHeatmapCell[];
+  tz: string;
+}
+
+export async function getStatsOverview(opts?: {
+  tz?: string;
+  trendDays?: number;
+  heatmapWeeks?: number;
+}): Promise<StatsOverview> {
+  const { data, error } = await supabase.rpc("get_stats_overview", {
+    p_tz: opts?.tz ?? "Africa/Khartoum",
+    p_trend_days: opts?.trendDays ?? 14,
+    p_heatmap_weeks: opts?.heatmapWeeks ?? 4,
+  });
+  if (error) throw error;
+  return data as unknown as StatsOverview;
+}

@@ -62,6 +62,7 @@ import {
   getAdminCollections,
   getContentTypeCounts,
   getDownloadAnalytics,
+  getStatsOverview,
   getActiveHeroImages,
   getAllHeroImages,
   createHeroImage,
@@ -118,6 +119,7 @@ export const queryKeys = {
   topFavorited: (limit: number) => ["analytics", "topFavorited", limit] as const,
   userActivity: ["analytics", "userActivity"] as const,
   downloadAnalytics: ["analytics", "downloads"] as const,
+  statsOverview: ["analytics", "statsOverview"] as const,
 };
 
 // ============================================
@@ -800,6 +802,28 @@ export function useDownloadAnalytics() {
   return useQuery({
     queryKey: queryKeys.downloadAnalytics,
     queryFn: () => getDownloadAnalytics(14),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+
+/** Single-RPC aggregator for the redesigned stats page. Returns
+ *  top-bar counters + 14-day trend + 4-week heatmap in one round trip. */
+export function useStatsOverview(opts?: {
+  tz?: string;
+  trendDays?: number;
+  heatmapWeeks?: number;
+}) {
+  return useQuery({
+    queryKey: [
+      ...queryKeys.statsOverview,
+      opts?.tz ?? "Africa/Khartoum",
+      opts?.trendDays ?? 14,
+      opts?.heatmapWeeks ?? 4,
+    ],
+    queryFn: () => getStatsOverview(opts),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,

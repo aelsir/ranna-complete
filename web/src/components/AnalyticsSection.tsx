@@ -1,7 +1,5 @@
-import { useState } from "react";
 import {
   useAnalyticsSummary,
-  usePlaysTrend,
   useContentHealth,
   useEngagementMetrics,
   useTrendingThisWeek,
@@ -9,23 +7,31 @@ import {
   useTopFavorited,
   useUserActivity,
   useDownloadAnalytics,
+  useStatsOverview,
 } from "@/lib/api/hooks";
 import {
-  CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, XAxis, YAxis,
+  CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  ComposedChart, Line, AreaChart, Area, XAxis, YAxis,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import {
   Users, Music, CheckCircle2, AlertCircle,
   ArrowUpRight, ArrowDownRight, Headphones, Activity,
   Heart, Clock, Flame, PieChart as PieIcon, Smartphone,
-  UserCheck, Sparkles, Trophy, Percent, Timer, Download,
+  UserCheck, Sparkles, Trophy, Percent, Timer, Download, Info,
+  CalendarClock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
+import { ListeningHeatmap } from "@/components/ListeningHeatmap";
 
 // ── Small helpers ──────────────────────────────────────────
 const Skeleton = ({ className = "" }: { className?: string }) => (
@@ -41,8 +47,9 @@ const CardSpinner = () => (
 const AnalyticsSection = () => {
   // NOTE: Each card renders independently — no page-wide loading gate.
   // Cards show a skeleton while their own query resolves.
-  const { data: summary, isLoading: summaryLoading } = useAnalyticsSummary();
-  const { data: trend, isLoading: trendLoading } = usePlaysTrend(14);
+  // Legacy analytics queries — kept for the lower sections (content health,
+  // trending this week, content type distribution, devices, downloads).
+  const { data: summary } = useAnalyticsSummary();
   const { data: health, isLoading: healthLoading } = useContentHealth();
   const { data: engagement, isLoading: engagementLoading } = useEngagementMetrics();
   const { data: trendingWeek, isLoading: trendingLoading } = useTrendingThisWeek(7, 5);
@@ -51,72 +58,61 @@ const AnalyticsSection = () => {
   const { data: userActivity, isLoading: userActivityLoading } = useUserActivity();
   const { data: downloads, isLoading: downloadsLoading } = useDownloadAnalytics();
 
-  // Unit toggle for the listening-time chart. The toggle group below the
-  // header card flips the chart's data source: 'minutes' shows whole-minute
-  // sums per day; 'hours' divides by 60 with one-decimal precision so a
-  // typical day still has resolution (e.g. 2.5 ساعة instead of being floored
-  // to 2). Title, tooltip text, and dataKey all switch together.
-  const [listeningUnit, setListeningUnit] = useState<"minutes" | "hours">("minutes");
-  const listeningTrendData = (trend ?? []).map((d) => ({
-    ...d,
-    value: listeningUnit === "minutes" ? d.minutes : Math.round((d.minutes / 60) * 10) / 10,
-  }));
-  const listeningUnitLabel = listeningUnit === "minutes" ? "دقيقة" : "ساعة";
+  // New single-RPC aggregator. Powers the top KPI bar, the combined
+  // plays/minutes trend chart, and the listening heatmap below.
+  const { data: stats, isLoading: statsLoading } = useStatsOverview();
 
-  const kpis = [
+  // Combined trend data — plays and minutes on the same x-axis so the
+  // admin can see at a glance whether high play counts also produced
+  // high listening minutes (real listens vs. skip-after-5-seconds).
+  const trendData = (stats?.trend ?? []).map((d) => ({
+    date: d.date,
+    plays: d.plays,
+    minutes: d.minutes,
+  }));
+
+  // ── Top KPI bar — exactly four cards per the spec ────────────────
+  // المستمعين and المفضلة get info-tooltips because the numbers aren't
+  // self-explanatory (see TopKpiBar below).
+  const topKpis: Array<{
+    label: string;
+    value: number;
+    icon: typeof Headphones;
+    color: string;
+    bg: string;
+    info?: string;
+  }> = [
     {
-      label: "إجمالي الاستماع",
-      value: summary?.totalPlays ?? 0,
+      label: "إجمالي مرات الاستماع",
+      value: stats?.total_plays ?? 0,
       icon: Headphones,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
-      trend: summary?.playsTrendPct ?? null,
-      loading: summaryLoading,
     },
     {
-      label: "دقائق الاستماع",
-      value: Math.round((summary?.totalDuration ?? 0) / 60),
+      label: "ساعات الاستماع",
+      value: stats?.total_hours ?? 0,
       icon: Clock,
       color: "text-accent",
       bg: "bg-accent/10",
-      trend: summary?.durationTrendPct ?? null,
-      loading: summaryLoading,
-    },
-    {
-      label: "عدد المدائح",
-      value: summary?.madhaCount ?? 0,
-      icon: Music,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-      trend: null as string | null,
-      loading: summaryLoading,
-    },
-    {
-      label: "المادحين",
-      value: summary?.madihCount ?? 0,
-      icon: Users,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
-      trend: null as string | null,
-      loading: summaryLoading,
     },
     {
       label: "المستمعين",
-      value: engagement?.uniqueListeners ?? 0,
+      value: stats?.unique_listeners ?? 0,
       icon: UserCheck,
       color: "text-cyan-500",
       bg: "bg-cyan-500/10",
-      trend: null as string | null,
-      loading: engagementLoading,
+      info:
+        "عدد المستخدمين الفريدين الذين شغّلوا مقطعًا واحدًا على الأقل في أي وقت. الاستماعات بدون تسجيل دخول (anonymous) لا تُحتسب هنا.",
     },
     {
       label: "المفضلة",
-      value: engagement?.totalFavorites ?? 0,
+      value: stats?.total_favorites ?? 0,
       icon: Heart,
       color: "text-rose-500",
       bg: "bg-rose-500/10",
-      trend: null as string | null,
-      loading: engagementLoading,
+      info:
+        "إجمالي عدد علامات ❤️ (المفضلة) المُسجَّلة في قاعدة البيانات عبر كل المستخدمين. مثلاً: 3 مستخدمين أضافوا 4 مقاطع كلٌّ منهم = 12. هذا ليس عدد المقاطع الفريدة ولا عدد المستخدمين.",
     },
   ];
 
@@ -172,34 +168,12 @@ const AnalyticsSection = () => {
     ? engagement.avgDurationSeconds % 60
     : 0;
 
-  const renderTrendBadge = (trendStr: string | null) => {
-    if (!trendStr) return null;
-    const isUp = trendStr.startsWith("+") && !trendStr.startsWith("+0");
-    const isDown = trendStr.startsWith("-");
-    return (
-      <Badge variant="outline" className="text-[10px] font-fustat bg-background/50 border-border/40">
-        {isUp ? (
-          <span className="text-emerald-500 flex items-center gap-0.5">
-            <ArrowUpRight className="h-2.5 w-2.5" />
-            {trendStr}
-          </span>
-        ) : isDown ? (
-          <span className="text-rose-500 flex items-center gap-0.5">
-            <ArrowDownRight className="h-2.5 w-2.5" />
-            {trendStr}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">{trendStr}</span>
-        )}
-      </Badge>
-    );
-  };
-
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="p-6 space-y-6 overflow-y-auto h-full pb-20 scrollbar-hide">
-      {/* Row 1: KPI Grid (6 cards) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {kpis.map((kpi, i) => (
+      {/* ── Top KPI bar — 4 cards (plays · hours · listeners · favorites) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {topKpis.map((kpi, i) => (
           <motion.div
             key={kpi.label}
             initial={{ opacity: 0, y: 20 }}
@@ -212,14 +186,37 @@ const AnalyticsSection = () => {
                   <div className={`p-2.5 rounded-xl ${kpi.bg} ${kpi.color}`}>
                     <kpi.icon className="h-5 w-5" />
                   </div>
-                  {!kpi.loading && renderTrendBadge(kpi.trend)}
+                  {kpi.info && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="ما معنى هذا الرقم؟"
+                          className="text-muted-foreground/60 hover:text-foreground transition-colors p-1 -m-1"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        className="max-w-xs text-[11px] leading-relaxed font-fustat"
+                        dir="rtl"
+                      >
+                        {kpi.info}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
                 <div className="mt-4">
-                  <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">{kpi.label}</p>
-                  {kpi.loading ? (
+                  <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">
+                    {kpi.label}
+                  </p>
+                  {statsLoading ? (
                     <Skeleton className="h-7 w-20 mt-1" />
                   ) : (
-                    <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">{kpi.value.toLocaleString("ar-EG")}</h3>
+                    <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">
+                      {kpi.value.toLocaleString("ar-EG")}
+                    </h3>
                   )}
                 </div>
               </CardContent>
@@ -228,7 +225,7 @@ const AnalyticsSection = () => {
         ))}
       </div>
 
-      {/* Row 2: Trend chart + Content health */}
+      {/* ── Combined plays + minutes trend (dual y-axis) + Content health ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-border/40 shadow-sm">
           <CardHeader className="pb-2">
@@ -236,22 +233,24 @@ const AnalyticsSection = () => {
               <div>
                 <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
-                  اتجاهات الاستماع
+                  عدد مرات التشغيل ودقائق الاستماع
                 </CardTitle>
-                <CardDescription className="text-xs">عدد مرات التشغيل خلال الـ 14 يوماً الماضية</CardDescription>
+                <CardDescription className="text-xs">
+                  مقارنة عدد التشغيلات بدقائق الاستماع — إذا تشابهت المنحنيات فالمستمعون يكملون المقاطع، أمّا إذا ارتفع التشغيل وانخفضت الدقائق فأغلبهم يتخطّى بسرعة.
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="pt-4 h-[300px]">
-            {trendLoading ? (
+            {statsLoading ? (
               <CardSpinner />
             ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend}>
+              <ComposedChart data={trendData}>
                 <defs>
-                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                  <linearGradient id="colorPlays" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -265,8 +264,23 @@ const AnalyticsSection = () => {
                     return date.toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
                   }}
                 />
-                <YAxis hide />
-                <Tooltip
+                <YAxis
+                  yAxisId="plays"
+                  orientation="left"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#8b5cf6" }}
+                  width={28}
+                />
+                <YAxis
+                  yAxisId="minutes"
+                  orientation="right"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "#FF6B66" }}
+                  width={36}
+                />
+                <RechartsTooltip
                   contentStyle={{
                     backgroundColor: "rgba(0,0,0,0.8)",
                     border: "none",
@@ -281,17 +295,44 @@ const AnalyticsSection = () => {
                     const date = new Date(label);
                     return date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
                   }}
+                  formatter={(value: number, name: string) => {
+                    if (name === "plays") return [value, "عدد التشغيلات"];
+                    if (name === "minutes") return [`${value} دقيقة`, "دقائق الاستماع"];
+                    return [value, name];
+                  }}
+                />
+                <Legend
+                  verticalAlign="top"
+                  height={28}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: "11px", fontFamily: "Fustat" }}
+                  formatter={(value: string) => {
+                    if (value === "plays") return "عدد التشغيلات";
+                    if (value === "minutes") return "دقائق الاستماع";
+                    return value;
+                  }}
                 />
                 <Area
+                  yAxisId="plays"
                   type="monotone"
-                  dataKey="count"
+                  dataKey="plays"
                   stroke="#8b5cf6"
-                  strokeWidth={3}
+                  strokeWidth={2.5}
                   fillOpacity={1}
-                  fill="url(#colorCount)"
-                  animationDuration={1500}
+                  fill="url(#colorPlays)"
+                  animationDuration={1200}
                 />
-              </AreaChart>
+                <Line
+                  yAxisId="minutes"
+                  type="monotone"
+                  dataKey="minutes"
+                  stroke="#FF6B66"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  animationDuration={1200}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
             )}
           </CardContent>
@@ -349,101 +390,24 @@ const AnalyticsSection = () => {
         </Card>
       </div>
 
-      {/* Row 2.5: Listening time per day (toggle: minutes / hours) */}
+      {/* ── Listening heatmap (last 4 weeks, day-of-week × hour-of-day) ── */}
       <Card className="border-border/40 shadow-sm">
         <CardHeader className="pb-2">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
-                <Clock className="h-4 w-4 text-accent" />
-                {listeningUnit === "minutes" ? "دقائق الاستماع" : "ساعات الاستماع"}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                {listeningUnit === "minutes"
-                  ? "إجمالي دقائق الاستماع خلال الـ 14 يوماً الماضية"
-                  : "إجمالي ساعات الاستماع خلال الـ 14 يوماً الماضية"}
-              </CardDescription>
-            </div>
-            <ToggleGroup
-              type="single"
-              size="sm"
-              value={listeningUnit}
-              onValueChange={(v) => {
-                // Radix returns "" when the user clicks the active item; ignore
-                // that to keep one option always selected.
-                if (v === "minutes" || v === "hours") setListeningUnit(v);
-              }}
-              className="border border-border/40 rounded-lg p-0.5 bg-muted/20"
-            >
-              <ToggleGroupItem
-                value="minutes"
-                aria-label="عرض بالدقائق"
-                className="h-7 px-3 text-xs font-fustat data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-              >
-                دقائق
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="hours"
-                aria-label="عرض بالساعات"
-                className="h-7 px-3 text-xs font-fustat data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-              >
-                ساعات
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
+          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-accent" />
+            خريطة أوقات الاستماع
+          </CardTitle>
+          <CardDescription className="text-xs">
+            تكثيف عمليات التشغيل آخر {stats?.heatmap_weeks ?? 4} أسابيع
+            موزّعةً على أيام الأسبوع وساعات اليوم (بتوقيت {stats?.tz ?? "الخرطوم"}).
+            كلّ خانة لون أغمق = نشاط أعلى في تلك الساعة من ذلك اليوم.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4 h-[300px]">
-          {trendLoading ? (
-            <CardSpinner />
+        <CardContent className="pt-4">
+          {statsLoading ? (
+            <div className="h-[420px]"><CardSpinner /></div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={listeningTrendData}>
-                <defs>
-                  <linearGradient id="colorListening" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#FF6B66" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#FF6B66" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
-                  tickFormatter={(str) => {
-                    const date = new Date(str);
-                    return date.toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
-                  }}
-                />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.8)",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    fontFamily: "Fustat",
-                    color: "#fff",
-                  }}
-                  itemStyle={{ color: "#fff" }}
-                  labelStyle={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}
-                  labelFormatter={(label) => {
-                    const date = new Date(label);
-                    return date.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
-                  }}
-                  formatter={(value: number) => [`${value} ${listeningUnitLabel}`, "الاستماع"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#FF6B66"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorListening)"
-                  animationDuration={1500}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <ListeningHeatmap cells={stats?.heatmap ?? []} />
           )}
         </CardContent>
       </Card>
@@ -532,7 +496,7 @@ const AnalyticsSection = () => {
                       <Cell key={entry.key} fill={typeColors[entry.key] || "#8b5cf6"} />
                     ))}
                   </Pie>
-                  <Tooltip
+                  <RechartsTooltip
                     contentStyle={{
                       backgroundColor: "rgba(0,0,0,0.8)",
                       border: "none",
@@ -852,7 +816,7 @@ const AnalyticsSection = () => {
                     }}
                   />
                   <YAxis hide />
-                  <Tooltip
+                  <RechartsTooltip
                     contentStyle={{
                       backgroundColor: "rgba(0,0,0,0.8)",
                       border: "none",
@@ -982,6 +946,7 @@ const AnalyticsSection = () => {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 
