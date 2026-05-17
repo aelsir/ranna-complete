@@ -2,6 +2,15 @@
 -- The earlier version returned all-time top-bar counters; admins want to
 -- scope the whole page to "last week / month / 90 days / lifetime".
 --
+-- IMPORTANT: this changes the function signature, which would otherwise
+-- create a second overload alongside the old 3-arg version from
+-- migration 040 — and the trailing `GRANT EXECUTE ON FUNCTION
+-- get_stats_overview` would then fail with "function name not unique".
+-- Drop every prior signature first so only the new one exists.
+
+DROP FUNCTION IF EXISTS get_stats_overview(TEXT, INT, INT);
+DROP FUNCTION IF EXISTS get_stats_overview(TEXT, INT, INT, INT);
+--
 -- Semantics:
 --   p_window_days = NULL  →  lifetime (no time bound)
 --   p_window_days = N     →  WHERE played_at >= NOW() - N days
