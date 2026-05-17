@@ -174,7 +174,7 @@ const CompletionSection = ({ onBack }: Props) => {
                     <th className="text-start py-2 px-2 w-8">#</th>
                     <th className="text-start py-2 px-2">المقطع</th>
                     <th className="text-start py-2 px-2 hidden md:table-cell">المادح</th>
-                    <th className="text-start py-2 px-2 hidden md:table-cell">الراوي</th>
+                    <th className="text-start py-2 px-2 hidden md:table-cell">المؤلف</th>
                     <th className="text-start py-2 px-2 w-24">الإكمال</th>
                     <th className="text-start py-2 px-2 w-24">إجمالي التشغيلات</th>
                     <th className="text-start py-2 px-2 w-20">المعدل</th>
@@ -194,7 +194,7 @@ const CompletionSection = ({ onBack }: Props) => {
                         {t.artist_name || "—"}
                       </td>
                       <td className="py-2.5 px-2 text-xs text-muted-foreground font-fustat hidden md:table-cell">
-                        {t.narrator_name || "—"}
+                        {t.author_name || "—"}
                       </td>
                       <td className="py-2.5 px-2 font-mono text-emerald-500 font-semibold">
                         {fmt(t.completed_plays)}

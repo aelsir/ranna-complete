@@ -606,7 +606,7 @@ export interface CompletionTopTrack {
   track_id: string;
   title: string;
   artist_name: string;
-  narrator_name: string;
+  author_name: string;
   completed_plays: number;
   total_plays: number;
   completion_rate: number; // %, one decimal
