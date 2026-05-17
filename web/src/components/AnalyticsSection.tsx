@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { ListeningHeatmap } from "@/components/ListeningHeatmap";
+import { UsageFunnel } from "@/components/UsageFunnel";
 
 // ── Small helpers ──────────────────────────────────────────
 const Skeleton = ({ className = "" }: { className?: string }) => (
@@ -272,6 +273,28 @@ const AnalyticsSection = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* ── Platform-usage funnel: accounts → played → registered ── */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-emerald-500" />
+            قمع استخدام المنصة
+          </CardTitle>
+          <CardDescription className="text-xs">
+            رنّة تتيح الاستماع بدون تسجيل دخول، فالقمع يعرض النسب بين الحسابات الكلّية،
+            ومن بينها مَن استمع، ومن استكمل التسجيل بإيميل. الأرقام تراكميّة (كل الوقت) ولا تتأثّر بمرشّح الفترة بالأعلى.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-2 pb-5">
+          <UsageFunnel
+            totalAccounts={stats?.total_accounts ?? 0}
+            playedAccounts={stats?.played_accounts ?? 0}
+            registeredAccounts={stats?.registered_accounts ?? 0}
+            loading={statsLoading}
+          />
+        </CardContent>
+      </Card>
 
       {/* ── Combined plays + minutes trend (dual y-axis), full width ── */}
       <Card className="border-border/40 shadow-sm">

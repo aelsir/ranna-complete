@@ -567,6 +567,10 @@ export interface StatsOverview {
   total_hours: number;       // numeric, 2 decimals
   unique_listeners: number;
   total_favorites: number;
+  /** Funnel — all three are all-time, not windowed. */
+  total_accounts: number;       // count(*) from auth.users
+  played_accounts: number;      // distinct user_id in user_plays
+  registered_accounts: number;  // auth.users with email != null
   trend_days: number;
   trend: StatsTrendRow[];
   heatmap_weeks: number;
