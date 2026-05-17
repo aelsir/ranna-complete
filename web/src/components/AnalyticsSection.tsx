@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   useAnalyticsSummary,
   useContentHealth,
@@ -44,6 +45,19 @@ const CardSpinner = () => (
   </div>
 );
 
+// Time-window filter for the top KPI bar + trend chart.
+// `null` = lifetime (no time bound).
+type TimeWindow = { label: string; days: number | null };
+const TIME_WINDOWS: TimeWindow[] = [
+  { label: "آخر 7 أيام",  days: 7 },
+  { label: "آخر 30 يوم",  days: 30 },
+  { label: "آخر 90 يوم",  days: 90 },
+  { label: "كل الوقت",    days: null },
+];
+
+/** Western-digit number formatter — used throughout the stats page. */
+const fmt = (n: number) => n.toLocaleString("en-US");
+
 const AnalyticsSection = () => {
   // NOTE: Each card renders independently — no page-wide loading gate.
   // Cards show a skeleton while their own query resolves.
@@ -58,9 +72,15 @@ const AnalyticsSection = () => {
   const { data: userActivity, isLoading: userActivityLoading } = useUserActivity();
   const { data: downloads, isLoading: downloadsLoading } = useDownloadAnalytics();
 
+  // Time-window filter (defaults to last 30 days). Scopes the top KPI
+  // bar and the trend chart; the heatmap keeps its own 4-week window.
+  const [windowDays, setWindowDays] = useState<number | null>(30);
+
   // New single-RPC aggregator. Powers the top KPI bar, the combined
   // plays/minutes trend chart, and the listening heatmap below.
-  const { data: stats, isLoading: statsLoading } = useStatsOverview();
+  const { data: stats, isLoading: statsLoading } = useStatsOverview({
+    windowDays,
+  });
 
   // Combined trend data — plays and minutes on the same x-axis so the
   // admin can see at a glance whether high play counts also produced
@@ -103,7 +123,7 @@ const AnalyticsSection = () => {
       color: "text-cyan-500",
       bg: "bg-cyan-500/10",
       info:
-        "عدد المستخدمين الفريدين الذين شغّلوا مقطعًا واحدًا على الأقل في أي وقت. الاستماعات بدون تسجيل دخول (anonymous) لا تُحتسب هنا.",
+        "عدد المستخدمين الفريدين الذين شغّلوا مقطعًا واحدًا على الأقل ضمن الفترة المختارة. الاستماعات بدون تسجيل دخول (anonymous) لا تُحتسب هنا. هذا الرقم يختلف عن \"إجمالي المستخدمين\" أدناه — ذاك يعدّ كل من سجّل في رنّة حتى لو لم يسمع شيئًا.",
     },
     {
       label: "المفضلة",
@@ -112,7 +132,7 @@ const AnalyticsSection = () => {
       color: "text-rose-500",
       bg: "bg-rose-500/10",
       info:
-        "إجمالي عدد علامات ❤️ (المفضلة) المُسجَّلة في قاعدة البيانات عبر كل المستخدمين. مثلاً: 3 مستخدمين أضافوا 4 مقاطع كلٌّ منهم = 12. هذا ليس عدد المقاطع الفريدة ولا عدد المستخدمين.",
+        "عدد علامات ❤️ (المفضلة) التي أُضيفت ضمن الفترة المختارة عبر كل المستخدمين. مثلاً: 3 مستخدمين أضافوا 4 مقاطع كلٌّ = 12. ليس عدد المقاطع الفريدة ولا عدد المستخدمين.",
     },
   ];
 
@@ -171,6 +191,34 @@ const AnalyticsSection = () => {
   return (
     <TooltipProvider delayDuration={150}>
     <div className="p-6 space-y-6 overflow-y-auto h-full pb-20 scrollbar-hide">
+      {/* ── Time-window filter ── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap" dir="rtl">
+        <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/40">
+          {TIME_WINDOWS.map((w) => {
+            const isActive = windowDays === w.days;
+            return (
+              <button
+                key={w.label}
+                type="button"
+                onClick={() => setWindowDays(w.days)}
+                className={`px-3 py-1.5 text-xs font-fustat rounded-lg transition-colors ${
+                  isActive
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {w.label}
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[11px] text-muted-foreground font-fustat">
+          {windowDays === null
+            ? "البطاقات والمنحنى يعرضان كل البيانات منذ بداية رنّة"
+            : `البطاقات والمنحنى يعرضان آخر ${fmt(windowDays)} يوم`}
+        </span>
+      </div>
+
       {/* ── Top KPI bar — 4 cards (plays · hours · listeners · favorites) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {topKpis.map((kpi, i) => (
@@ -215,7 +263,7 @@ const AnalyticsSection = () => {
                     <Skeleton className="h-7 w-20 mt-1" />
                   ) : (
                     <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">
-                      {kpi.value.toLocaleString("ar-EG")}
+                      {kpi.value.toLocaleString("en-US")}
                     </h3>
                   )}
                 </div>
@@ -225,28 +273,30 @@ const AnalyticsSection = () => {
         ))}
       </div>
 
-      {/* ── Combined plays + minutes trend (dual y-axis) + Content health ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border/40 shadow-sm">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-primary" />
-                  عدد مرات التشغيل ودقائق الاستماع
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  مقارنة عدد التشغيلات بدقائق الاستماع — إذا تشابهت المنحنيات فالمستمعون يكملون المقاطع، أمّا إذا ارتفع التشغيل وانخفضت الدقائق فأغلبهم يتخطّى بسرعة.
-                </CardDescription>
-              </div>
+      {/* ── Combined plays + minutes trend (dual y-axis), full width ── */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                عدد مرات التشغيل ودقائق الاستماع
+              </CardTitle>
+              <CardDescription className="text-xs">
+                مقارنة عدد التشغيلات بدقائق الاستماع — إذا تشابهت المنحنيات فالمستمعون يكملون المقاطع، أمّا إذا ارتفع التشغيل وانخفضت الدقائق فأغلبهم يتخطّى بسرعة.
+              </CardDescription>
             </div>
-          </CardHeader>
-          <CardContent className="pt-4 h-[300px]">
-            {statsLoading ? (
-              <CardSpinner />
-            ) : (
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 h-[320px]">
+          {statsLoading ? (
+            <CardSpinner />
+          ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trendData}>
+              <ComposedChart
+                data={trendData}
+                margin={{ top: 8, right: 18, bottom: 0, left: 18 }}
+              >
                 <defs>
                   <linearGradient id="colorPlays" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.35} />
@@ -259,9 +309,10 @@ const AnalyticsSection = () => {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+                  tickMargin={6}
                   tickFormatter={(str) => {
                     const date = new Date(str);
-                    return date.toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+                    return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
                   }}
                 />
                 <YAxis
@@ -270,7 +321,9 @@ const AnalyticsSection = () => {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: "#8b5cf6" }}
-                  width={28}
+                  width={48}
+                  tickMargin={6}
+                  tickFormatter={(v: number) => fmt(v)}
                 />
                 <YAxis
                   yAxisId="minutes"
@@ -278,7 +331,9 @@ const AnalyticsSection = () => {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: "#FF6B66" }}
-                  width={36}
+                  width={52}
+                  tickMargin={6}
+                  tickFormatter={(v: number) => fmt(v)}
                 />
                 <RechartsTooltip
                   contentStyle={{
@@ -334,34 +389,57 @@ const AnalyticsSection = () => {
                 />
               </ComposedChart>
             </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Content Health */}
-        <Card className="border-border/40 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              صحة المحتوى
-            </CardTitle>
-            <CardDescription className="text-xs">نسبة اكتمال البيانات للمدائح</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5 pt-4">
-            {healthLoading ? (
-              <>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <div key={i} className="space-y-1.5">
-                    <div className="flex justify-between">
-                      <Skeleton className="h-3 w-24" />
-                      <Skeleton className="h-3 w-8" />
-                    </div>
-                    <Skeleton className="h-1.5 w-full" />
+      {/* ── Listening heatmap (last 4 weeks, hour × day-of-week) ── */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-accent" />
+            خريطة أوقات الاستماع
+          </CardTitle>
+          <CardDescription className="text-xs">
+            تكثيف عمليات التشغيل آخر {fmt(stats?.heatmap_weeks ?? 4)} أسابيع
+            موزّعةً على أيام الأسبوع (محور Y) وساعات اليوم (محور X) — بتوقيت {stats?.tz ?? "الخرطوم"}.
+            كلّ خانة لون أغمق = نشاط أعلى في تلك الساعة من ذلك اليوم.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {statsLoading ? (
+            <div className="h-[260px]"><CardSpinner /></div>
+          ) : (
+            <ListeningHeatmap cells={stats?.heatmap ?? []} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Content Health (full width, under the heatmap) ── */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            صحة المحتوى
+          </CardTitle>
+          <CardDescription className="text-xs">نسبة اكتمال البيانات للمدائح</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-4">
+          {healthLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-8" />
                   </div>
-                ))}
-              </>
-            ) : (
-              <>
+                  <Skeleton className="h-1.5 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
                 {healthMetrics.map((metric) => (
                   <div key={metric.label} className="space-y-1.5">
                     <div className="flex justify-between text-xs">
@@ -371,43 +449,19 @@ const AnalyticsSection = () => {
                     <Progress value={metric.value} className="h-1.5 bg-muted/30" indicatorClassName={metric.color} />
                   </div>
                 ))}
+              </div>
 
-                <div className="mt-6 p-4 rounded-xl bg-muted/20 border border-border/20">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                      <AlertCircle className="h-4 w-4 text-orange-500" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-fustat text-muted-foreground leading-tight">
-                        هناك {Math.round((health?.totalCount || 0) * (1 - (health?.lyricsPct || 0)/100))} مدحة مفقودة الكلمات، يوصى بالتركيز على إضافتها لزيادة التفاعل.
-                      </p>
-                    </div>
+              <div className="mt-2 p-4 rounded-xl bg-muted/20 border border-border/20">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
                   </div>
+                  <p className="text-[11px] font-fustat text-muted-foreground leading-tight">
+                    هناك {fmt(Math.round((health?.totalCount || 0) * (1 - (health?.lyricsPct || 0)/100)))} مدحة مفقودة الكلمات، يوصى بالتركيز على إضافتها لزيادة التفاعل.
+                  </p>
                 </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Listening heatmap (last 4 weeks, day-of-week × hour-of-day) ── */}
-      <Card className="border-border/40 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 text-accent" />
-            خريطة أوقات الاستماع
-          </CardTitle>
-          <CardDescription className="text-xs">
-            تكثيف عمليات التشغيل آخر {stats?.heatmap_weeks ?? 4} أسابيع
-            موزّعةً على أيام الأسبوع وساعات اليوم (بتوقيت {stats?.tz ?? "الخرطوم"}).
-            كلّ خانة لون أغمق = نشاط أعلى في تلك الساعة من ذلك اليوم.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {statsLoading ? (
-            <div className="h-[420px]"><CardSpinner /></div>
-          ) : (
-            <ListeningHeatmap cells={stats?.heatmap ?? []} />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -446,14 +500,14 @@ const AnalyticsSection = () => {
                       idx === 2 ? "bg-orange-700/20 text-orange-700" :
                       "bg-muted/30 text-muted-foreground"
                     }`}>
-                      {(idx + 1).toLocaleString("ar-EG")}
+                      {(idx + 1).toLocaleString("en-US")}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-fustat font-bold truncate">{t.title}</p>
                     </div>
                     {t.playCount > 0 && (
                       <Badge variant="outline" className="text-[10px] font-fustat shrink-0">
-                        {t.playCount.toLocaleString("ar-EG")} تشغيل
+                        {t.playCount.toLocaleString("en-US")} تشغيل
                       </Badge>
                     )}
                   </div>
@@ -537,7 +591,7 @@ const AnalyticsSection = () => {
               <Skeleton className="h-8 w-24 mb-2" />
             ) : (
               <h3 className="text-3xl font-bold font-fustat leading-none mb-2">
-                {(engagement?.completionRate ?? 0).toLocaleString("ar-EG")}%
+                {(engagement?.completionRate ?? 0).toLocaleString("en-US")}%
               </h3>
             )}
             <p className="text-[11px] font-fustat text-muted-foreground">
@@ -565,9 +619,9 @@ const AnalyticsSection = () => {
               <Skeleton className="h-8 w-28 mb-2" />
             ) : (
               <h3 className="text-3xl font-bold font-fustat leading-none mb-2">
-                {avgDurMin.toLocaleString("ar-EG")}
+                {avgDurMin.toLocaleString("en-US")}
                 <span className="text-lg text-muted-foreground">د </span>
-                {avgDurSec.toLocaleString("ar-EG")}
+                {avgDurSec.toLocaleString("en-US")}
                 <span className="text-lg text-muted-foreground">ث</span>
               </h3>
             )}
@@ -648,14 +702,14 @@ const AnalyticsSection = () => {
                     className="flex items-center gap-3 p-3 rounded-lg bg-muted/10 hover:bg-muted/20 transition-colors"
                   >
                     <div className="h-8 w-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-sm font-fustat">
-                      {(idx + 1).toLocaleString("ar-EG")}
+                      {(idx + 1).toLocaleString("en-US")}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-fustat font-bold truncate">{t.title}</p>
                     </div>
                     <Badge variant="outline" className="text-[10px] font-fustat shrink-0 gap-1">
                       <Heart className="h-2.5 w-2.5" />
-                      {t.favCount.toLocaleString("ar-EG")}
+                      {t.favCount.toLocaleString("en-US")}
                     </Badge>
                   </div>
                 ))}
@@ -686,7 +740,7 @@ const AnalyticsSection = () => {
                 <Skeleton className="h-7 w-16" />
               ) : (
                 <h3 className="text-2xl font-bold font-fustat leading-none">
-                  {(userActivity?.activeThisWeek || 0).toLocaleString("ar-EG")}
+                  {(userActivity?.activeThisWeek || 0).toLocaleString("en-US")}
                 </h3>
               )}
             </div>
@@ -700,7 +754,7 @@ const AnalyticsSection = () => {
                 <Skeleton className="h-7 w-16" />
               ) : (
                 <h3 className="text-2xl font-bold font-fustat leading-none">
-                  {(userActivity?.activeThisMonth || 0).toLocaleString("ar-EG")}
+                  {(userActivity?.activeThisMonth || 0).toLocaleString("en-US")}
                 </h3>
               )}
             </div>
@@ -714,7 +768,7 @@ const AnalyticsSection = () => {
                 <Skeleton className="h-7 w-16" />
               ) : (
                 <h3 className="text-2xl font-bold font-fustat leading-none">
-                  {(userActivity?.newThisMonth || 0).toLocaleString("ar-EG")}
+                  {(userActivity?.newThisMonth || 0).toLocaleString("en-US")}
                 </h3>
               )}
             </div>
@@ -728,7 +782,7 @@ const AnalyticsSection = () => {
                 <Skeleton className="h-7 w-16" />
               ) : (
                 <h3 className="text-2xl font-bold font-fustat leading-none">
-                  {(userActivity?.totalUsers || 0).toLocaleString("ar-EG")}
+                  {(userActivity?.totalUsers || 0).toLocaleString("en-US")}
                 </h3>
               )}
             </div>
@@ -773,7 +827,7 @@ const AnalyticsSection = () => {
                   {downloadsLoading ? (
                     <Skeleton className="h-7 w-20 mt-1" />
                   ) : (
-                    <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">{kpi.value.toLocaleString("ar-EG")}</h3>
+                    <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">{kpi.value.toLocaleString("en-US")}</h3>
                   )}
                 </div>
               </CardContent>
@@ -881,14 +935,14 @@ const AnalyticsSection = () => {
                         idx === 2 ? "bg-amber-600/20 text-amber-600" :
                         "bg-muted/30 text-muted-foreground"
                       }`}>
-                        {(idx + 1).toLocaleString("ar-EG")}
+                        {(idx + 1).toLocaleString("en-US")}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-fustat font-bold truncate">{t.title}</p>
                       </div>
                       <Badge variant="outline" className="text-[10px] font-fustat shrink-0 gap-1">
                         <Download className="h-2.5 w-2.5" />
-                        {t.downloadCount.toLocaleString("ar-EG")}
+                        {t.downloadCount.toLocaleString("en-US")}
                       </Badge>
                     </div>
                   ))}

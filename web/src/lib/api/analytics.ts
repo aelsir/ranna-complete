@@ -572,17 +572,21 @@ export interface StatsOverview {
   heatmap_weeks: number;
   heatmap: StatsHeatmapCell[];
   tz: string;
+  window_days: number | null; // null = lifetime
 }
 
 export async function getStatsOverview(opts?: {
   tz?: string;
   trendDays?: number;
   heatmapWeeks?: number;
+  /** Global time window for the top KPI counters. `null` = lifetime. */
+  windowDays?: number | null;
 }): Promise<StatsOverview> {
   const { data, error } = await supabase.rpc("get_stats_overview", {
     p_tz: opts?.tz ?? "Africa/Khartoum",
     p_trend_days: opts?.trendDays ?? 14,
     p_heatmap_weeks: opts?.heatmapWeeks ?? 4,
+    p_window_days: opts?.windowDays ?? null,
   });
   if (error) throw error;
   return data as unknown as StatsOverview;

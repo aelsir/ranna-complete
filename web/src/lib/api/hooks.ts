@@ -810,11 +810,13 @@ export function useDownloadAnalytics() {
 }
 
 /** Single-RPC aggregator for the redesigned stats page. Returns
- *  top-bar counters + 14-day trend + 4-week heatmap in one round trip. */
+ *  top-bar counters + trend + heatmap in one round trip.
+ *  `windowDays = null` → lifetime. */
 export function useStatsOverview(opts?: {
   tz?: string;
   trendDays?: number;
   heatmapWeeks?: number;
+  windowDays?: number | null;
 }) {
   return useQuery({
     queryKey: [
@@ -822,6 +824,7 @@ export function useStatsOverview(opts?: {
       opts?.tz ?? "Africa/Khartoum",
       opts?.trendDays ?? 14,
       opts?.heatmapWeeks ?? 4,
+      opts?.windowDays ?? null,
     ],
     queryFn: () => getStatsOverview(opts),
     staleTime: 5 * 60 * 1000,
