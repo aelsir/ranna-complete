@@ -63,6 +63,7 @@ import {
   getContentTypeCounts,
   getDownloadAnalytics,
   getStatsOverview,
+  getCompletionStats,
   getActiveHeroImages,
   getAllHeroImages,
   createHeroImage,
@@ -120,6 +121,7 @@ export const queryKeys = {
   userActivity: ["analytics", "userActivity"] as const,
   downloadAnalytics: ["analytics", "downloads"] as const,
   statsOverview: ["analytics", "statsOverview"] as const,
+  completionStats: ["analytics", "completionStats"] as const,
 };
 
 // ============================================
@@ -802,6 +804,28 @@ export function useDownloadAnalytics() {
   return useQuery({
     queryKey: queryKeys.downloadAnalytics,
     queryFn: () => getDownloadAnalytics(14),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+
+/** Completion stats sub-page: top tracks + daily completion trend +
+ *  depth distribution + length-bucket completion rate. One RPC. */
+export function useCompletionStats(opts?: {
+  tz?: string;
+  trendDays?: number;
+  windowDays?: number | null;
+}) {
+  return useQuery({
+    queryKey: [
+      ...queryKeys.completionStats,
+      opts?.tz ?? "Africa/Khartoum",
+      opts?.trendDays ?? 30,
+      opts?.windowDays ?? null,
+    ],
+    queryFn: () => getCompletionStats(opts),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,

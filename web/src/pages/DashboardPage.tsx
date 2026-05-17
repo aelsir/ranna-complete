@@ -606,6 +606,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
 
         <DashboardContentArea
           activeSection={activeSection}
+          setActiveSection={setActiveSection}
           isContentSection={isContentSection}
           paginatedMadhat={paginatedMadhat}
           selectedTracks={selectedTracks}

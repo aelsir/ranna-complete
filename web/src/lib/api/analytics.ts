@@ -595,3 +595,62 @@ export async function getStatsOverview(opts?: {
   if (error) throw error;
   return data as unknown as StatsOverview;
 }
+
+// ============================================================================
+// Completion stats — RPC aggregator for the "Completion details" sub-page.
+// Returns top tracks, daily completion rate trend, listen depth distribution,
+// and completion rate by track-length bucket. See migration 043 for source.
+// ============================================================================
+
+export interface CompletionTopTrack {
+  track_id: string;
+  title: string;
+  artist_name: string;
+  narrator_name: string;
+  completed_plays: number;
+  total_plays: number;
+  completion_rate: number; // %, one decimal
+}
+
+export interface CompletionTrendRow {
+  date: string;       // YYYY-MM-DD in tz
+  plays: number;
+  completed: number;
+  rate: number;       // %, one decimal
+}
+
+export interface CompletionDepthBucket {
+  bucket: "0-25" | "25-50" | "50-75" | "75-99" | "100" | "unknown";
+  plays: number;
+}
+
+export interface CompletionDurationBucket {
+  bucket: "0-2" | "2-5" | "5-10" | "10-20" | "20+" | "unknown";
+  plays: number;
+  completed: number;
+  rate: number;
+}
+
+export interface CompletionStats {
+  top_tracks: CompletionTopTrack[];
+  daily_trend: CompletionTrendRow[];
+  depth_distribution: CompletionDepthBucket[];
+  duration_buckets: CompletionDurationBucket[];
+  trend_days: number;
+  tz: string;
+  window_days: number | null;
+}
+
+export async function getCompletionStats(opts?: {
+  tz?: string;
+  trendDays?: number;
+  windowDays?: number | null;
+}): Promise<CompletionStats> {
+  const { data, error } = await supabase.rpc("get_completion_stats", {
+    p_tz: opts?.tz ?? "Africa/Khartoum",
+    p_trend_days: opts?.trendDays ?? 30,
+    p_window_days: opts?.windowDays ?? null,
+  });
+  if (error) throw error;
+  return data as unknown as CompletionStats;
+}

@@ -59,7 +59,11 @@ const TIME_WINDOWS: TimeWindow[] = [
 /** Western-digit number formatter — used throughout the stats page. */
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-const AnalyticsSection = () => {
+interface AnalyticsSectionProps {
+  onOpenCompletion?: () => void;
+}
+
+const AnalyticsSection = ({ onOpenCompletion }: AnalyticsSectionProps = {}) => {
   // NOTE: Each card renders independently — no page-wide loading gate.
   // Cards show a skeleton while their own query resolves.
   // Legacy analytics queries — kept for the lower sections (content health,
@@ -295,6 +299,30 @@ const AnalyticsSection = () => {
           />
         </CardContent>
       </Card>
+
+      {/* ── Sub-page CTA: Completion details ── */}
+      {onOpenCompletion && (
+        <button
+          type="button"
+          onClick={onOpenCompletion}
+          className="group w-full text-right rounded-2xl border border-border/40 bg-card shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors p-5 flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-fustat font-bold text-sm">تفاصيل الإكمال</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                أعلى المقاطع المُكمَلة، اتجاه يومي لمعدل الإكمال، توزيع عمق الاستماع، ومعدل الإكمال حسب طول المقطع.
+              </p>
+            </div>
+          </div>
+          <span className="text-muted-foreground group-hover:text-emerald-500 transition-colors text-sm font-fustat shrink-0">
+            افتح →
+          </span>
+        </button>
+      )}
 
       {/* ── Combined plays + minutes trend (dual y-axis), full width ── */}
       <Card className="border-border/40 shadow-sm">

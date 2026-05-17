@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import AnalyticsSection from "@/components/AnalyticsSection";
+import CompletionSection from "@/components/CompletionSection";
 import { HeroImagesPanel } from "@/components/HeroImagesPanel";
 import { DashboardTrackList } from "./DashboardTrackList";
 import { DashboardMadiheen } from "./DashboardMadiheen";
@@ -18,6 +19,7 @@ import type { PendingEdits } from "@/types/bulk-edit";
 
 interface Props {
   activeSection: SidebarItem;
+  setActiveSection: (s: SidebarItem) => void;
   isContentSection: boolean;
 
   // Track list
@@ -74,6 +76,7 @@ interface Props {
 
 export function DashboardContentArea({
   activeSection,
+  setActiveSection,
   isContentSection,
   paginatedMadhat,
   selectedTracks,
@@ -129,7 +132,20 @@ export function DashboardContentArea({
             transition={{ duration: 0.2 }}
             className="h-full"
           >
-            <AnalyticsSection />
+            <AnalyticsSection onOpenCompletion={() => setActiveSection("completion")} />
+          </motion.div>
+        )}
+
+        {activeSection === "completion" && (
+          <motion.div
+            key="completion"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="h-full"
+          >
+            <CompletionSection onBack={() => setActiveSection("analytics")} />
           </motion.div>
         )}
 

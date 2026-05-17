@@ -22,7 +22,8 @@ export type SidebarItem =
   | "hero_images"
   | "madiheen"
   | "ruwat"
-  | "analytics";
+  | "analytics"
+  | "completion";
 
 /** Map sidebar tabs to their content_type filter */
 export const SECTION_CONTENT_TYPE: Partial<Record<SidebarItem, string>> = {
