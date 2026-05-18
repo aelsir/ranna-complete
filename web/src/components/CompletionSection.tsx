@@ -42,6 +42,16 @@ const TIME_WINDOWS: TimeWindow[] = [
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
+// Shared styling for the X/Y axis title labels added to each chart.
+// Theme-aware via the shadcn HSL variables — the old `rgba(255,255,255, ...)`
+// pattern was invisible on light backgrounds and dim even on dark.
+const axisTitleStyle = {
+  fill: "hsl(var(--foreground))",
+  fontSize: 12,
+  fontFamily: "Fustat",
+  fontWeight: 700,
+};
+
 const Skeleton = ({ className = "" }: { className?: string }) => (
   <div className={`animate-pulse rounded bg-muted/30 ${className}`} />
 );
@@ -235,51 +245,65 @@ const CompletionSection = ({ onBack }: Props) => {
             نسبة التشغيلات التي اكتملت كل يوم. الخط المتقطّع الرمادي هو متوسط الفترة ({fmt(overallRate)}%).
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4 h-[300px]">
+        <CardContent className="pt-4 h-[340px]">
           {isLoading ? (
             <CardSpinner />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trend} margin={{ top: 8, right: 18, bottom: 0, left: 18 }}>
+              <LineChart data={trend} margin={{ top: 12, right: 24, bottom: 30, left: 28 }}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
-                  stroke="rgba(255,255,255,0.05)"
+                  stroke="hsl(var(--border) / 0.5)"
                 />
                 <XAxis
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   tickMargin={6}
                   tickFormatter={(s) =>
                     new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short" })
                   }
+                  label={{
+                    value: "اليوم",
+                    position: "insideBottom",
+                    offset: -18,
+                    style: axisTitleStyle,
+                  }}
                 />
                 <YAxis
                   domain={[0, 100]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
-                  width={36}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  width={52}
                   tickMargin={6}
                   tickFormatter={(v: number) => `${fmt(v)}%`}
+                  label={{
+                    value: "نسبة الإكمال (%)",
+                    angle: -90,
+                    position: "insideLeft",
+                    offset: 6,
+                    style: { ...axisTitleStyle, textAnchor: "middle" },
+                  }}
                 />
                 <ReferenceLine
                   y={overallRate}
-                  stroke="rgba(255,255,255,0.25)"
+                  stroke="hsl(var(--muted-foreground) / 0.6)"
                   strokeDasharray="4 4"
                 />
                 <RechartsTooltip
                   contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.8)",
-                    border: "none",
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
                     borderRadius: "8px",
                     fontSize: "12px",
                     fontFamily: "Fustat",
-                    color: "#fff",
+                    color: "hsl(var(--popover-foreground))",
                   }}
-                  labelStyle={{ color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}
+                  labelStyle={{ color: "hsl(var(--muted-foreground))", marginBottom: "4px" }}
                   labelFormatter={(label: string) =>
                     new Date(label).toLocaleDateString("en-US", {
                       weekday: "long",
@@ -325,41 +349,55 @@ const CompletionSection = ({ onBack }: Props) => {
             = مشكلة في الجذب الأولي؛ تكدّسها بجانب 75–99% = مشكلة في الطول.
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4 h-[300px]">
+        <CardContent className="pt-4 h-[340px]">
           {isLoading ? (
             <CardSpinner />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={depth} margin={{ top: 8, right: 18, bottom: 0, left: 18 }}>
+              <BarChart data={depth} margin={{ top: 12, right: 24, bottom: 30, left: 28 }}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
-                  stroke="rgba(255,255,255,0.05)"
+                  stroke="hsl(var(--border) / 0.5)"
                 />
                 <XAxis
                   dataKey="bucket"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: "rgba(255,255,255,0.55)", fontFamily: "Fustat" }}
+                  tick={{ fontSize: 11, fill: "hsl(var(--foreground))", fontFamily: "Fustat" }}
                   tickMargin={6}
                   tickFormatter={(b: string) => depthLabels[b] ?? b}
+                  label={{
+                    value: "عمق الاستماع من المقطع",
+                    position: "insideBottom",
+                    offset: -18,
+                    style: axisTitleStyle,
+                  }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
-                  width={48}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  width={58}
                   tickMargin={6}
                   tickFormatter={(v: number) => fmt(v)}
+                  label={{
+                    value: "عدد التشغيلات",
+                    angle: -90,
+                    position: "insideLeft",
+                    offset: 6,
+                    style: { ...axisTitleStyle, textAnchor: "middle" },
+                  }}
                 />
                 <RechartsTooltip
                   contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.8)",
-                    border: "none",
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
                     borderRadius: "8px",
                     fontSize: "12px",
                     fontFamily: "Fustat",
-                    color: "#fff",
+                    color: "hsl(var(--popover-foreground))",
                   }}
                   labelFormatter={(b: string) => depthLabels[b] ?? b}
                   formatter={(value: number) => [fmt(value), "عدد التشغيلات"]}
@@ -391,42 +429,56 @@ const CompletionSection = ({ onBack }: Props) => {
             (الفئات ذات الأعداد الصغيرة قد تكون ضوضاء إحصائية).
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-4 h-[300px]">
+        <CardContent className="pt-4 h-[340px]">
           {isLoading ? (
             <CardSpinner />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={durationBuckets} margin={{ top: 24, right: 18, bottom: 0, left: 18 }}>
+              <BarChart data={durationBuckets} margin={{ top: 28, right: 24, bottom: 30, left: 28 }}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
-                  stroke="rgba(255,255,255,0.05)"
+                  stroke="hsl(var(--border) / 0.5)"
                 />
                 <XAxis
                   dataKey="bucket"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: "rgba(255,255,255,0.55)", fontFamily: "Fustat" }}
+                  tick={{ fontSize: 11, fill: "hsl(var(--foreground))", fontFamily: "Fustat" }}
                   tickMargin={6}
                   tickFormatter={(b: string) => durationLabels[b] ?? b}
+                  label={{
+                    value: "طول المقطع (بالدقائق)",
+                    position: "insideBottom",
+                    offset: -18,
+                    style: axisTitleStyle,
+                  }}
                 />
                 <YAxis
                   domain={[0, 100]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
-                  width={36}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  width={52}
                   tickMargin={6}
                   tickFormatter={(v: number) => `${fmt(v)}%`}
+                  label={{
+                    value: "نسبة الإكمال (%)",
+                    angle: -90,
+                    position: "insideLeft",
+                    offset: 6,
+                    style: { ...axisTitleStyle, textAnchor: "middle" },
+                  }}
                 />
                 <RechartsTooltip
                   contentStyle={{
-                    backgroundColor: "rgba(0,0,0,0.8)",
-                    border: "none",
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
                     borderRadius: "8px",
                     fontSize: "12px",
                     fontFamily: "Fustat",
-                    color: "#fff",
+                    color: "hsl(var(--popover-foreground))",
                   }}
                   labelFormatter={(b: string) => durationLabels[b] ?? b}
                   formatter={(value: number, _name: string, item: { payload?: CompletionDurationPayload }) => {
@@ -444,8 +496,9 @@ const CompletionSection = ({ onBack }: Props) => {
                   fill="#a855f7"
                   label={{
                     position: "top",
-                    fill: "rgba(255,255,255,0.5)",
-                    fontSize: 10,
+                    fill: "hsl(var(--foreground))",
+                    fontSize: 11,
+                    fontWeight: 600,
                     formatter: (v: number) => `${fmt(v)}%`,
                   }}
                 />
