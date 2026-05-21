@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCompletionStats } from "@/lib/api/hooks";
+import { DayDateTick } from "@/components/DayDateTick";
 
 // Same time-window options as the main stats page.
 type TimeWindow = { label: string; days: number | null };
@@ -260,15 +261,15 @@ const CompletionSection = ({ onBack }: Props) => {
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                  tickMargin={6}
-                  tickFormatter={(s) =>
-                    new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short" })
-                  }
+                  height={62}
+                  tickMargin={4}
+                  tick={<DayDateTick />}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
                   label={{
                     value: "اليوم",
                     position: "insideBottom",
-                    offset: -18,
+                    offset: -2,
                     style: axisTitleStyle,
                   }}
                 />

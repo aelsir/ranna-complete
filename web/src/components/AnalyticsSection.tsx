@@ -34,6 +34,7 @@ import {
 import { motion } from "framer-motion";
 import { ListeningHeatmap } from "@/components/ListeningHeatmap";
 import { UsageFunnel } from "@/components/UsageFunnel";
+import { DayDateTick } from "@/components/DayDateTick";
 
 // ── Small helpers ──────────────────────────────────────────
 const Skeleton = ({ className = "" }: { className?: string }) => (
@@ -359,12 +360,11 @@ const AnalyticsSection = ({ onOpenCompletion }: AnalyticsSectionProps = {}) => {
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
-                  tickMargin={6}
-                  tickFormatter={(str) => {
-                    const date = new Date(str);
-                    return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
-                  }}
+                  height={44}
+                  tickMargin={4}
+                  tick={<DayDateTick />}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
                 />
                 <YAxis
                   yAxisId="plays"
@@ -515,15 +515,15 @@ const AnalyticsSection = ({ onOpenCompletion }: AnalyticsSectionProps = {}) => {
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                  tickMargin={6}
-                  tickFormatter={(s: string) =>
-                    new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short" })
-                  }
+                  height={62}
+                  tickMargin={4}
+                  tick={<DayDateTick />}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
                   label={{
                     value: "اليوم",
                     position: "insideBottom",
-                    offset: -18,
+                    offset: -2,
                     style: {
                       fill: "hsl(var(--foreground))",
                       fontSize: 12,
