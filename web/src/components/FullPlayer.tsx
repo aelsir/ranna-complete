@@ -65,6 +65,7 @@ const FullPlayer = () => {
     sleepMinutes,
     sleepEndTime,
     setSleepTimer,
+    getCurrentPlayId,
   } = usePlayer();
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
@@ -77,11 +78,14 @@ const FullPlayer = () => {
     setShowLyrics((prev) => {
       if (!prev && track?.id) {
         // Fire-and-forget — tracking failures must not break the UI.
-        void recordLyricsView({ trackId: track.id });
+        void recordLyricsView({
+          trackId: track.id,
+          playId: getCurrentPlayId(),
+        });
       }
       return true;
     });
-  }, [track?.id]);
+  }, [track?.id, getCurrentPlayId]);
 
   // Listen for mini player lyrics button event
   useEffect(() => {

@@ -47,6 +47,11 @@ interface PlayerContextType {
   sleepMinutes: number | null;
   sleepEndTime: number | null;
   setSleepTimer: (minutes: number | null) => void;
+
+  /** Current play session's UUID — used by other event recorders (e.g.
+   *  lyrics_views) to link events to the in-progress play even before
+   *  the user_plays row is inserted (insert happens at end-of-play). */
+  getCurrentPlayId: () => string | null;
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -97,12 +102,48 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [sleepEndTime, setSleepEndTime] = useState<number | null>(null);
 
   const lastSaveRef = useRef<number>(0);
-  const playStartRef = useRef<{ trackId: string; startTime: number } | null>(null);
+
+  /**
+   * Play session state machine — replaces the old wall-clock start timestamp
+   * so `duration_seconds` reflects ACTUAL audio playback, not how long the
+   * player sat with the track loaded. Without this a paused player open
+   * for 2 hours used to record duration_seconds = 7200 on a 5-min track.
+   *
+   *   playId            client-generated uuid; written to user_plays.id at
+   *                     end-of-play, and stamped on related event tables
+   *                     (e.g. lyrics_views.play_id) mid-play.
+   *   startedAt         ISO timestamp captured at first load — used as
+   *                     `played_at` on insert.
+   *   accumulatedMs     total ms isPlaying has been true.
+   *   playingSinceMs    Date.now() at the most recent isPlaying ↦ true
+   *                     transition, or null when paused.
+   */
+  type PlaySession = {
+    trackId: string;
+    playId: string;
+    startedAt: string;
+    accumulatedMs: number;
+    playingSinceMs: number | null;
+  };
+  const playSessionRef = useRef<PlaySession | null>(null);
+
+  /** Cumulative listened seconds for the current session, including the
+   *  in-flight playing interval if we're currently playing. */
+  const sessionElapsedSeconds = useCallback((): number => {
+    const s = playSessionRef.current;
+    if (!s) return 0;
+    const inFlight = s.playingSinceMs ? Date.now() - s.playingSinceMs : 0;
+    return Math.floor((s.accumulatedMs + inFlight) / 1000);
+  }, []);
+
+  /** Expose the current play_id to other event recorders (e.g. lyrics). */
+  const getCurrentPlayId = useCallback((): string | null => {
+    return playSessionRef.current?.playId ?? null;
+  }, []);
 
   // Pull `isInternal` once per render and stash it in a ref so the
   // recordCurrentPlay callback (memoised with `[]`) reads the latest
-  // value without becoming itself unstable. Same lifecycle pattern as
-  // playStartRef above.
+  // value without becoming itself unstable.
   const { isInternal } = useAuth();
   const isInternalRef = useRef(isInternal);
   useEffect(() => {
@@ -110,32 +151,36 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [isInternal]);
 
   /**
-   * Record the currently-playing track to the `user_plays` analytics table.
-   * - Awaits the Supabase session so `user_id` is a real UUID (not a Promise).
-   * - Skips sessions shorter than 3 s to filter out fumbles.
-   * - Skips entirely for internal users (founder, team) — their dashboard
-   *   QA listening shouldn't pollute analytics. See migration 036.
-   * - Caller is responsible for clearing `playStartRef.current` after a
-   *   successful record (e.g. to prevent a track-change cleanup from
-   *   double-recording an already-completed play).
+   * Record the current play session to user_plays.
+   * - Uses the accumulator (real playback seconds), not wall-clock.
+   * - Skips sessions shorter than 3 s of actual playback (fumble guard).
+   * - Skips entirely for internal users — see migration 036.
+   * - Caller must clear playSessionRef.current after a successful record.
    */
   const recordCurrentPlay = useCallback(async (completed: boolean) => {
-    const start = playStartRef.current;
-    if (!start) return;
-    const elapsed = Math.floor((Date.now() - start.startTime) / 1000);
-    if (elapsed < 3) return;
-    if (isInternalRef.current) return; // internal team — skip at source
+    const s = playSessionRef.current;
+    if (!s) return;
+    // Final accumulation if we're still in a playing interval.
+    if (s.playingSinceMs) {
+      s.accumulatedMs += Date.now() - s.playingSinceMs;
+      s.playingSinceMs = null;
+    }
+    const elapsedSec = Math.floor(s.accumulatedMs / 1000);
+    if (elapsedSec < 3) return;
+    if (isInternalRef.current) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       await recordPlay({
+        id: s.playId,
         userId: session?.user?.id,
-        madhaId: start.trackId,
-        durationSeconds: elapsed,
+        madhaId: s.trackId,
+        durationSeconds: elapsedSec,
         completed,
         deviceType: "web",
+        playedAt: s.startedAt,
       });
     } catch {
-      // Analytics writes must never break playback
+      // Analytics writes must never break playback.
     }
   }, []);
 
@@ -310,21 +355,50 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!nowPlayingId) return;
 
-    // Record play start for duration tracking
-    playStartRef.current = { trackId: nowPlayingId, startTime: Date.now() };
+    // Open a fresh play session. The accumulator starts at zero; the
+    // play/pause listener below feeds it. We mark the session as
+    // already-playing if the audio element is currently playing (e.g.
+    // an autoplay transition from the previous track).
+    const alreadyPlaying = audioRef.current
+      ? !audioRef.current.paused
+      : false;
+    playSessionRef.current = {
+      trackId: nowPlayingId,
+      playId: crypto.randomUUID(),
+      startedAt: new Date().toISOString(),
+      accumulatedMs: 0,
+      playingSinceMs: alreadyPlaying ? Date.now() : null,
+    };
 
     // PostHog event
     trackEvent("track_played", { track_id: nowPlayingId });
 
     return () => {
-      // Track is changing (or provider unmounting). If onEnded already
-      // recorded a completed play it cleared playStartRef.current — so this
-      // cleanup only fires for tracks the user switched away from mid-play.
-      if (playStartRef.current) {
+      // Track is changing (or provider unmounting). onEnded clears
+      // playSessionRef on natural completion; this cleanup only fires for
+      // tracks the user switched away from mid-play.
+      if (playSessionRef.current) {
         void recordCurrentPlay(false);
       }
     };
   }, [nowPlayingId, recordCurrentPlay]);
+
+  // Play/pause accumulator — feeds the play session's accumulatedMs so
+  // duration_seconds reflects actual audio playback, not wall-clock.
+  useEffect(() => {
+    const s = playSessionRef.current;
+    if (!s) return;
+    if (isPlaying) {
+      // Entering a playing interval — start the clock.
+      if (!s.playingSinceMs) s.playingSinceMs = Date.now();
+    } else {
+      // Leaving a playing interval — bank the elapsed ms.
+      if (s.playingSinceMs) {
+        s.accumulatedMs += Date.now() - s.playingSinceMs;
+        s.playingSinceMs = null;
+      }
+    }
+  }, [isPlaying]);
 
   // Audio event listeners — progress tracking, auto-advance
   useEffect(() => {
@@ -395,13 +469,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
     const onEnded = () => {
       // Record play analytics before advancing
-      if (playStartRef.current && nowPlayingId) {
-        const elapsed = Math.floor((Date.now() - playStartRef.current.startTime) / 1000);
+      if (playSessionRef.current && nowPlayingId) {
+        const elapsed = sessionElapsedSeconds();
         // Fire-and-forget — recordCurrentPlay awaits the session internally
         void recordCurrentPlay(true);
         trackEvent("track_completed", { track_id: nowPlayingId, duration_seconds: elapsed });
         // Clear so the track-change cleanup doesn't re-record this play as partial
-        playStartRef.current = null;
+        playSessionRef.current = null;
       }
 
       if (repeatMode === "one") {
@@ -474,6 +548,7 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         sleepMinutes,
         sleepEndTime,
         setSleepTimer,
+        getCurrentPlayId,
       }}
     >
       {children}

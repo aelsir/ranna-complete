@@ -114,7 +114,10 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
         final t = ref.read(currentTrackProvider);
         if (t != null) {
           // Fire-and-forget; tracker swallows errors.
-          LyricsViewTracker.instance.record(trackId: t.id);
+          LyricsViewTracker.instance.record(
+            trackId: t.id,
+            playId: ref.read(audioPlayerProvider.notifier).currentPlayId,
+          );
         }
       }
     });
@@ -315,8 +318,13 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                           // within a short window in case of
                                           // double-taps / rebuilds.
                                           if (opening) {
-                                            LyricsViewTracker.instance
-                                                .record(trackId: track.id);
+                                            LyricsViewTracker.instance.record(
+                                              trackId: track.id,
+                                              playId: ref
+                                                  .read(audioPlayerProvider
+                                                      .notifier)
+                                                  .currentPlayId,
+                                            );
                                           }
                                         },
                                         child: SizedBox(

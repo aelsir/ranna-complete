@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart' as ja;
 import 'package:ranna/db/local_db.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/user_profile_provider.dart';
+import 'package:ranna/utils/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Build-time flag — pass `--dart-define=INTERNAL_DEVICE=true` on dev iPhones
@@ -211,10 +212,28 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
   StreamSubscription<void>? _becomingNoisySub;
 
-  /// Tracks the current play session so we can record duration + completion
-  /// to `user_plays` when the track ends or the user switches to another track.
-  /// Mirrors the web app's `playStartRef` in `PlayerContext.tsx`.
-  ({String trackId, DateTime startTime})? _playStart;
+  /// Tracks the current play session.
+  ///
+  ///   playId         client-generated UUID; written as user_plays.id at
+  ///                  end-of-play, AND stamped on related event tables
+  ///                  (e.g. lyrics_views.play_id) mid-play.
+  ///   startedAt      timestamp captured when the session opened; used as
+  ///                  the played_at column so the row reflects when the
+  ///                  user pressed play, not when the insert eventually
+  ///                  ran.
+  ///   accumulatedMs  total ms isPlaying has been true.
+  ///   playingSinceMs ms-since-epoch when we last entered isPlaying=true;
+  ///                  null when paused. The wall-clock-delta-since-start
+  ///                  approach (old `_playStart`) over-counted pauses,
+  ///                  inflating durations (e.g. 2-hour rows on a 5-min
+  ///                  track when the user paused and walked away).
+  ({
+    String trackId,
+    String playId,
+    DateTime startedAt,
+    int accumulatedMs,
+    int? playingSinceMs,
+  })? _playStart;
 
   AudioPlayerService(this._ref)
       : _player = audioHandler.player,
@@ -258,6 +277,10 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       if (mounted) {
         state = state.copyWith(isPlaying: playerState.playing);
       }
+      // Feed the play-session accumulator on every play/pause transition.
+      // This is what makes `duration_seconds` reflect actual audio playback,
+      // not wall-clock time the player sat with the track loaded.
+      _onPlayingChanged(playerState.playing);
     });
 
     _processingStateSub =
@@ -287,7 +310,8 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
           if (index < queue.length) {
             audioHandler.mediaItem.add(queue[index]);
           }
-          _playStart = (trackId: newTrackId, startTime: DateTime.now());
+          // Auto-advance from native player → assume isPlaying.
+          _openPlaySession(newTrackId, alreadyPlaying: true);
           _logPlayEvent(newTrackId);
         }
       }
@@ -329,6 +353,54 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       });
     });
   }
+
+  /// Open a fresh play session for the given track. Generates a new
+  /// client-side play_id and snapshots `played_at`. Marks the session as
+  /// already-playing when the player is currently producing audio (so
+  /// an auto-advance transition doesn't lose its first interval).
+  void _openPlaySession(String trackId, {bool alreadyPlaying = false}) {
+    _playStart = (
+      trackId: trackId,
+      playId: generateUuidV4(),
+      startedAt: DateTime.now().toUtc(),
+      accumulatedMs: 0,
+      playingSinceMs: alreadyPlaying ? DateTime.now().millisecondsSinceEpoch : null,
+    );
+  }
+
+  /// Feed the play-session accumulator. Called on every isPlaying
+  /// transition so paused seconds don't inflate `duration_seconds`.
+  void _onPlayingChanged(bool isPlaying) {
+    final s = _playStart;
+    if (s == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (isPlaying) {
+      if (s.playingSinceMs == null) {
+        _playStart = (
+          trackId: s.trackId,
+          playId: s.playId,
+          startedAt: s.startedAt,
+          accumulatedMs: s.accumulatedMs,
+          playingSinceMs: now,
+        );
+      }
+    } else {
+      if (s.playingSinceMs != null) {
+        _playStart = (
+          trackId: s.trackId,
+          playId: s.playId,
+          startedAt: s.startedAt,
+          accumulatedMs: s.accumulatedMs + (now - s.playingSinceMs!),
+          playingSinceMs: null,
+        );
+      }
+    }
+  }
+
+  /// Exposed for other event recorders (e.g. LyricsViewTracker) so they
+  /// can stamp the current play_id on their events before user_plays is
+  /// even written. Returns null when no track is loaded.
+  String? get currentPlayId => _playStart?.playId;
 
   void _onTrackCompleted() {
     // We only need to stop playing if we reached the absolute end of the queue.
@@ -462,8 +534,10 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       await _player.setAudioSource(playlist, initialIndex: initialIndex);
       await _player.play();
 
-      _playStart = (trackId: trackId, startTime: DateTime.now());
-      // Log play event for trending analytics (fire-and-forget)
+      // Just called `_player.play()` above, so the session begins
+      // already-playing — the player-state listener will keep the
+      // accumulator in sync from here.
+      _openPlaySession(trackId, alreadyPlaying: true);
       _logPlayEvent(trackId);
     } catch (e) {
       debugPrint('⛔ _loadAndPlay error: $e');
@@ -523,14 +597,21 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
   /// Mirrors `recordCurrentPlay` in the web app's `PlayerContext.tsx`.
   ///
   /// - Captures `_playStart` synchronously so we're safe against races.
-  /// - Skips sessions shorter than 3 seconds (fumbles / accidental taps).
+  /// - Uses the accumulator (real playback seconds), not wall-clock.
+  /// - Skips sessions shorter than 3 s of actual playback (fumble guard).
   /// - On network failure, queues to `pending_actions` for later sync.
   /// - Caller must clear `_playStart` after a completed play to prevent
   ///   a subsequent track-switch from double-recording as partial.
   Future<void> _recordCurrentPlay(bool completed) async {
     final start = _playStart;
     if (start == null) return;
-    final elapsed = DateTime.now().difference(start.startTime).inSeconds;
+
+    // Final accumulation if we're still in a playing interval.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final accumulated = start.playingSinceMs != null
+        ? start.accumulatedMs + (now - start.playingSinceMs!)
+        : start.accumulatedMs;
+    final elapsed = accumulated ~/ 1000;
     if (elapsed < 3) return;
 
     // Skip-at-source for internal team activity. Two independent gates:
@@ -548,11 +629,12 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
     final userId = supabase.auth.currentUser?.id;
 
     final data = <String, dynamic>{
+      'id': start.playId,
       'track_id': start.trackId,
       'duration_seconds': elapsed,
       'completed': completed,
       'device_type': _deviceType,
-      'played_at': DateTime.now().toUtc().toIso8601String(),
+      'played_at': start.startedAt.toIso8601String(),
     };
     if (userId != null) data['user_id'] = userId;
 

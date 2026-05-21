@@ -127,30 +127,35 @@ export async function getListeningHistory(
 // ============================================================================
 
 /**
- * Record a single play event. The play_count bump is a fire-and-forget
- * RPC so a failure there doesn't block the user_plays write.
+ * Record a single play event. tracks.play_count is auto-incremented by
+ * the user_plays_increment_play_count trigger (migration 047) which also
+ * excludes internal users.
  */
 export async function recordPlay(params: {
+  /** Optional client-generated UUID for the user_plays row. Pass it so
+   *  related event tables (lyrics_views.play_id) can link to this play
+   *  before the row is even written. */
+  id?: string;
   userId?: string;
   madhaId: string;
   durationSeconds?: number;
   completed?: boolean;
   deviceType?: string;
+  /** ISO 8601. Defaults to NOW() on insert. Pass the play-session start
+   *  so the row reflects when the user actually pressed play, not when
+   *  the record write finally completed. */
+  playedAt?: string;
 }): Promise<void> {
-  const { error } = await supabase.from("user_plays").insert({
+  const row: Record<string, unknown> = {
     user_id: params.userId || null,
     track_id: params.madhaId,
     duration_seconds: params.durationSeconds,
     completed: params.completed || false,
     device_type: params.deviceType,
-  });
+  };
+  if (params.id) row.id = params.id;
+  if (params.playedAt) row.played_at = params.playedAt;
 
+  const { error } = await supabase.from("user_plays").insert(row);
   if (error) throw error;
-
-  // Increment play_count on the track. Silently ignore failures here —
-  // the canonical record is the user_plays row we just inserted.
-  await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .rpc("increment_play_count", { p_madha_id: params.madhaId } as any)
-    .catch(() => {});
 }

@@ -151,7 +151,7 @@ function AppDownloadBanner() {
 export default function TrackPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { playTrack, nowPlayingId, isFavorite, toggleFavorite } = usePlayer();
+  const { playTrack, nowPlayingId, isFavorite, toggleFavorite, getCurrentPlayId } = usePlayer();
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
 
   const { data: track, isLoading, error } = useMadha(id);
@@ -473,7 +473,12 @@ export default function TrackPage() {
                 <button
                   onClick={() => {
                     setLyricsExpanded(true);
-                    if (track?.id) void recordLyricsView({ trackId: track.id });
+                    if (track?.id) {
+                      void recordLyricsView({
+                        trackId: track.id,
+                        playId: getCurrentPlayId(),
+                      });
+                    }
                   }}
                   className="w-full py-2 text-xs font-fustat font-bold text-accent hover:text-accent/80 transition-colors flex items-center justify-center gap-1"
                 >
