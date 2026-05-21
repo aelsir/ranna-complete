@@ -562,6 +562,11 @@ export interface StatsHeatmapCell {
   count: number;
 }
 
+export interface StatsDailyActiveUsersRow {
+  date: string;   // YYYY-MM-DD in tz
+  users: number;  // distinct registered user_ids that day
+}
+
 export interface StatsOverview {
   total_plays: number;
   total_hours: number;       // numeric, 2 decimals
@@ -575,6 +580,10 @@ export interface StatsOverview {
   trend: StatsTrendRow[];
   heatmap_weeks: number;
   heatmap: StatsHeatmapCell[];
+  /** Distinct registered user_ids per day. Anonymous plays excluded. */
+  daily_active_users: StatsDailyActiveUsersRow[];
+  dau_avg: number;
+  dau_peak: { date: string; users: number } | null;
   tz: string;
   window_days: number | null; // null = lifetime
 }

@@ -12,15 +12,15 @@ import {
 } from "@/lib/api/hooks";
 import {
   CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  ComposedChart, Line, AreaChart, Area, XAxis, YAxis,
-  PieChart, Pie, Cell, Legend,
+  ComposedChart, Line, LineChart, AreaChart, Area, XAxis, YAxis,
+  PieChart, Pie, Cell, Legend, ReferenceLine,
 } from "recharts";
 import {
   Users, Music, CheckCircle2, AlertCircle,
   ArrowUpRight, ArrowDownRight, Headphones, Activity,
   Heart, Clock, Flame, PieChart as PieIcon, Smartphone,
   UserCheck, Sparkles, Trophy, Percent, Timer, Download, Info,
-  CalendarClock,
+  CalendarClock, UsersRound,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -439,6 +439,168 @@ const AnalyticsSection = ({ onOpenCompletion }: AnalyticsSectionProps = {}) => {
                   animationDuration={1200}
                 />
               </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Daily Active Users ── */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+                <UsersRound className="h-4 w-4 text-cyan-500" />
+                المستخدمون اليوميون
+              </CardTitle>
+              <CardDescription className="text-xs">
+                عدد المستخدمين الفريدين الذين شغّلوا مقطعًا واحدًا على الأقل كل يوم.{" "}
+                <span className="text-amber-500/90">ملاحظة:</span>{" "}
+                لا يحتسب هذا الرقم المستمعين غير المسجَّلين (الاستماع بدون تسجيل دخول).
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-4 text-[11px] font-fustat shrink-0">
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">المتوسط</span>
+                {statsLoading ? (
+                  <Skeleton className="h-5 w-12 mt-0.5" />
+                ) : (
+                  <span className="text-lg font-bold font-mono">
+                    {fmt(stats?.dau_avg ?? 0)}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-muted-foreground">الذروة</span>
+                {statsLoading ? (
+                  <Skeleton className="h-5 w-24 mt-0.5" />
+                ) : stats?.dau_peak ? (
+                  <span className="font-mono">
+                    <span className="text-lg font-bold">
+                      {fmt(stats.dau_peak.users)}
+                    </span>{" "}
+                    <span className="text-[10px] text-muted-foreground">
+                      ({new Date(stats.dau_peak.date).toLocaleDateString("ar-EG", {
+                        weekday: "long",
+                      })}
+                      {" · "}
+                      {new Date(stats.dau_peak.date).toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "short",
+                      })})
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-sm">—</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 h-[320px]">
+          {statsLoading ? (
+            <CardSpinner />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={stats?.daily_active_users ?? []}
+                margin={{ top: 12, right: 24, bottom: 30, left: 28 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="hsl(var(--border) / 0.5)"
+                />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickMargin={6}
+                  tickFormatter={(s: string) =>
+                    new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short" })
+                  }
+                  label={{
+                    value: "اليوم",
+                    position: "insideBottom",
+                    offset: -18,
+                    style: {
+                      fill: "hsl(var(--foreground))",
+                      fontSize: 12,
+                      fontFamily: "Fustat",
+                      fontWeight: 700,
+                    },
+                  }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  width={52}
+                  tickMargin={6}
+                  tickFormatter={(v: number) => fmt(v)}
+                  label={{
+                    value: "عدد المستخدمين",
+                    angle: -90,
+                    position: "insideLeft",
+                    offset: 6,
+                    style: {
+                      fill: "hsl(var(--foreground))",
+                      fontSize: 12,
+                      fontFamily: "Fustat",
+                      fontWeight: 700,
+                      textAnchor: "middle",
+                    },
+                  }}
+                />
+                <ReferenceLine
+                  y={stats?.dau_avg ?? 0}
+                  stroke="hsl(var(--muted-foreground) / 0.6)"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: `المتوسط ${fmt(stats?.dau_avg ?? 0)}`,
+                    position: "insideTopRight",
+                    fill: "hsl(var(--muted-foreground))",
+                    fontSize: 10,
+                    fontFamily: "Fustat",
+                  }}
+                />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontFamily: "Fustat",
+                    color: "hsl(var(--popover-foreground))",
+                  }}
+                  labelStyle={{
+                    color: "hsl(var(--muted-foreground))",
+                    marginBottom: "4px",
+                  }}
+                  labelFormatter={(label: string) => {
+                    const d = new Date(label);
+                    const dayName = d.toLocaleDateString("ar-EG", { weekday: "long" });
+                    const datePart = d.toLocaleDateString("en-US", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    });
+                    return `${dayName} · ${datePart}`;
+                  }}
+                  formatter={(value: number) => [`${fmt(value)} مستخدم`, "مستخدمون نشطون"]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="users"
+                  stroke="#06b6d4"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "#06b6d4" }}
+                  activeDot={{ r: 5 }}
+                  animationDuration={1000}
+                />
+              </LineChart>
             </ResponsiveContainer>
           )}
         </CardContent>
