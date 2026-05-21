@@ -663,3 +663,42 @@ export async function getCompletionStats(opts?: {
   if (error) throw error;
   return data as unknown as CompletionStats;
 }
+
+// ============================================================================
+// Lyrics stats — for the new Lyrics sub-page. Per-day daily trend of three
+// lines (plays, plays_with_lyrics, lyric_views) plus headline totals.
+// See migration 046.
+// ============================================================================
+
+export interface LyricsTrendRow {
+  date: string;
+  plays: number;
+  plays_with_lyrics: number;
+  lyric_views: number;
+}
+
+export interface LyricsStats {
+  total_plays: number;
+  plays_with_lyrics: number;
+  lyrics_coverage_pct: number; // %, one decimal
+  total_lyric_views: number;
+  unique_viewers: number;
+  daily_trend: LyricsTrendRow[];
+  trend_days: number;
+  tz: string;
+  window_days: number | null;
+}
+
+export async function getLyricsStats(opts?: {
+  tz?: string;
+  trendDays?: number;
+  windowDays?: number | null;
+}): Promise<LyricsStats> {
+  const { data, error } = await supabase.rpc("get_lyrics_stats", {
+    p_tz: opts?.tz ?? "Africa/Khartoum",
+    p_trend_days: opts?.trendDays ?? 30,
+    p_window_days: opts?.windowDays ?? null,
+  });
+  if (error) throw error;
+  return data as unknown as LyricsStats;
+}

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import AnalyticsSection from "@/components/AnalyticsSection";
 import CompletionSection from "@/components/CompletionSection";
+import LyricsSection from "@/components/LyricsSection";
 import { HeroImagesPanel } from "@/components/HeroImagesPanel";
 import { DashboardTrackList } from "./DashboardTrackList";
 import { DashboardMadiheen } from "./DashboardMadiheen";
@@ -132,7 +133,23 @@ export function DashboardContentArea({
             transition={{ duration: 0.2 }}
             className="h-full"
           >
-            <AnalyticsSection onOpenCompletion={() => setActiveSection("completion")} />
+            <AnalyticsSection
+              onOpenCompletion={() => setActiveSection("completion")}
+              onOpenLyrics={() => setActiveSection("lyrics")}
+            />
+          </motion.div>
+        )}
+
+        {activeSection === "lyrics" && (
+          <motion.div
+            key="lyrics"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="h-full"
+          >
+            <LyricsSection onBack={() => setActiveSection("analytics")} />
           </motion.div>
         )}
 

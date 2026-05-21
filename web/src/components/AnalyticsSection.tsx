@@ -20,7 +20,7 @@ import {
   ArrowUpRight, ArrowDownRight, Headphones, Activity,
   Heart, Clock, Flame, PieChart as PieIcon, Smartphone,
   UserCheck, Sparkles, Trophy, Percent, Timer, Download, Info,
-  CalendarClock, UsersRound,
+  CalendarClock, UsersRound, BookOpenText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,9 +62,13 @@ const fmt = (n: number) => n.toLocaleString("en-US");
 
 interface AnalyticsSectionProps {
   onOpenCompletion?: () => void;
+  onOpenLyrics?: () => void;
 }
 
-const AnalyticsSection = ({ onOpenCompletion }: AnalyticsSectionProps = {}) => {
+const AnalyticsSection = ({
+  onOpenCompletion,
+  onOpenLyrics,
+}: AnalyticsSectionProps = {}) => {
   // NOTE: Each card renders independently — no page-wide loading gate.
   // Cards show a skeleton while their own query resolves.
   // Legacy analytics queries — kept for the lower sections (content health,
@@ -301,28 +305,55 @@ const AnalyticsSection = ({ onOpenCompletion }: AnalyticsSectionProps = {}) => {
         </CardContent>
       </Card>
 
-      {/* ── Sub-page CTA: Completion details ── */}
-      {onOpenCompletion && (
-        <button
-          type="button"
-          onClick={onOpenCompletion}
-          className="group w-full text-right rounded-2xl border border-border/40 bg-card shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors p-5 flex items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-fustat font-bold text-sm">تفاصيل الإكمال</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                أعلى المقاطع المُكمَلة، اتجاه يومي لمعدل الإكمال، توزيع عمق الاستماع، ومعدل الإكمال حسب طول المقطع.
-              </p>
-            </div>
-          </div>
-          <span className="text-muted-foreground group-hover:text-emerald-500 transition-colors text-sm font-fustat shrink-0">
-            افتح →
-          </span>
-        </button>
+      {/* ── Sub-page CTAs: deeper analytics pages ── */}
+      {(onOpenCompletion || onOpenLyrics) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {onOpenCompletion && (
+            <button
+              type="button"
+              onClick={onOpenCompletion}
+              className="group w-full text-right rounded-2xl border border-border/40 bg-card shadow-sm hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-colors p-5 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-fustat font-bold text-sm">تفاصيل الإكمال</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    أعلى المقاطع المُكمَلة، اتجاه يومي لمعدل الإكمال، توزيع عمق الاستماع، ومعدل الإكمال حسب طول المقطع.
+                  </p>
+                </div>
+              </div>
+              <span className="text-muted-foreground group-hover:text-emerald-500 transition-colors text-sm font-fustat shrink-0">
+                افتح →
+              </span>
+            </button>
+          )}
+
+          {onOpenLyrics && (
+            <button
+              type="button"
+              onClick={onOpenLyrics}
+              className="group w-full text-right rounded-2xl border border-border/40 bg-card shadow-sm hover:border-violet-500/50 hover:bg-violet-500/5 transition-colors p-5 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center">
+                  <BookOpenText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-fustat font-bold text-sm">تفاصيل الكلمات</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    مقارنة بين إجمالي التشغيلات والتشغيلات على مقاطع لها كلمات، وعدد فتحات شاشة الكلمات.
+                  </p>
+                </div>
+              </div>
+              <span className="text-muted-foreground group-hover:text-violet-500 transition-colors text-sm font-fustat shrink-0">
+                افتح →
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       {/* ── Combined plays + minutes trend (dual y-axis), full width ── */}

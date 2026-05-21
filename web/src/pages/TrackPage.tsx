@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useMadha, useMadhaatByMadih } from "@/lib/api/hooks";
 import { getImageUrl, formatDuration } from "@/lib/format";
 import { usePlayer } from "@/context/PlayerContext";
+import { recordLyricsView } from "@/lib/api/lyrics_views";
 import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
 import TrackRow from "@/components/TrackRow";
@@ -470,7 +471,10 @@ export default function TrackPage() {
 
               {hasLongLyrics && !lyricsExpanded && (
                 <button
-                  onClick={() => setLyricsExpanded(true)}
+                  onClick={() => {
+                    setLyricsExpanded(true);
+                    if (track?.id) void recordLyricsView({ trackId: track.id });
+                  }}
                   className="w-full py-2 text-xs font-fustat font-bold text-accent hover:text-accent/80 transition-colors flex items-center justify-center gap-1"
                 >
                   عرض كل الكلمات

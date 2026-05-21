@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { recordLyricsView } from "@/lib/api/lyrics_views";
 import { ChevronDown, Heart, Pause, Shuffle, Repeat, Repeat1, Timer, BookOpenText } from "lucide-react";
 import { RtlPlay, RtlSkipBack, RtlSkipForward } from "@/components/icons/rtl-icons";
 import { Button } from "@/components/ui/button";
@@ -69,12 +70,25 @@ const FullPlayer = () => {
   const { data: track } = useMadha(nowPlayingId ?? undefined);
   const [showLyrics, setShowLyrics] = useState(false);
 
+  // Wraps `setShowLyrics(true)` so every transition that surfaces the
+  // lyrics view also records a tracking event. We only fire when going
+  // from hidden → visible to avoid double-counting toggles.
+  const openLyrics = useCallback(() => {
+    setShowLyrics((prev) => {
+      if (!prev && track?.id) {
+        // Fire-and-forget — tracking failures must not break the UI.
+        void recordLyricsView({ trackId: track.id });
+      }
+      return true;
+    });
+  }, [track?.id]);
+
   // Listen for mini player lyrics button event
   useEffect(() => {
-    const handler = () => setShowLyrics(true);
+    const handler = () => openLyrics();
     window.addEventListener("ranna:show-lyrics", handler);
     return () => window.removeEventListener("ranna:show-lyrics", handler);
-  }, []);
+  }, [openLyrics]);
 
   const displayImage = getTrackDisplayImage(track);
   const trackTitle = track?.title || "";
@@ -238,7 +252,7 @@ const FullPlayer = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowLyrics(!showLyrics)}
+                onClick={() => (showLyrics ? setShowLyrics(false) : openLyrics())}
                 className={`h-11 w-11 rounded-full hover:bg-primary-foreground/10 active:scale-90 transition-transform ${
                   showLyrics ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                 }`}

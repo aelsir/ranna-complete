@@ -64,6 +64,7 @@ import {
   getDownloadAnalytics,
   getStatsOverview,
   getCompletionStats,
+  getLyricsStats,
   getActiveHeroImages,
   getAllHeroImages,
   createHeroImage,
@@ -122,6 +123,7 @@ export const queryKeys = {
   downloadAnalytics: ["analytics", "downloads"] as const,
   statsOverview: ["analytics", "statsOverview"] as const,
   completionStats: ["analytics", "completionStats"] as const,
+  lyricsStats: ["analytics", "lyricsStats"] as const,
 };
 
 // ============================================
@@ -804,6 +806,28 @@ export function useDownloadAnalytics() {
   return useQuery({
     queryKey: queryKeys.downloadAnalytics,
     queryFn: () => getDownloadAnalytics(14),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+
+/** Lyrics stats sub-page: daily 3-line trend (plays, plays-with-lyrics,
+ *  lyric-views) + headline totals. One RPC. */
+export function useLyricsStats(opts?: {
+  tz?: string;
+  trendDays?: number;
+  windowDays?: number | null;
+}) {
+  return useQuery({
+    queryKey: [
+      ...queryKeys.lyricsStats,
+      opts?.tz ?? "Africa/Khartoum",
+      opts?.trendDays ?? 30,
+      opts?.windowDays ?? null,
+    ],
+    queryFn: () => getLyricsStats(opts),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,

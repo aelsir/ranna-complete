@@ -9,6 +9,7 @@ import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
+import 'package:ranna/services/lyrics_view_tracker.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 import 'package:ranna/utils/haptics.dart';
@@ -110,6 +111,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
       if (next && ref.read(audioPlayerProvider).showLyricsOnOpen) {
         _showLyrics = true;
         ref.read(audioPlayerProvider.notifier).consumeShowLyricsOnOpen();
+        final t = ref.read(currentTrackProvider);
+        if (t != null) {
+          // Fire-and-forget; tracker swallows errors.
+          LyricsViewTracker.instance.record(trackId: t.id);
+        }
       }
     });
 
@@ -302,7 +308,16 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                       GestureDetector(
                                         onTap: () {
                                           Haptics.selection();
-                                          setState(() => _showLyrics = !_showLyrics);
+                                          final opening = !_showLyrics;
+                                          setState(() => _showLyrics = opening);
+                                          // Record only on the hidden → visible
+                                          // transition. The tracker also dedupes
+                                          // within a short window in case of
+                                          // double-taps / rebuilds.
+                                          if (opening) {
+                                            LyricsViewTracker.instance
+                                                .record(trackId: track.id);
+                                          }
                                         },
                                         child: SizedBox(
                                           width: 44,
