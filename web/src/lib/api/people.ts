@@ -81,9 +81,29 @@ export async function updateMadih(
   id: string,
   updates: Partial<MadihInsert>
 ): Promise<void> {
+  // Strip view-only / non-writable fields. Editing flows often pass the full
+  // row from `v_artists` (which includes `track_count`), but writes target
+  // the underlying `madiheen` table and PostgREST rejects unknown columns.
+  const writable: (keyof MadihInsert)[] = [
+    "name",
+    "status",
+    "bio",
+    "image_url",
+    "birth_year",
+    "death_year",
+    "is_verified",
+    "tariqa_id",
+    "created_by",
+  ];
+  const payload = Object.fromEntries(
+    Object.entries(updates).filter(([k]) =>
+      writable.includes(k as keyof MadihInsert)
+    )
+  );
+
   const { error } = await supabase
     .from("madiheen")
-    .update(updates)
+    .update(payload)
     .eq("id", id);
   if (error) throw error;
 }
@@ -171,7 +191,23 @@ export async function updateRawi(
   id: string,
   updates: Partial<RawiInsert>
 ): Promise<void> {
-  const { error } = await supabase.from("ruwat").update(updates).eq("id", id);
+  // Strip view-only / non-writable fields (see `updateMadih` for context).
+  const writable: (keyof RawiInsert)[] = [
+    "name",
+    "status",
+    "bio",
+    "image_url",
+    "birth_year",
+    "death_year",
+    "created_by",
+  ];
+  const payload = Object.fromEntries(
+    Object.entries(updates).filter(([k]) =>
+      writable.includes(k as keyof RawiInsert)
+    )
+  );
+
+  const { error } = await supabase.from("ruwat").update(payload).eq("id", id);
   if (error) throw error;
 }
 

@@ -15,7 +15,6 @@ import 'package:ranna/models/hero_image.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/models/rawi.dart';
 import 'package:ranna/providers/favorites_provider.dart';
-import 'package:ranna/providers/supabase_internals.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -210,19 +209,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               color: RannaTheme.mutedForeground.withValues(alpha: 0.3),
             ),
           ),
-          Builder(builder: (_) {
-            HijriCalendar.setLocal('ar');
-            final hijri = HijriCalendar.now();
-            return Text(
-              '${toArabicNum(hijri.hDay)} ${hijri.getLongMonthName()} ${toArabicNum(hijri.hYear)}',
-              style: TextStyle(
-                fontFamily: RannaTheme.fontFustat,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: RannaTheme.mutedForeground,
-              ),
-            );
-          }),
+          Builder(
+            builder: (_) {
+              HijriCalendar.setLocal('ar');
+              final hijri = HijriCalendar.now();
+              return Text(
+                '${toArabicNum(hijri.hDay)} ${hijri.getLongMonthName()} ${toArabicNum(hijri.hYear)}',
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: RannaTheme.mutedForeground,
+                ),
+              );
+            },
+          ),
         ],
       ),
       actions: [
@@ -340,7 +341,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _TrendingTracksCard(
-                tracks: data.popularTracks.take(5).toList(),
+                tracks: data.popularTracks.take(10).toList(),
               ),
             ),
           ),
@@ -550,10 +551,9 @@ class _HeroBannerState extends ConsumerState<_HeroBanner> {
       }
     });
 
-    final activeLinkUrl =
-        heroes.isNotEmpty && _currentIndex < heroes.length
-            ? heroes[_currentIndex].linkUrl
-            : null;
+    final activeLinkUrl = heroes.isNotEmpty && _currentIndex < heroes.length
+        ? heroes[_currentIndex].linkUrl
+        : null;
 
     return GestureDetector(
       onTap: activeLinkUrl != null && activeLinkUrl.isNotEmpty
@@ -586,132 +586,132 @@ class _HeroBannerState extends ConsumerState<_HeroBanner> {
               ),
             ),
 
-          // Gradient overlay: bottom fade to background (black)
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    RannaTheme.background,
-                    RannaTheme.background.withValues(alpha: 0.2),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.5, 1.0],
+            // Gradient overlay: bottom fade to background (black)
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      RannaTheme.background,
+                      RannaTheme.background.withValues(alpha: 0.2),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Content — bottom-right in RTL (which is bottom-start)
-          Positioned(
-            bottom: 40,
-            right: 24,
-            left: 24,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Live badge pill
-                _LiveBadge(totalTracks: widget.data.totalTracks)
-                    .animate()
-                    .fadeIn(duration: 600.ms)
-                    .slideY(
-                      begin: 0.3,
-                      duration: 600.ms,
-                      curve: Curves.easeOut,
-                    ),
-
-                const SizedBox(height: 16),
-
-                // Title
-                const Text(
-                      'المدائح النبوية',
-                      style: TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w800,
-                        height: 1.15,
+            // Content — bottom-right in RTL (which is bottom-start)
+            Positioned(
+              bottom: 40,
+              right: 24,
+              left: 24,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Live badge pill
+                  _LiveBadge(totalTracks: widget.data.totalTracks)
+                      .animate()
+                      .fadeIn(duration: 600.ms)
+                      .slideY(
+                        begin: 0.3,
+                        duration: 600.ms,
+                        curve: Curves.easeOut,
                       ),
-                    )
-                    .animate()
-                    .fadeIn(delay: 200.ms, duration: 600.ms)
-                    .slideY(
-                      begin: 0.2,
-                      delay: 200.ms,
-                      duration: 600.ms,
-                      curve: Curves.easeOut,
-                    ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 16),
 
-                // Subtitle
-                Text(
-                  'أجمل المدائح والأناشيد من أشهر المادحين السودانيين',
-                  style: TextStyle(
-                    fontFamily: RannaTheme.fontNotoNaskh,
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
-
-                const SizedBox(height: 20),
-
-                // CTA button
-                Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          RannaTheme.radiusFull,
+                  // Title
+                  const Text(
+                        'المدائح النبوية',
+                        style: TextStyle(
+                          fontFamily: RannaTheme.fontFustat,
+                          color: Colors.white,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
                         ),
-                        boxShadow: RannaTheme.shadowGlowAccent,
+                      )
+                      .animate()
+                      .fadeIn(delay: 200.ms, duration: 600.ms)
+                      .slideY(
+                        begin: 0.2,
+                        delay: 200.ms,
+                        duration: 600.ms,
+                        curve: Curves.easeOut,
                       ),
-                      child: ElevatedButton.icon(
-                        onPressed: widget.onShufflePlay,
-                        icon: Transform.rotate(
-                          angle: pi,
-                          child: const Icon(Icons.shuffle_rounded, size: 18),
-                        ),
-                        label: const Text('إخترنا لك'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: RannaTheme.accent,
-                          foregroundColor: RannaTheme.accentForeground,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
+
+                  const SizedBox(height: 8),
+
+                  // Subtitle
+                  Text(
+                    'أجمل المدائح والأناشيد من أشهر المادحين السودانيين',
+                    style: TextStyle(
+                      fontFamily: RannaTheme.fontNotoNaskh,
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
+
+                  const SizedBox(height: 20),
+
+                  // CTA button
+                  Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            RannaTheme.radiusFull,
                           ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              RannaTheme.radiusFull,
+                          boxShadow: RannaTheme.shadowGlowAccent,
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: widget.onShufflePlay,
+                          icon: Transform.rotate(
+                            angle: pi,
+                            child: const Icon(Icons.shuffle_rounded, size: 18),
+                          ),
+                          label: const Text('إخترنا لك'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: RannaTheme.accent,
+                            foregroundColor: RannaTheme.accentForeground,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                RannaTheme.radiusFull,
+                              ),
+                            ),
+                            textStyle: const TextStyle(
+                              fontFamily: RannaTheme.fontFustat,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                          textStyle: const TextStyle(
-                            fontFamily: RannaTheme.fontFustat,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
                         ),
+                      )
+                      .animate()
+                      .fadeIn(delay: 500.ms, duration: 500.ms)
+                      .slideY(
+                        begin: 0.3,
+                        delay: 500.ms,
+                        duration: 500.ms,
+                        curve: Curves.easeOut,
                       ),
-                    )
-                    .animate()
-                    .fadeIn(delay: 500.ms, duration: 500.ms)
-                    .slideY(
-                      begin: 0.3,
-                      delay: 500.ms,
-                      duration: 500.ms,
-                      curve: Curves.easeOut,
-                    ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
