@@ -10,6 +10,12 @@ class Madih {
   final String? tariqaId;
   final String createdAt;
   final int trackCount;
+  /// Total plays across this artist's tracks in the last 30 days.
+  /// Comes from v_artists.recent_play_count (migration 049).
+  final int recentPlayCount;
+  /// Subset of [recentPlayCount] where the play completed. Primary
+  /// sort key for the all-artists list when sorting by popularity.
+  final int recentCompletedPlays;
 
   const Madih({
     required this.id,
@@ -23,6 +29,8 @@ class Madih {
     this.tariqaId,
     required this.createdAt,
     this.trackCount = 0,
+    this.recentPlayCount = 0,
+    this.recentCompletedPlays = 0,
   });
 
   factory Madih.fromJson(Map<String, dynamic> json) {
@@ -38,6 +46,8 @@ class Madih {
       tariqaId: json['tariqa_id'] as String?,
       createdAt: json['created_at'] as String? ?? '',
       trackCount: json['track_count'] as int? ?? 0,
+      recentPlayCount: json['recent_play_count'] as int? ?? 0,
+      recentCompletedPlays: json['recent_completed_plays'] as int? ?? 0,
     );
   }
 
@@ -46,5 +56,7 @@ class Madih {
         'image_url': imageUrl, 'birth_year': birthYear, 'death_year': deathYear,
         'is_verified': isVerified, 'tariqa_id': tariqaId,
         'created_at': createdAt, 'track_count': trackCount,
+        'recent_play_count': recentPlayCount,
+        'recent_completed_plays': recentCompletedPlays,
       };
 }

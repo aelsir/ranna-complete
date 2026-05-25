@@ -29,7 +29,12 @@ import 'package:ranna/components/common/ranna_app_bar.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/providers/supabase_providers.dart'
-    show SearchFilter, searchFilterProvider, searchQueryProvider;
+    show
+        SearchFilter,
+        searchFilterProvider,
+        searchQueryProvider,
+        PeopleSort,
+        PeopleQueryParams;
 import 'package:ranna/theme/app_theme.dart';
 
 /// One server page worth of rows. Mirrors the page size on the existing
@@ -39,7 +44,7 @@ const int _peoplePageSize = 30;
 class PeopleListPage<T> extends ConsumerStatefulWidget {
   final String title;
   final SearchFilter searchFilter;
-  final FutureProviderFamily<List<T>, int> pageProvider;
+  final FutureProviderFamily<List<T>, PeopleQueryParams> pageProvider;
 
   /// Field accessors — kept as callbacks instead of a shared interface
   /// so existing `Madih` / `Rawi` models don't need a new mixin.
@@ -48,6 +53,9 @@ class PeopleListPage<T> extends ConsumerStatefulWidget {
   final String? Function(T) getImageUrl;
   final int Function(T) getTrackCount;
   final String Function(T) getRoute;
+
+  /// Recent play count for the popularity sub-line. Returning 0 hides it.
+  final int Function(T) getRecentPlayCount;
 
   /// e.g. `'مدحة'` / `'مدائح'`. The full label becomes
   /// `'{count} {label}'`, with Arabic plural rules handled by the
@@ -65,6 +73,7 @@ class PeopleListPage<T> extends ConsumerStatefulWidget {
     required this.getImageUrl,
     required this.getTrackCount,
     required this.getRoute,
+    required this.getRecentPlayCount,
     this.trackCountSingleLabel = 'مدحة',
     this.trackCountPluralLabel = 'مدحة',
   });
@@ -79,6 +88,9 @@ class _PeopleListPageState<T> extends ConsumerState<PeopleListPage<T>> {
   int _currentPage = 0;
   bool _hasMore = true;
   bool _isLoadingMore = false;
+
+  // Default to popularity — surfaces who's actually being listened to.
+  PeopleSort _sortMode = PeopleSort.popular;
 
   @override
   void initState() {
@@ -103,7 +115,29 @@ class _PeopleListPageState<T> extends ConsumerState<PeopleListPage<T>> {
   void _loadNextPage() {
     setState(() => _isLoadingMore = true);
     _currentPage++;
-    ref.invalidate(widget.pageProvider(_currentPage));
+    ref.invalidate(
+      widget.pageProvider((page: _currentPage, sort: _sortMode)),
+    );
+  }
+
+  /// Reset the list and start fetching with the new sort. The previous
+  /// items are dumped so the user sees the new ordering from the top
+  /// immediately rather than the old list re-sorted post-hoc.
+  void _toggleSort() {
+    setState(() {
+      _sortMode = _sortMode == PeopleSort.popular
+          ? PeopleSort.alphabetical
+          : PeopleSort.popular;
+      _items.clear();
+      _currentPage = 0;
+      _hasMore = true;
+      _isLoadingMore = false;
+    });
+    // Jump the scroll back to the top so the user sees the new order
+    // from the start, not mid-list.
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   void _onSearchTap() {
@@ -120,7 +154,9 @@ class _PeopleListPageState<T> extends ConsumerState<PeopleListPage<T>> {
     // Watch every page we've loaded so far — same pattern the original
     // screens used. New pages append unique items to `_items`.
     for (int page = 0; page <= _currentPage; page++) {
-      final pageAsync = ref.watch(widget.pageProvider(page));
+      final pageAsync = ref.watch(
+        widget.pageProvider((page: page, sort: _sortMode)),
+      );
       pageAsync.whenData((rows) {
         final existingIds = _items.map(widget.getId).toSet();
         for (final row in rows) {
@@ -134,13 +170,26 @@ class _PeopleListPageState<T> extends ConsumerState<PeopleListPage<T>> {
       });
     }
 
-    final firstPageAsync = ref.watch(widget.pageProvider(0));
+    final firstPageAsync =
+        ref.watch(widget.pageProvider((page: 0, sort: _sortMode)));
+
+    final showingPopular = _sortMode == PeopleSort.popular;
 
     return Scaffold(
       backgroundColor: RannaTheme.background,
       appBar: RannaAppBar(
         title: widget.title,
         actions: [
+          IconButton(
+            tooltip: showingPopular
+                ? 'ترتيب حسب الأبجدية'
+                : 'ترتيب حسب الأكثر استماعاً',
+            icon: Icon(
+              showingPopular ? Icons.sort_by_alpha : Icons.local_fire_department,
+              color: RannaTheme.foreground,
+            ),
+            onPressed: _toggleSort,
+          ),
           IconButton(
             tooltip: 'البحث',
             icon: Icon(Icons.search_rounded, color: RannaTheme.foreground),
@@ -179,6 +228,7 @@ class _PeopleListPageState<T> extends ConsumerState<PeopleListPage<T>> {
                     name: widget.getName(_items[i]),
                     imageUrl: widget.getImageUrl(_items[i]),
                     trackCount: widget.getTrackCount(_items[i]),
+                    recentPlayCount: widget.getRecentPlayCount(_items[i]),
                     trackCountSingleLabel: widget.trackCountSingleLabel,
                     trackCountPluralLabel: widget.trackCountPluralLabel,
                     onTap: () => context.push(widget.getRoute(_items[i])),
@@ -250,6 +300,8 @@ class _PersonRow extends StatelessWidget {
   final String name;
   final String? imageUrl;
   final int trackCount;
+  /// 30-day play count for the popularity sub-line. 0 hides it.
+  final int recentPlayCount;
   final String trackCountSingleLabel;
   final String trackCountPluralLabel;
   final VoidCallback onTap;
@@ -258,13 +310,36 @@ class _PersonRow extends StatelessWidget {
     required this.name,
     required this.imageUrl,
     required this.trackCount,
+    required this.recentPlayCount,
     required this.trackCountSingleLabel,
     required this.trackCountPluralLabel,
     required this.onTap,
   });
 
+  /// Compact Arabic number — "1.2k" / "12k" / etc. Keeps the subtitle
+  /// tidy when an artist has thousands of plays without spilling over.
+  String _shortNumber(int n) {
+    if (n < 1000) return n.toString();
+    if (n < 10000) return '${(n / 1000).toStringAsFixed(1)}k';
+    if (n < 1000000) return '${(n / 1000).round()}k';
+    return '${(n / 1000000).toStringAsFixed(1)}m';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tracksLabel = trackCount > 0
+        ? '$trackCount ${trackCount == 1 ? trackCountSingleLabel : trackCountPluralLabel}'
+        : null;
+    final playsLabel =
+        recentPlayCount > 0 ? '${_shortNumber(recentPlayCount)} استماع' : null;
+    // Combine when both signals exist; either alone is fine; null hides.
+    final subtitleText = switch ((tracksLabel, playsLabel)) {
+      (final t?, final p?) => '$p · $t',
+      (final t?, null) => t,
+      (null, final p?) => p,
+      _ => null,
+    };
+
     return ListTile(
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -294,14 +369,14 @@ class _PersonRow extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: trackCount > 0
-          ? Text(
-              '$trackCount ${trackCount == 1 ? trackCountSingleLabel : trackCountPluralLabel}',
+      subtitle: subtitleText == null
+          ? null
+          : Text(
+              subtitleText,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: RannaTheme.mutedForeground,
                   ),
-            )
-          : null,
+            ),
       onTap: onTap,
     );
   }

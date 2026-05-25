@@ -19,6 +19,7 @@ class AllArtistsScreen extends StatelessWidget {
       getName: (m) => m.name,
       getImageUrl: (m) => m.imageUrl,
       getTrackCount: (m) => m.trackCount,
+      getRecentPlayCount: (m) => m.recentPlayCount,
       getRoute: (m) => '/profile/artist/${m.id}',
     );
   }

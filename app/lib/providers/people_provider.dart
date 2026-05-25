@@ -24,7 +24,21 @@ import 'supabase_internals.dart';
 // Artists (Madiheen) — uses v_artists view + get_artist_profile RPC
 // ============================================================================
 
-/// Every approved artist, alphabetised by name.
+/// Sort modes for the all-artists / all-authors lists. The list screen
+/// toggles between these via the app-bar button.
+///   popular      — recent_completed_plays DESC, then track_count, then name.
+///                  Surfaces the artists/authors people are actually
+///                  finishing right now. The default.
+///   alphabetical — name ASC. Fallback for when the user wants to find
+///                  someone specific.
+enum PeopleSort { popular, alphabetical }
+
+/// Family parameter record for the paginated people providers. Same
+/// shape works for both artists and authors.
+typedef PeopleQueryParams = ({int page, PeopleSort sort});
+
+/// Every approved artist, alphabetised by name. Used in places that don't
+/// need pagination (currently just legacy helpers).
 final allArtistsProvider = FutureProvider<List<Madih>>((ref) async {
   final supabase = ref.read(supabaseProvider);
   try {
@@ -40,18 +54,28 @@ final allArtistsProvider = FutureProvider<List<Madih>>((ref) async {
 const _artistsPageSize = 30;
 
 /// Page-by-page artists, used by the all-artists screen's infinite scroll.
+/// The family key is a `(page, sort)` record so toggling sort mode swaps
+/// to a different cache slot and a clean re-fetch.
 final paginatedArtistsProvider =
-    FutureProvider.family<List<Madih>, int>((ref, page) async {
+    FutureProvider.family<List<Madih>, PeopleQueryParams>((ref, params) async {
   ref.keepAlive();
   final supabase = ref.read(supabaseProvider);
   try {
-    final from = page * _artistsPageSize;
+    final from = params.page * _artistsPageSize;
     final to = from + _artistsPageSize - 1;
-    final dynamic results = await supabase
-        .from('v_artists')
-        .select()
-        .order('name')
-        .range(from, to);
+    // PostgREST's .order() returns a Transform builder; multiple calls
+    // chain into a multi-key sort. We type as `dynamic` because the
+    // builder type changes after the first .order() call and we'd
+    // otherwise need a verbose generic-y variable type.
+    final base = supabase.from('v_artists').select();
+    final dynamic ordered = switch (params.sort) {
+      PeopleSort.popular => base
+          .order('recent_completed_plays', ascending: false, nullsFirst: false)
+          .order('track_count', ascending: false)
+          .order('name', ascending: true),
+      PeopleSort.alphabetical => base.order('name', ascending: true),
+    };
+    final dynamic results = await ordered.range(from, to);
     return asList(results).map((e) => Madih.fromJson(e)).toList();
   } catch (e) {
     debugPrint('⛔ paginatedArtistsProvider error: $e');
@@ -122,19 +146,24 @@ final allNarratorsProvider = FutureProvider<List<Rawi>>((ref) async {
 
 const _narratorsPageSize = 30;
 
-/// Page-by-page narrators for the all-narrators screen.
+/// Page-by-page narrators (now authors) for the all-narrators screen.
+/// Same `(page, sort)` family shape as paginatedArtistsProvider.
 final paginatedNarratorsProvider =
-    FutureProvider.family<List<Rawi>, int>((ref, page) async {
+    FutureProvider.family<List<Rawi>, PeopleQueryParams>((ref, params) async {
   ref.keepAlive();
   final supabase = ref.read(supabaseProvider);
   try {
-    final from = page * _narratorsPageSize;
+    final from = params.page * _narratorsPageSize;
     final to = from + _narratorsPageSize - 1;
-    final dynamic results = await supabase
-        .from('v_narrators')
-        .select()
-        .order('name')
-        .range(from, to);
+    final base = supabase.from('v_narrators').select();
+    final dynamic ordered = switch (params.sort) {
+      PeopleSort.popular => base
+          .order('recent_completed_plays', ascending: false, nullsFirst: false)
+          .order('track_count', ascending: false)
+          .order('name', ascending: true),
+      PeopleSort.alphabetical => base.order('name', ascending: true),
+    };
+    final dynamic results = await ordered.range(from, to);
     return asList(results).map((e) => Rawi.fromJson(e)).toList();
   } catch (e) {
     debugPrint('⛔ paginatedNarratorsProvider error: $e');

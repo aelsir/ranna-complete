@@ -19,6 +19,7 @@ class AllNarratorsScreen extends StatelessWidget {
       getName: (n) => n.name,
       getImageUrl: (n) => n.imageUrl,
       getTrackCount: (n) => n.trackCount,
+      getRecentPlayCount: (n) => n.recentPlayCount,
       getRoute: (n) => '/profile/narrator/${n.id}',
     );
   }
