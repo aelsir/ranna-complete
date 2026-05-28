@@ -1,7 +1,7 @@
 name: ranna
 description: "Ranna - Islamic praise music streaming app"
 publish_to: 'none'
-version: 3.3.0+22
+version: 3.4.0+23
 
 environment:
   sdk: ^3.11.1
