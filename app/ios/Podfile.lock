@@ -9,9 +9,23 @@ PODS:
   - connectivity_plus (0.0.1):
     - Flutter
   - Flutter (1.0.0)
+  - json-enum (1.2.3)
+  - jsonlogic (1.2.4):
+    - json-enum (~> 1.2.3)
   - just_audio (0.0.1):
     - Flutter
     - FlutterMacOS
+  - Mixpanel-swift (6.4.0):
+    - jsonlogic (~> 1.2.0)
+    - Mixpanel-swift/Complete (= 6.4.0)
+    - MixpanelSwiftCommon (~> 1.0.0)
+  - Mixpanel-swift/Complete (6.4.0):
+    - jsonlogic (~> 1.2.0)
+    - MixpanelSwiftCommon (~> 1.0.0)
+  - mixpanel_flutter (2.8.0):
+    - Flutter
+    - Mixpanel-swift (= 6.4.0)
+  - MixpanelSwiftCommon (1.0.1)
   - package_info_plus (0.4.5):
     - Flutter
   - Sentry/HybridSDK (8.58.0)
@@ -37,6 +51,7 @@ DEPENDENCIES:
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - Flutter (from `Flutter`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
+  - mixpanel_flutter (from `.symlinks/plugins/mixpanel_flutter/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - sentry_flutter (from `.symlinks/plugins/sentry_flutter/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
@@ -46,6 +61,10 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - json-enum
+    - jsonlogic
+    - Mixpanel-swift
+    - MixpanelSwiftCommon
     - Sentry
 
 EXTERNAL SOURCES:
@@ -61,6 +80,8 @@ EXTERNAL SOURCES:
     :path: Flutter
   just_audio:
     :path: ".symlinks/plugins/just_audio/darwin"
+  mixpanel_flutter:
+    :path: ".symlinks/plugins/mixpanel_flutter/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
   sentry_flutter:
@@ -80,7 +101,12 @@ SPEC CHECKSUMS:
   audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  json-enum: 57ad746d2f0d7852796e9aa50267bd84a778222e
+  jsonlogic: 006f892470384401b8ca5b5d8d4cdadb3a0d5c9b
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
+  Mixpanel-swift: 9eb2ea2d0463970687c984e07040669f787b7a49
+  mixpanel_flutter: 259e1ad9a46a6013e74a979e47b25271989ef5fd
+  MixpanelSwiftCommon: 6fc461403945422a2e1d0989d712c0db2c26ecdb
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   Sentry: d587a8fe91ca13503ecd69a1905f3e8a0fcf61be
   sentry_flutter: 31101687061fb85211ebab09ce6eb8db4e9ba74f

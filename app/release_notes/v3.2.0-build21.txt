@@ -1,0 +1,4 @@
+Version: 3.2.0+21
+Date: 2026-05-28
+What's New:
+"Make the popularity more smart, improve the database work, change the tracks UI to make it more browsable"
