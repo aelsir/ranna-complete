@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 // supabase_flutter also exports a type named `AuthState` that conflicts with
 // ours below — hide it so our class name is unambiguous.
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -118,6 +119,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       isAnonymous: user.isAnonymous == true,
       loading: false,
     );
+
+    // ── Mixpanel identity ──────────────────────────────────────────────
+    // Identify when the user transitions from anonymous to authenticated,
+    // or when a non-anonymous session is restored on app re-open.
+    if (user.isAnonymous != true && MixpanelService.isInitialized) {
+      MixpanelService.instance.identify(user.id);
+      MixpanelService.instance.peopleSetAll({
+        '\$name': user.userMetadata?['display_name'] ?? '',
+        '\$email': user.email ?? '',
+      });
+    }
   }
 
   /// Refresh `isAdmin` by calling the `is_admin_or_superuser` RPC.
@@ -247,6 +259,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       loading: true,
     );
     await _bootstrapAnonymous();
+
+    // ── Mixpanel reset ─────────────────────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.reset();
+    }
   }
 
   @override

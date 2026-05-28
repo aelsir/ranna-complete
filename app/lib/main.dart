@@ -11,6 +11,7 @@ import 'package:ranna/app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/db/local_db.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 
 void main() {
   // Wrap the whole bootstrap in a single Zone. `audio_service.init()`
@@ -81,6 +82,15 @@ Future<void> _startApp() async {
 
   // Initialize local SQLite database for offline downloads
   await LocalDb.init();
+
+  // ── Mixpanel analytics ────────────────────────────────────────────────
+  const mixpanelToken =
+      String.fromEnvironment('MIXPANEL_TOKEN', defaultValue: '');
+  if (mixpanelToken.isNotEmpty) {
+    await MixpanelService.init(mixpanelToken);
+  } else {
+    debugPrint('⚠️ MIXPANEL_TOKEN not set — analytics disabled');
+  }
 
   // ── AudioSession configuration (fire-and-forget) ──────────────────────
   // This pins the iOS AVAudioSession to `.playback` so playback survives

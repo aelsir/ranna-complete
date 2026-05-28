@@ -10,16 +10,14 @@ import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/components/home/collection_card.dart';
 import 'package:ranna/components/home/section_header.dart';
-import 'package:ranna/components/track/track_row.dart';
+import 'package:ranna/components/track/tracks_horizontal_carousel.dart';
 import 'package:ranna/models/hero_image.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/models/rawi.dart';
-import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
-import 'package:ranna/utils/haptics.dart';
 
 /// Single source of truth for how long the hero "track count" badge takes
 /// to tick from 0 to the platform total. Tune here, the badge updates.
@@ -338,11 +336,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: SectionHeader(title: 'الأكثر استماعاً', onSeeAll: null),
           ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _TrendingTracksCard(
-                tracks: data.popularTracks.take(10).toList(),
-              ),
+            child: TracksHorizontalCarousel(
+              tracks: data.popularTracks.take(10).toList(),
             ),
           ),
         ],
@@ -438,42 +433,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: SectionHeader(title: 'أضيفت مؤخراً', onSeeAll: null),
           ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: RannaTheme.card,
-                  borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
-                  boxShadow: RannaTheme.shadowCard,
-                  border: Border.all(
-                    color: RannaTheme.border.withValues(alpha: 0.3),
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: data.recentTracks
-                      .asMap()
-                      .entries
-                      .map(
-                        (entry) => Column(
-                          children: [
-                            TrackRow(
-                              track: entry.value,
-                              index: entry.key,
-                              queue: data.recentTracks,
-                            ),
-                            if (entry.key < data.recentTracks.length - 1)
-                              Divider(
-                                height: 1,
-                                indent: 76,
-                                color: RannaTheme.border.withValues(alpha: 0.3),
-                              ),
-                          ],
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
+            child: TracksHorizontalCarousel(
+              tracks: data.recentTracks.take(10).toList(),
             ),
           ),
         ],
@@ -1032,196 +993,6 @@ class _ContinueCard extends ConsumerWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Trending Tracks Card — numbered rows with heart icons and dividers
-// =============================================================================
-
-class _TrendingTracksCard extends StatelessWidget {
-  final List<MadhaWithRelations> tracks;
-
-  const _TrendingTracksCard({required this.tracks});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: RannaTheme.card,
-        borderRadius: BorderRadius.circular(RannaTheme.radius2xl),
-        boxShadow: RannaTheme.shadowCard,
-        border: Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: tracks
-            .asMap()
-            .entries
-            .map(
-              (entry) => Column(
-                children: [
-                  _TrendingTrackRow(
-                    track: entry.value,
-                    index: entry.key,
-                    queue: tracks,
-                  ),
-                  if (entry.key < tracks.length - 1)
-                    Divider(
-                      height: 1,
-                      indent: 76,
-                      color: RannaTheme.border.withValues(alpha: 0.3),
-                    ),
-                ],
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Trending Track Row (with heart icon)
-// =============================================================================
-
-class _TrendingTrackRow extends ConsumerWidget {
-  final MadhaWithRelations track;
-  final int index;
-  final List<MadhaWithRelations> queue;
-
-  const _TrendingTrackRow({
-    required this.track,
-    required this.index,
-    required this.queue,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isCurrentTrack =
-        ref.watch(audioPlayerProvider.select((s) => s.currentTrackId)) ==
-        track.id;
-
-    return Material(
-      color: isCurrentTrack
-          ? RannaTheme.accent.withValues(alpha: 0.08)
-          : Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          ref.read(trackCacheProvider.notifier).state = {
-            ...ref.read(trackCacheProvider),
-            for (final t in queue) t.id: t,
-          };
-          ref
-              .read(audioPlayerProvider.notifier)
-              .playTrack(track.id, queue: queue.map((t) => t.id).toList());
-        },
-        child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 14, 12),
-          child: Row(
-            children: [
-              // Track number
-              SizedBox(
-                width: 24,
-                child: Text(
-                  toArabicNum(index + 1),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: RannaTheme.mutedForeground,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Thumbnail 40x40 rounded-lg
-              ClipRRect(
-                borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-                child: RannaImage(
-                  url: track.resolvedImageUrl,
-                  width: 40,
-                  height: 40,
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Title + subtitle
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      style: TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        fontSize: 14,
-                        fontWeight: isCurrentTrack
-                            ? FontWeight.bold
-                            : FontWeight.w600,
-                        color: isCurrentTrack
-                            ? RannaTheme.accent
-                            : RannaTheme.foreground,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${track.madihDetails?.name ?? track.madih}'
-                      '${track.rawi != null ? ' - ${track.rawi!.name}' : ''}',
-                      style: const TextStyle(
-                        fontFamily: RannaTheme.fontFustat,
-                        fontSize: 11,
-                        color: RannaTheme.mutedForeground,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Duration
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: 8),
-                child: Text(
-                  formatDuration(track.durationSeconds),
-                  style: const TextStyle(
-                    fontFamily: RannaTheme.fontFustat,
-                    fontSize: 11,
-                    color: RannaTheme.mutedForeground,
-                  ),
-                ),
-              ),
-
-              // Heart icon
-              Builder(
-                builder: (context) {
-                  final isFav = ref.watch(
-                    favoritesProvider.select((s) => s.contains(track.id)),
-                  );
-                  return GestureDetector(
-                    onTap: () {
-                      isFav ? Haptics.selection() : Haptics.light();
-                      ref.read(favoritesProvider.notifier).toggle(track.id);
-                    },
-                    child: Icon(
-                      isFav
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      size: 18,
-                      color: isFav
-                          ? RannaTheme.favoriteHeart
-                          : RannaTheme.mutedForeground,
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart' as ja;
 import 'package:ranna/db/local_db.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/providers/user_profile_provider.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/utils/uuid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -571,6 +572,18 @@ class AudioPlayerService extends StateNotifier<PlayerState> {
       }
     } catch (_) {
       // Non-critical — don't interrupt playback
+    }
+
+    // ── Mixpanel: track_played ─────────────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      final cache = _ref.read(trackCacheProvider);
+      final track = cache[trackId];
+      MixpanelService.instance.track('track_played', properties: {
+        'track_id': trackId,
+        'track_title': track?.title ?? '',
+        'artist_name': track?.madihDetails?.name ?? track?.madih ?? '',
+        'device_type': _deviceType,
+      });
     }
   }
 

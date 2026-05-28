@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import 'package:ranna/providers/auth_notifier.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 /// Route target for magic-link deep links (`sd.aelsir.ranna://auth/callback`
@@ -76,6 +77,17 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         // Fire-and-forget: navigation doesn't wait for the upsert so a
         // slow/failed DB write never blocks the user.
         unawaited(_syncProfileFromMetadata(user));
+
+        // ── Mixpanel: sign_up_completed ──────────────────────────────
+        if (MixpanelService.isInitialized) {
+          final meta = user.userMetadata ?? const {};
+          MixpanelService.instance.track('sign_up_completed', properties: {
+            'sign_up_method': 'magic_link',
+            'platform': MixpanelService.currentPlatform,
+            'country': (meta['country'] as String?) ?? '',
+          });
+        }
+
         context.go('/account');
       }
     });
