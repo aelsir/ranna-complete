@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useMemo, useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -21,7 +21,9 @@ import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/Navbar";
 import SignInSheet from "@/components/auth/SignInSheet";
 import { OAuthButtons, OAuthDivider } from "@/components/auth/OAuthButtons";
+import { GoogleOneTap } from "@/components/auth/GoogleOneTap";
 import { useAuth } from "@/context/AuthContext";
+import { getLastAuthMethod } from "@/lib/lastAuthMethod";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const LOGIN_COOLDOWN_SECONDS = 60;
@@ -98,6 +100,9 @@ const MyAccountPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
+  // Read once on mount — the value can only change as a side-effect of a
+  // successful sign-in, which always navigates away from this page anyway.
+  const lastMethod = useMemo(() => getLastAuthMethod(), []);
 
   // Inline login (email only) — for returning users who just want a magic
   // link without re-entering profile data. New users use the "إنشاء حساب
@@ -139,7 +144,7 @@ const MyAccountPage = () => {
     const { error } = await signInWithGoogle();
     if (error) {
       setGoogleLoading(false);
-      setOauthError("تعذّر الدخول بحساب Google. حاول لاحقاً.");
+      setOauthError("تعذّر الدخول بحساب قوقل. حاول لاحقاً.");
     }
     // On success the page navigates away — no need to flip loading off.
   };
@@ -150,7 +155,7 @@ const MyAccountPage = () => {
     const { error } = await signInWithApple();
     if (error) {
       setAppleLoading(false);
-      setOauthError("تعذّر الدخول بحساب Apple. حاول لاحقاً.");
+      setOauthError("تعذّر الدخول بحساب أبل. حاول لاحقاً.");
     }
   };
 
@@ -183,6 +188,10 @@ const MyAccountPage = () => {
 
   return (
     <div>
+      {/* Google One Tap — floating prompt at the top right that shows the
+          user's Google avatar and lets them sign in with one click. Only
+          renders for anonymous users; Google auto-suppresses for the rest. */}
+      <GoogleOneTap disabled={!isAnonymous && !loading} />
       <Navbar />
       <div className="px-4 pb-5 md:px-12 max-w-2xl mx-auto">
         {/* Header */}
@@ -217,6 +226,7 @@ const MyAccountPage = () => {
                   onAppleClick={handleAppleSignIn}
                   googleLoading={googleLoading}
                   appleLoading={appleLoading}
+                  lastMethod={lastMethod}
                 />
                 {oauthError && (
                   <p className="text-xs text-destructive font-fustat text-right">

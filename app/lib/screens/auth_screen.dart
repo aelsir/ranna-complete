@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ranna/constants/countries.dart';
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/components/auth/oauth_buttons.dart';
+import 'package:ranna/services/last_auth_method.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 /// Magic-link sign-in screen. Arabic RTL layout; single email input.
@@ -45,6 +46,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Timer? _cooldownTimer;
   bool _googleLoading = false;
   bool _appleLoading = false;
+  LastAuthMethod? _lastMethod;
 
   @override
   void initState() {
@@ -52,6 +54,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (widget.initialEmail != null && widget.initialEmail!.isNotEmpty) {
       _emailController.text = widget.initialEmail!;
     }
+    LastAuthMethodStore.get().then((value) {
+      if (mounted) setState(() => _lastMethod = value);
+    });
   }
 
   @override
@@ -219,6 +224,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 : _handleAppleSignUp,
             googleLoading: _googleLoading,
             appleLoading: _appleLoading,
+            lastMethod: _lastMethod,
           ),
           const SizedBox(height: 20),
           const OAuthDivider(isSignUp: true),

@@ -4,6 +4,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { setLastAuthMethod, type LastAuthMethod } from "@/lib/lastAuthMethod";
 import type { User } from "@supabase/supabase-js";
 
 /**
@@ -36,6 +37,17 @@ function pickString(...candidates: unknown[]): string {
     }
   }
   return "";
+}
+
+/** Infer the sign-up method from the user's identities. First identity =
+ *  the one that originally created the auth.users row. */
+function resolveLastAuthMethod(user: User): LastAuthMethod {
+  for (const identity of user.identities ?? []) {
+    const provider = identity.provider?.toLowerCase();
+    if (provider === "google") return "google";
+    if (provider === "apple") return "apple";
+  }
+  return "email";
 }
 
 async function syncProfileFromMetadata(user: User): Promise<void> {
@@ -85,6 +97,7 @@ const AuthCallbackPage = () => {
       if (!syncedRef.current) {
         syncedRef.current = true;
         void syncProfileFromMetadata(user);
+        setLastAuthMethod(resolveLastAuthMethod(user));
       }
       // Email identity successfully attached — head home.
       navigate("/account", { replace: true });

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/providers/user_profile_provider.dart';
 import 'package:ranna/components/auth/oauth_buttons.dart';
+import 'package:ranna/services/last_auth_method.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 final _loginEmailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
@@ -31,6 +32,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   bool _signingOut = false;
   bool _googleLoading = false;
   bool _appleLoading = false;
+  LastAuthMethod? _lastMethod;
 
   // Inline login (email only) — for returning users who just want a magic
   // link without re-entering profile data. New users tap "إنشاء حساب جديد"
@@ -42,6 +44,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   bool _loginUserNotFound = false;
   int _loginCooldown = 0;
   Timer? _loginCooldownTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fire-and-forget: the buttons render fine without this; we just
+    // re-render with the hint once the value lands.
+    LastAuthMethodStore.get().then((value) {
+      if (mounted) setState(() => _lastMethod = value);
+    });
+  }
 
   @override
   void dispose() {
@@ -170,16 +182,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     if (!mounted) return;
     setState(() => _googleLoading = false);
     if (result.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'تعذّر الدخول بحساب Google. حاول لاحقاً.',
-            style: TextStyle(fontFamily: RannaTheme.fontFustat),
-          ),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showOAuthError(provider: 'Google', error: result.error!);
     }
   }
 
@@ -191,17 +194,49 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     if (!mounted) return;
     setState(() => _appleLoading = false);
     if (result.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'تعذّر الدخول بحساب Apple. حاول لاحقاً.',
-            style: TextStyle(fontFamily: RannaTheme.fontFustat),
-          ),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showOAuthError(provider: 'Apple', error: result.error!);
     }
+  }
+
+  /// Surface the actual error so misconfiguration (missing client ID, wrong
+  /// reversed URL scheme, missing Apple capability) is debuggable in the
+  /// field instead of swallowed behind a generic Arabic-only snackbar.
+  ///
+  /// `'cancelled'` is a soft-fail: the user dismissed the picker themselves.
+  void _showOAuthError({required String provider, required Object error}) {
+    if (error is String && error == 'cancelled') return;
+    final providerAr = provider == 'Google' ? 'قوقل' : 'أبل';
+    final raw = error.toString();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'تعذّر الدخول بحساب $providerAr.',
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              raw,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Widget _buildAnonAuthView(BuildContext context) {
@@ -254,6 +289,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 : _handleAppleSignIn,
             googleLoading: _googleLoading,
             appleLoading: _appleLoading,
+            lastMethod: _lastMethod,
           ),
         ),
         const SizedBox(height: 20),

@@ -1,8 +1,9 @@
-import { Loader2 } from "lucide-react";
+import { History, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import googleLogo from "@/assets/icons/google-logo.svg";
 import appleLogo from "@/assets/icons/apple-logo.svg";
 import { cn } from "@/lib/utils";
+import type { LastAuthMethod } from "@/lib/lastAuthMethod";
 
 interface OAuthButtonsProps {
   onGoogleClick?: () => void;
@@ -11,16 +12,18 @@ interface OAuthButtonsProps {
   appleLoading?: boolean;
   /** Use signup-flavored Arabic copy ("التسجيل") instead of login ("الدخول"). */
   isSignUp?: boolean;
+  /** Which provider the user most recently signed in with. When set to
+   *  google/apple, that button floats to the top and shows a "آخر مرة دخلت
+   *  بهذا" hint. `email` and null fall back to platform-based ordering. */
+  lastMethod?: LastAuthMethod | null;
   className?: string;
 }
 
 /**
- * Shared Google + Apple OAuth buttons. Platform-aware ordering:
- *   - macOS / iOS: Apple first.
- *   - Everything else: Google first.
- *
- * Visual style mirrors the Flutter `OAuthButtons` widget so the two
- * platforms feel like the same product.
+ * Shared Google + Apple OAuth buttons. Ordering rules:
+ *   1. If `lastMethod` is google/apple, that button renders first + gets the
+ *      "last used" hint.
+ *   2. Otherwise: macOS/iOS → Apple first, everything else → Google first.
  */
 export const OAuthButtons = ({
   onGoogleClick,
@@ -28,9 +31,10 @@ export const OAuthButtons = ({
   googleLoading = false,
   appleLoading = false,
   isSignUp = false,
+  lastMethod = null,
   className,
 }: OAuthButtonsProps) => {
-  const appleFirst = useMemo(
+  const appleFirstByPlatform = useMemo(
     () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent),
     [],
   );
@@ -38,7 +42,7 @@ export const OAuthButtons = ({
   const googleLabel = isSignUp ? "التسجيل بحساب قوقل" : "الدخول بحساب قوقل";
   const appleLabel = isSignUp ? "التسجيل بحساب أبل" : "الدخول بحساب أبل";
 
-  const buttons = [
+  const googleButton = (
     <OAuthButton
       key="google"
       icon={
@@ -53,13 +57,15 @@ export const OAuthButtons = ({
       loading={googleLoading}
       disabled={googleLoading || appleLoading}
       onClick={onGoogleClick}
-    />,
+    />
+  );
+
+  const appleButton = (
     <OAuthButton
       key="apple"
       icon={
-        // The bundled Apple SVG has a hard-coded black fill — recolor it via
-        // CSS mask so it tracks the theme's foreground color in both light
-        // and dark mode.
+        // The bundled Apple SVG has a hard-coded black fill — recolor via CSS
+        // mask so it tracks the theme's foreground in both light + dark mode.
         <span
           aria-hidden
           className="h-[18px] w-[18px] shrink-0 bg-foreground"
@@ -73,16 +79,54 @@ export const OAuthButtons = ({
       loading={appleLoading}
       disabled={googleLoading || appleLoading}
       onClick={onAppleClick}
-    />,
-  ];
-  if (appleFirst) buttons.reverse();
+    />
+  );
+
+  let ordered: { node: React.ReactNode; key: string; lastUsed: boolean }[];
+  if (lastMethod === "google") {
+    ordered = [
+      { node: googleButton, key: "google", lastUsed: true },
+      { node: appleButton, key: "apple", lastUsed: false },
+    ];
+  } else if (lastMethod === "apple") {
+    ordered = [
+      { node: appleButton, key: "apple", lastUsed: true },
+      { node: googleButton, key: "google", lastUsed: false },
+    ];
+  } else if (appleFirstByPlatform) {
+    ordered = [
+      { node: appleButton, key: "apple", lastUsed: false },
+      { node: googleButton, key: "google", lastUsed: false },
+    ];
+  } else {
+    ordered = [
+      { node: googleButton, key: "google", lastUsed: false },
+      { node: appleButton, key: "apple", lastUsed: false },
+    ];
+  }
 
   return (
     <div className={cn("flex flex-col gap-2.5", className)}>
-      {buttons}
+      {ordered.map(({ node, key, lastUsed }) =>
+        lastUsed ? (
+          <div key={key} className="flex flex-col gap-1.5">
+            <LastUsedHint />
+            {node}
+          </div>
+        ) : (
+          <div key={key}>{node}</div>
+        ),
+      )}
     </div>
   );
 };
+
+const LastUsedHint = () => (
+  <div className="flex items-center gap-1 px-1 font-fustat text-[11px] font-bold text-primary">
+    <History className="h-3 w-3" />
+    <span>آخر مرة دخلت بهذا</span>
+  </div>
+);
 
 interface OAuthDividerProps {
   isSignUp?: boolean;

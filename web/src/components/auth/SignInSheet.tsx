@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useMemo, useState, FormEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 import { Loader2, Mail, CheckCircle2, User, Phone, Globe2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { OAuthButtons, OAuthDivider } from "@/components/auth/OAuthButtons";
+import { getLastAuthMethod } from "@/lib/lastAuthMethod";
 import {
   COUNTRIES_PRIORITY,
   COUNTRIES_REST,
@@ -60,6 +61,7 @@ const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => 
   const [cooldown, setCooldown] = useState(0);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const lastMethod = useMemo(() => getLastAuthMethod(), []);
 
   // Reset state whenever the modal opens fresh.
   useEffect(() => {
@@ -196,6 +198,7 @@ const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => 
               onAppleClick={handleAppleSignUp}
               googleLoading={googleLoading}
               appleLoading={appleLoading}
+              lastMethod={lastMethod}
             />
             <OAuthDivider isSignUp />
 

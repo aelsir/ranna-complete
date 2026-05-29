@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:ranna/services/last_auth_method.dart';
 import 'package:ranna/theme/app_theme.dart';
 
-/// Shared OAuth sign-in buttons (Google + Apple) with platform-aware ordering.
+/// Shared OAuth sign-in buttons (Google + Apple) with platform-aware ordering
+/// and a "آخر مرة دخلت بهذا" hint above the most recently used provider.
 ///
-/// On iOS/macOS: Apple first, Google second.
-/// On Android/Web: Google first, Apple second.
+/// Ordering rules:
+///   1. If [lastMethod] is google or apple, that button always renders first
+///      and gets the "last used" badge.
+///   2. Otherwise: iOS/macOS → Apple first, everything else → Google first.
 ///
-/// Both buttons are identically sized; visual priority is controlled purely
-/// by order. The widget also provides the "or sign in with email" divider.
+/// The widget also exposes a matching [OAuthDivider] for the "or sign in
+/// with email" separator below.
 class OAuthButtons extends StatelessWidget {
   final VoidCallback? onGoogleTap;
   final VoidCallback? onAppleTap;
   final bool googleLoading;
   final bool appleLoading;
 
-  /// 'login' renders "الدخول بحساب", 'signup' renders "التسجيل بحساب".
+  /// Render with signup-flavored Arabic copy ("التسجيل") instead of login
+  /// ("الدخول").
   final bool isSignUp;
+
+  /// Which provider the user most recently signed in with. When set to
+  /// google/apple, that button floats to the top and shows the hint badge.
+  /// `email` and null both fall back to platform-based ordering with no
+  /// badge.
+  final LastAuthMethod? lastMethod;
 
   const OAuthButtons({
     super.key,
@@ -25,6 +36,7 @@ class OAuthButtons extends StatelessWidget {
     this.googleLoading = false,
     this.appleLoading = false,
     this.isSignUp = false,
+    this.lastMethod,
   });
 
   @override
@@ -62,11 +74,66 @@ class OAuthButtons extends StatelessWidget {
       onTap: onAppleTap,
     );
 
+    // ── Decide order ───────────────────────────────────────────────────
+    final orderedButtons = <Widget>[];
+    if (lastMethod == LastAuthMethod.google) {
+      orderedButtons
+        ..add(_withLastHint(googleButton))
+        ..add(const SizedBox(height: 10))
+        ..add(appleButton);
+    } else if (lastMethod == LastAuthMethod.apple) {
+      orderedButtons
+        ..add(_withLastHint(appleButton))
+        ..add(const SizedBox(height: 10))
+        ..add(googleButton);
+    } else if (isApple) {
+      orderedButtons
+        ..add(appleButton)
+        ..add(const SizedBox(height: 10))
+        ..add(googleButton);
+    } else {
+      orderedButtons
+        ..add(googleButton)
+        ..add(const SizedBox(height: 10))
+        ..add(appleButton);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: isApple
-          ? [appleButton, const SizedBox(height: 10), googleButton]
-          : [googleButton, const SizedBox(height: 10), appleButton],
+      children: orderedButtons,
+    );
+  }
+
+  /// Wrap [button] with a small "آخر مرة دخلت بهذا" badge above it.
+  Widget _withLastHint(Widget button) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6, right: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.history_rounded,
+                size: 12,
+                color: RannaTheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'آخر مرة دخلت بهذا',
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: RannaTheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        button,
+      ],
     );
   }
 }

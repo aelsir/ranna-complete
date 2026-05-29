@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import 'package:ranna/providers/auth_notifier.dart';
+import 'package:ranna/services/last_auth_method.dart';
 import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 
@@ -91,6 +92,17 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
     return 'magic_link';
   }
 
+  LastAuthMethod _toLastAuthMethod(String method) {
+    switch (method) {
+      case 'google':
+        return LastAuthMethod.google;
+      case 'apple':
+        return LastAuthMethod.apple;
+      default:
+        return LastAuthMethod.email;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -117,11 +129,17 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         // slow/failed DB write never blocks the user.
         unawaited(_syncProfileFromMetadata(user));
 
+        final method = _resolveSignUpMethod(user);
+
+        // Remember the method for next time so the login screen can lift
+        // this provider's button to the top + show a "آخر مرة" hint.
+        unawaited(LastAuthMethodStore.set(_toLastAuthMethod(method)));
+
         // ── Mixpanel: sign_up_completed ──────────────────────────────
         if (MixpanelService.isInitialized) {
           final meta = user.userMetadata ?? const {};
           MixpanelService.instance.track('sign_up_completed', properties: {
-            'sign_up_method': _resolveSignUpMethod(user),
+            'sign_up_method': method,
             'platform': MixpanelService.currentPlatform,
             'country': (meta['country'] as String?) ?? '',
           });

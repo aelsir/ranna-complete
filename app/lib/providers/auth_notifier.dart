@@ -282,7 +282,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         redirectTo: kIsWeb ? null : 'sd.aelsir.ranna://auth/callback',
       );
       return (error: null);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[auth] signInWithGoogle failed: $e\n$st');
       return (error: e);
     }
   }
@@ -349,7 +350,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         redirectTo: kIsWeb ? null : 'sd.aelsir.ranna://auth/callback',
       );
       return (error: null);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[auth] signInWithApple failed: $e\n$st');
       return (error: e);
     }
   }
