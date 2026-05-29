@@ -1,12 +1,30 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:ranna/services/mixpanel_service.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 // supabase_flutter also exports a type named `AuthState` that conflicts with
 // ours below — hide it so our class name is unambiguous.
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:supabase_flutter/supabase_flutter.dart' as sb show AuthState;
+
+/// Google OAuth client IDs.
+///
+/// `GOOGLE_WEB_CLIENT_ID` is the project's WEB OAuth client (registered in
+/// Google Cloud Console and pasted into Supabase Dashboard → Auth → Google).
+/// Supabase verifies ID tokens against THIS client, so it must be passed as
+/// `serverClientId` on every native platform.
+///
+/// `GOOGLE_IOS_CLIENT_ID` is the iOS-specific OAuth client (only required on
+/// iOS; the `google_sign_in` plugin uses it as the `clientId`).
+const _googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+const _googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
 
 /// Immutable snapshot of the current auth state for the Ranna app.
 ///
@@ -240,6 +258,153 @@ class AuthNotifier extends StateNotifier<AuthState> {
         msg.contains('user_not_found') ||
         msg.contains('otp_disabled') ||
         msg.contains('not registered');
+  }
+
+  /// Sign in with Google.
+  ///
+  /// Strategy:
+  ///   - **iOS / Android**: use the native `google_sign_in` SDK to get an ID
+  ///     token, then exchange via `signInWithIdToken`. No browser hop, no
+  ///     Safari View Controller — fully native picker.
+  ///   - **Web / desktop**: fall back to `signInWithOAuth` (browser flow). On
+  ///     mobile the `redirectTo` deep link fires the `AuthCallbackScreen`.
+  ///
+  /// If the user's email already exists (e.g. from a previous magic-link
+  /// signup), Supabase automatically links the Google identity to the
+  /// existing account — preserving their UUID and all data.
+  Future<({Object? error})> signInWithGoogle() async {
+    try {
+      if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) {
+        return await _signInWithGoogleNative();
+      }
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: kIsWeb ? null : 'sd.aelsir.ranna://auth/callback',
+      );
+      return (error: null);
+    } catch (e) {
+      return (error: e);
+    }
+  }
+
+  Future<({Object? error})> _signInWithGoogleNative() async {
+    if (_googleWebClientId.isEmpty) {
+      throw StateError(
+        'GOOGLE_WEB_CLIENT_ID is not set in env.json. Native Google '
+        'sign-in requires the project\'s web OAuth client ID — the same '
+        'one configured in Supabase Dashboard.',
+      );
+    }
+    final googleSignIn = GoogleSignIn(
+      // On iOS the iOS client ID drives the system flow; on Android the
+      // `serverClientId` is enough and `clientId` is ignored by the plugin.
+      clientId: Platform.isIOS && _googleIosClientId.isNotEmpty
+          ? _googleIosClientId
+          : null,
+      // Supabase verifies ID tokens against the WEB client.
+      serverClientId: _googleWebClientId,
+      scopes: const ['email', 'profile', 'openid'],
+    );
+
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      // User cancelled the picker — surface as a soft "no-op" error.
+      return (error: 'cancelled');
+    }
+    final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    final accessToken = googleAuth.accessToken;
+    if (idToken == null) {
+      throw StateError('Google sign-in returned a null ID token.');
+    }
+
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
+    );
+    return (error: null);
+  }
+
+  /// Sign in with Apple.
+  ///
+  /// Strategy:
+  ///   - **iOS / macOS**: use the native `sign_in_with_apple` SDK (Apple's
+  ///     own sheet, FaceID/TouchID), exchange the identity token via
+  ///     `signInWithIdToken`. Required for App Store compliance whenever any
+  ///     third-party login is offered.
+  ///   - **Android / Web / Windows / Linux**: fall back to
+  ///     `signInWithOAuth` (Apple's web-based sign-in flow).
+  ///
+  /// Uses a SHA256-hashed nonce: we send the hash to Apple as part of the
+  /// authorization request, then pass the raw nonce to Supabase, which
+  /// verifies that Apple echoed the same hash back in the id_token.
+  Future<({Object? error})> signInWithApple() async {
+    try {
+      if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
+        return await _signInWithAppleNative();
+      }
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.apple,
+        redirectTo: kIsWeb ? null : 'sd.aelsir.ranna://auth/callback',
+      );
+      return (error: null);
+    } catch (e) {
+      return (error: e);
+    }
+  }
+
+  Future<({Object? error})> _signInWithAppleNative() async {
+    final rawNonce = _generateNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: const [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    final idToken = credential.identityToken;
+    if (idToken == null) {
+      throw StateError('Apple sign-in returned a null identity token.');
+    }
+
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
+      nonce: rawNonce,
+    );
+
+    // Apple only sends `givenName` / `familyName` on the FIRST sign-in. If
+    // present, persist them into `user_metadata` so the callback screen can
+    // upsert into `user_profiles` like the magic-link flow does.
+    final given = credential.givenName?.trim() ?? '';
+    final family = credential.familyName?.trim() ?? '';
+    final full = [given, family].where((s) => s.isNotEmpty).join(' ').trim();
+    if (full.isNotEmpty) {
+      try {
+        await _client.auth.updateUser(
+          UserAttributes(data: {'display_name': full, 'full_name': full}),
+        );
+      } catch (e) {
+        debugPrint('[auth] Apple display_name persist failed: $e');
+      }
+    }
+    return (error: null);
+  }
+
+  /// Cryptographically-random nonce for Apple Sign-In.
+  /// Length 32 is what Apple's docs use in their example.
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
   }
 
   /// Sign out and immediately bootstrap a fresh anonymous session. Users are

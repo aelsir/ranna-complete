@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/providers/user_profile_provider.dart';
+import 'package:ranna/components/auth/oauth_buttons.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 final _loginEmailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
@@ -28,6 +29,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   bool _notificationsSaving = false;
 
   bool _signingOut = false;
+  bool _googleLoading = false;
+  bool _appleLoading = false;
 
   // Inline login (email only) — for returning users who just want a magic
   // link without re-entering profile data. New users tap "إنشاء حساب جديد"
@@ -159,6 +162,48 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _googleLoading = true);
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _googleLoading = false);
+    if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تعذّر الدخول بحساب Google. حاول لاحقاً.',
+            style: TextStyle(fontFamily: RannaTheme.fontFustat),
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() => _appleLoading = true);
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .signInWithApple();
+    if (!mounted) return;
+    setState(() => _appleLoading = false);
+    if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تعذّر الدخول بحساب Apple. حاول لاحقاً.',
+            style: TextStyle(fontFamily: RannaTheme.fontFustat),
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Widget _buildAnonAuthView(BuildContext context) {
     return Column(
       children: [
@@ -196,10 +241,70 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             color: RannaTheme.foreground,
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
+        // --- OAuth buttons (Google / Apple) ---
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: OAuthButtons(
+            onGoogleTap: _googleLoading || _appleLoading
+                ? null
+                : _handleGoogleSignIn,
+            onAppleTap: _googleLoading || _appleLoading
+                ? null
+                : _handleAppleSignIn,
+            googleLoading: _googleLoading,
+            appleLoading: _appleLoading,
+          ),
+        ),
+        const SizedBox(height: 20),
+        // --- Divider ---
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: const OAuthDivider(),
+        ),
+        const SizedBox(height: 20),
+        // --- Email login (existing) ---
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
           child: _buildInlineLogin(context),
+        ),
+        const SizedBox(height: 16),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 11,
+                color: RannaTheme.mutedForeground,
+                height: 1.5,
+              ),
+              children: [
+                const TextSpan(text: 'بالدخول فإنك توافق على '),
+                TextSpan(
+                  text: 'شروط الخدمة',
+                  style: const TextStyle(decoration: TextDecoration.underline),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => launchUrl(
+                          Uri.parse('https://ranna.aelsir.sd/terms'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                ),
+                const TextSpan(text: ' و '),
+                TextSpan(
+                  text: 'سياسة الخصوصية',
+                  style: const TextStyle(decoration: TextDecoration.underline),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => launchUrl(
+                          Uri.parse('https://ranna.aelsir.sd/privacy'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                ),
+                const TextSpan(text: '.'),
+              ],
+            ),
+            textAlign: TextAlign.center,
+          ),
         ),
       ],
     )
@@ -266,9 +371,32 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ]),
             const SizedBox(height: 28),
 
-            // Privacy policy
-            _buildPrivacyPolicyButton(),
-            const SizedBox(height: 12),
+            // Legal section
+            _buildSectionTitle('قانوني', 9),
+            const SizedBox(height: 8),
+            _buildMenuContainer([
+              _MenuItemData(
+                icon: Icons.policy_rounded,
+                label: 'سياسة الخصوصية',
+                description: 'كيف نحمي بياناتك',
+                delay: 10,
+                onTap: () => launchUrl(
+                  Uri.parse('https://ranna.aelsir.sd/privacy'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              _MenuItemData(
+                icon: Icons.gavel_rounded,
+                label: 'شروط الخدمة',
+                description: 'قواعد استخدام التطبيق',
+                delay: 11,
+                onTap: () => launchUrl(
+                  Uri.parse('https://ranna.aelsir.sd/terms'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 28),
 
             // Logout button
             _buildLogoutButton(context),
@@ -768,39 +896,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
-  Widget _buildPrivacyPolicyButton() {
-    return GestureDetector(
-      onTap: () => launchUrl(
-        Uri.parse('https://docs.google.com/document/d/1qAiSQvGqky5UJSeUyxqhoZsma2rj9qzqvU7JSRjhs2o'),
-        mode: LaunchMode.externalApplication,
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: RannaTheme.card,
-          borderRadius: BorderRadius.circular(RannaTheme.radiusLg),
-          border: Border.all(color: RannaTheme.border.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.policy_rounded, size: 18, color: RannaTheme.mutedForeground),
-            const SizedBox(width: 10),
-            Text(
-              'سياسة الخصوصية',
-              style: TextStyle(
-                fontFamily: RannaTheme.fontFustat,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: RannaTheme.foreground,
-              ),
-            ),
-            const Spacer(),
-            Icon(Icons.chevron_right_rounded, size: 20, color: RannaTheme.mutedForeground),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildLogoutButton(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);

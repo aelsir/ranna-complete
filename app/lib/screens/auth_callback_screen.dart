@@ -28,20 +28,45 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
   bool _timedOut = false;
   bool _profileSynced = false;
 
-  /// Copy `display_name` + `country` from `raw_user_meta_data` into
-  /// `user_profiles` right after the session upgrades. Phone stays in
-  /// metadata only — no column for it. Non-blocking: user is already
+  /// Copy profile fields from `raw_user_meta_data` into `user_profiles`
+  /// right after the session upgrades. Non-blocking: user is already
   /// authenticated, this is best-effort sync.
+  ///
+  /// Reads:
+  ///   - `display_name` — set by magic-link signup + our Apple flow
+  ///   - `full_name` — set by Google + sometimes Apple (`given_name`+`family_name`)
+  ///   - `name` — fallback used by some Google projects
+  ///   - `avatar_url` / `picture` — Google profile image (Apple does not provide one)
+  ///   - `country` — set by magic-link signup form
+  ///
+  /// `display_name` falls back to `full_name`/`name` for OAuth signups so the
+  /// account screen always has something to render. Phone stays in metadata
+  /// only — no column for it.
   Future<void> _syncProfileFromMetadata(User user) async {
     if (_profileSynced) return;
     _profileSynced = true;
     try {
       final meta = user.userMetadata ?? const {};
       final update = <String, dynamic>{'id': user.id};
-      final name = (meta['display_name'] as String?)?.trim();
-      if (name != null && name.isNotEmpty) update['display_name'] = name;
+
+      final explicitName = (meta['display_name'] as String?)?.trim();
+      final fullName = (meta['full_name'] as String?)?.trim();
+      final fallbackName = (meta['name'] as String?)?.trim();
+      final resolvedName = (explicitName != null && explicitName.isNotEmpty)
+          ? explicitName
+          : (fullName != null && fullName.isNotEmpty)
+              ? fullName
+              : (fallbackName ?? '');
+      if (resolvedName.isNotEmpty) update['display_name'] = resolvedName;
+
+      final avatar = (meta['avatar_url'] as String?)?.trim() ??
+          (meta['picture'] as String?)?.trim() ??
+          '';
+      if (avatar.isNotEmpty) update['avatar_url'] = avatar;
+
       final country = (meta['country'] as String?)?.trim();
       if (country != null && country.isNotEmpty) update['country'] = country;
+
       // Only upsert if there's something to sync beyond the id.
       if (update.length <= 1) return;
       await Supabase.instance.client
@@ -50,6 +75,20 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
     } catch (e) {
       debugPrint('[auth_callback] profile sync failed: $e');
     }
+  }
+
+  /// Infer the sign-up method from the user's identities. The first identity
+  /// is the one that originally created the auth.users row (later linked
+  /// identities don't override it). Falls back to `magic_link` for the
+  /// classic email flow when we don't see an OAuth provider.
+  String _resolveSignUpMethod(User user) {
+    final identities = user.identities ?? const [];
+    for (final identity in identities) {
+      final provider = identity.provider.toLowerCase();
+      if (provider == 'google') return 'google';
+      if (provider == 'apple') return 'apple';
+    }
+    return 'magic_link';
   }
 
   @override
@@ -82,7 +121,7 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         if (MixpanelService.isInitialized) {
           final meta = user.userMetadata ?? const {};
           MixpanelService.instance.track('sign_up_completed', properties: {
-            'sign_up_method': 'magic_link',
+            'sign_up_method': _resolveSignUpMethod(user),
             'platform': MixpanelService.currentPlatform,
             'country': (meta['country'] as String?) ?? '',
           });

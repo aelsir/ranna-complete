@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Mail, CheckCircle2, User, Phone, Globe2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { OAuthButtons, OAuthDivider } from "@/components/auth/OAuthButtons";
 import {
   COUNTRIES_PRIORITY,
   COUNTRIES_REST,
@@ -43,7 +44,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE_RE = /^\+?[0-9\s\-()]{6,20}$/;
 
 const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => {
-  const { signUpWithMagicLink } = useAuth();
+  const { signUpWithMagicLink, signInWithGoogle, signInWithApple } = useAuth();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY_CODE);
@@ -57,6 +58,8 @@ const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => 
     email?: string;
   }>({});
   const [cooldown, setCooldown] = useState(0);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   // Reset state whenever the modal opens fresh.
   useEffect(() => {
@@ -70,8 +73,30 @@ const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => 
       setError(null);
       setFieldErrors({});
       setCooldown(0);
+      setGoogleLoading(false);
+      setAppleLoading(false);
     }
   }, [open, initialEmail]);
+
+  const handleGoogleSignUp = async () => {
+    setError(null);
+    setGoogleLoading(true);
+    const { error: err } = await signInWithGoogle();
+    if (err) {
+      setGoogleLoading(false);
+      setError("تعذّر التسجيل بحساب Google. حاول لاحقاً.");
+    }
+  };
+
+  const handleAppleSignUp = async () => {
+    setError(null);
+    setAppleLoading(true);
+    const { error: err } = await signInWithApple();
+    if (err) {
+      setAppleLoading(false);
+      setError("تعذّر التسجيل بحساب Apple. حاول لاحقاً.");
+    }
+  };
 
   // Cooldown tick.
   useEffect(() => {
@@ -164,6 +189,16 @@ const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => 
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4 pt-2">
+            {/* OAuth signup (Google + Apple) */}
+            <OAuthButtons
+              isSignUp
+              onGoogleClick={handleGoogleSignUp}
+              onAppleClick={handleAppleSignUp}
+              googleLoading={googleLoading}
+              appleLoading={appleLoading}
+            />
+            <OAuthDivider isSignUp />
+
             {/* Display name */}
             <div className="space-y-1.5">
               <label className="text-xs font-fustat text-muted-foreground block">
@@ -263,6 +298,10 @@ const SignInSheet = ({ open, onOpenChange, initialEmail }: SignInSheetProps) => 
 
             <p className="text-[11px] font-fustat text-muted-foreground leading-relaxed">
               سنحفظ تفضيلاتك ومفضّلاتك لتعود إليها من أي جهاز.
+            </p>
+
+            <p className="text-[11px] font-fustat text-muted-foreground leading-relaxed text-center">
+              بالتسجيل فإنك توافق على <a href="/terms" target="_blank" rel="noreferrer" className="underline hover:text-primary">شروط الخدمة</a> و <a href="/privacy" target="_blank" rel="noreferrer" className="underline hover:text-primary">سياسة الخصوصية</a>.
             </p>
 
             <Button type="submit" className="w-full gap-2 font-fustat" disabled={loading}>

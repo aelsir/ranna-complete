@@ -28,6 +28,8 @@ import ListeningHistoryPage from "./pages/ListeningHistoryPage";
 import ListeningStatsPage from "./pages/ListeningStatsPage";
 import TrackPage from "./pages/TrackPage";
 import FontTestPage from "./pages/FontTestPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
 import NotFound from "./pages/NotFound";
 import BottomTabs from "./components/BottomTabs";
 import MiniPlayer from "./components/MiniPlayer";
@@ -82,6 +84,8 @@ const App = () => (
               <Route path="/listening-history" element={<ListeningHistoryPage />} />
               <Route path="/listening-stats" element={<ListeningStatsPage />} />
               <Route path="/font-test" element={<FontTestPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms" element={<TermsOfServicePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ContentShell>

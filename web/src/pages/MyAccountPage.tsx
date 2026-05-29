@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/Navbar";
 import SignInSheet from "@/components/auth/SignInSheet";
+import { OAuthButtons, OAuthDivider } from "@/components/auth/OAuthButtons";
 import { useAuth } from "@/context/AuthContext";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -82,10 +83,21 @@ const item = {
 
 const MyAccountPage = () => {
   const navigate = useNavigate();
-  const { user, isAnonymous, loading, signOut, loginWithMagicLink } = useAuth();
+  const {
+    user,
+    isAnonymous,
+    loading,
+    signOut,
+    loginWithMagicLink,
+    signInWithGoogle,
+    signInWithApple,
+  } = useAuth();
   const [signUpOpen, setSignUpOpen] = useState(false);
   const [signUpPrefillEmail, setSignUpPrefillEmail] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
 
   // Inline login (email only) — for returning users who just want a magic
   // link without re-entering profile data. New users use the "إنشاء حساب
@@ -118,6 +130,27 @@ const MyAccountPage = () => {
       await signOut();
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setOauthError(null);
+    setGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setGoogleLoading(false);
+      setOauthError("تعذّر الدخول بحساب Google. حاول لاحقاً.");
+    }
+    // On success the page navigates away — no need to flip loading off.
+  };
+
+  const handleAppleSignIn = async () => {
+    setOauthError(null);
+    setAppleLoading(true);
+    const { error } = await signInWithApple();
+    if (error) {
+      setAppleLoading(false);
+      setOauthError("تعذّر الدخول بحساب Apple. حاول لاحقاً.");
     }
   };
 
@@ -177,6 +210,22 @@ const MyAccountPage = () => {
             </Avatar>
             <p className="font-fustat text-lg font-bold text-foreground mb-8">زائر</p>
 
+            {!loginSent && (
+              <div className="w-full max-w-sm space-y-4 mb-5">
+                <OAuthButtons
+                  onGoogleClick={handleGoogleSignIn}
+                  onAppleClick={handleAppleSignIn}
+                  googleLoading={googleLoading}
+                  appleLoading={appleLoading}
+                />
+                {oauthError && (
+                  <p className="text-xs text-destructive font-fustat text-right">
+                    {oauthError}
+                  </p>
+                )}
+                <OAuthDivider />
+              </div>
+            )}
             {loginSent ? (
               <div className="w-full max-w-sm flex flex-col items-center text-center gap-2">
                 <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">

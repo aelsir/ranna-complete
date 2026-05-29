@@ -15,18 +15,43 @@ import type { User } from "@supabase/supabase-js";
  * email identity attached), then redirect to the account page.
  */
 /**
- * Copy `display_name` + `country` from `raw_user_meta_data` into
- * `user_profiles` right after the session upgrades. Phone stays in
- * metadata only. Non-blocking: user is already authenticated.
+ * Copy profile fields from `raw_user_meta_data` into `user_profiles` right
+ * after the session upgrades. Non-blocking: user is already authenticated.
+ *
+ * Reads:
+ *   - `display_name` — set by magic-link signup form.
+ *   - `full_name` / `name` — set by Google + Apple OAuth.
+ *   - `avatar_url` / `picture` — set by Google OAuth (Apple omits it).
+ *   - `country` — set by magic-link signup form.
+ *
+ * `display_name` falls back to `full_name` / `name` for OAuth signups so the
+ * account screen always has something to render. Phone stays in metadata
+ * only.
  */
+function pickString(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    if (typeof c === "string") {
+      const trimmed = c.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+  return "";
+}
+
 async function syncProfileFromMetadata(user: User): Promise<void> {
   try {
     const meta = user.user_metadata ?? {};
     const update: Record<string, string> = { id: user.id };
-    const name = typeof meta.display_name === "string" ? meta.display_name.trim() : "";
+
+    const name = pickString(meta.display_name, meta.full_name, meta.name);
     if (name) update.display_name = name;
-    const country = typeof meta.country === "string" ? meta.country.trim() : "";
+
+    const avatar = pickString(meta.avatar_url, meta.picture);
+    if (avatar) update.avatar_url = avatar;
+
+    const country = pickString(meta.country);
     if (country) update.country = country;
+
     // Only upsert when there's something beyond the id.
     if (Object.keys(update).length <= 1) return;
     const { error } = await supabase

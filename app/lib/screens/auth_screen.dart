@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ranna/constants/countries.dart';
 import 'package:ranna/providers/auth_notifier.dart';
+import 'package:ranna/components/auth/oauth_buttons.dart';
 import 'package:ranna/theme/app_theme.dart';
 
 /// Magic-link sign-in screen. Arabic RTL layout; single email input.
@@ -40,6 +43,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   String? _error;
   int _cooldown = 0;
   Timer? _cooldownTimer;
+  bool _googleLoading = false;
+  bool _appleLoading = false;
 
   @override
   void initState() {
@@ -195,14 +200,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'سنرسل لك رابط دخول — لا حاجة لكلمة مرور.',
+            'سجّل بحسابك أو سنرسل لك رابط دخول — لا حاجة لكلمة مرور.',
             style: TextStyle(
               fontFamily: RannaTheme.fontFustat,
               fontSize: 13,
               color: RannaTheme.mutedForeground,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+          // --- OAuth buttons ---
+          OAuthButtons(
+            isSignUp: true,
+            onGoogleTap: _googleLoading || _appleLoading
+                ? null
+                : _handleGoogleSignUp,
+            onAppleTap: _googleLoading || _appleLoading
+                ? null
+                : _handleAppleSignUp,
+            googleLoading: _googleLoading,
+            appleLoading: _appleLoading,
+          ),
+          const SizedBox(height: 20),
+          const OAuthDivider(isSignUp: true),
+          const SizedBox(height: 20),
           // Display name
           TextFormField(
             controller: _nameController,
@@ -330,13 +350,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           ],
           const SizedBox(height: 20),
-          Text(
-            'سنحفظ تفضيلاتك ومفضّلاتك لتعود إليها من أي جهاز.',
-            style: TextStyle(
-              fontFamily: RannaTheme.fontFustat,
-              fontSize: 12,
-              color: RannaTheme.mutedForeground,
+          Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 12,
+                color: RannaTheme.mutedForeground,
+                height: 1.5,
+              ),
+              children: [
+                const TextSpan(text: 'بالتسجيل فإنك توافق على '),
+                TextSpan(
+                  text: 'شروط الخدمة',
+                  style: const TextStyle(decoration: TextDecoration.underline),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => launchUrl(
+                          Uri.parse('https://ranna.aelsir.sd/terms'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                ),
+                const TextSpan(text: ' و '),
+                TextSpan(
+                  text: 'سياسة الخصوصية',
+                  style: const TextStyle(decoration: TextDecoration.underline),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => launchUrl(
+                          Uri.parse('https://ranna.aelsir.sd/privacy'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                ),
+                const TextSpan(text: '.\nسنحفظ تفضيلاتك ومفضّلاتك لتعود إليها من أي جهاز.'),
+              ],
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -371,6 +417,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleGoogleSignUp() async {
+    setState(() => _googleLoading = true);
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _googleLoading = false);
+    if (result.error != null) {
+      setState(() => _error = 'تعذّر التسجيل بحساب Google. حاول لاحقاً.');
+    }
+  }
+
+  Future<void> _handleAppleSignUp() async {
+    setState(() => _appleLoading = true);
+    final result = await ref
+        .read(authNotifierProvider.notifier)
+        .signInWithApple();
+    if (!mounted) return;
+    setState(() => _appleLoading = false);
+    if (result.error != null) {
+      setState(() => _error = 'تعذّر التسجيل بحساب Apple. حاول لاحقاً.');
+    }
   }
 
   Widget _buildSentState() {

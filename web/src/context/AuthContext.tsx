@@ -56,6 +56,22 @@ interface AuthContextType {
     },
   ) => Promise<{ error: Error | null }>;
   /**
+   * Start the Google OAuth flow via Supabase. Redirects the current tab to
+   * Google's account picker; on success the user lands back on
+   * `/auth/callback` with a real session and the OAuth metadata
+   * (`full_name`, `avatar_url`) populated in `user_metadata`.
+   *
+   * If the user's email already exists, Supabase auto-links the Google
+   * identity to the existing account (UUID + data preserved).
+   */
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
+  /**
+   * Start the Apple OAuth flow via Supabase. Same shape as
+   * [signInWithGoogle]. On web, Apple uses its own popup; we just bounce
+   * back to `/auth/callback`.
+   */
+  signInWithApple: () => Promise<{ error: Error | null }>;
+  /**
    * Sign out and immediately bootstrap a fresh anonymous session so the user
    * is never in a null-session state (favorites/history keep working anon).
    */
@@ -242,6 +258,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        // Always request the latest profile so display_name/avatar_url land
+        // in user_metadata, even on a returning user who previously denied
+        // the prompt.
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    return { error: error as Error | null };
+  };
+
+  const signInWithApple = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    return { error: error as Error | null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     // Immediately bootstrap a fresh anon session so downstream code that
@@ -266,6 +306,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isInternal,
         loginWithMagicLink,
         signUpWithMagicLink,
+        signInWithGoogle,
+        signInWithApple,
         signOut,
       }}
     >

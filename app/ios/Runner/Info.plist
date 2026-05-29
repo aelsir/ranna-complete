@@ -81,8 +81,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- Custom URL scheme for Supabase magic-link auth callbacks.
-	     Lets `sd.aelsir.ranna://auth/callback?...` open the app. -->
+	<!-- Custom URL schemes:
+	     1) `sd.aelsir.ranna` — Supabase magic-link + OAuth deep-link callback.
+	     2) `com.googleusercontent.apps.<NUMBER>` — Google Sign-In native SDK
+	        callback. Replace `<NUMBER>` with the iOS OAuth client ID's
+	        reversed form (find it in the Google Cloud Console under the
+	        iOS client → "iOS URL scheme"). The `google_sign_in` SDK opens
+	        this URL on completion of the native picker.
+	  -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -93,6 +99,19 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>sd.aelsir.ranna</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- TODO: replace with the reversed iOS client ID from
+				     Google Cloud Console, e.g.
+				     com.googleusercontent.apps.1234567890-iosabcdef -->
+				<string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_IOS_CLIENT_ID</string>
 			</array>
 		</dict>
 	</array>

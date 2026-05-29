@@ -43,6 +43,18 @@ dependencies:
   hijri: ^3.0.0
   mixpanel_flutter: ^2.3.0
 
+  # Native OAuth (Google + Apple). On iOS/Android we use the native SDKs and
+  # exchange the resulting ID token via `supabase.auth.signInWithIdToken` for a
+  # better UX (no Safari View Controller round-trip). On web/desktop we fall
+  # back to `signInWithOAuth` browser flow.
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.4
+  crypto: ^3.0.6
+
+  # SVG rendering — used by the OAuth button row to render the official
+  # Google + Apple brand marks from shared/icons.
+  flutter_svg: ^2.0.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
