@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { AccessGateProvider } from "@/access";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { initAnalytics, trackPageView } from "@/lib/analytics";
@@ -64,6 +65,7 @@ const App = () => (
           <InstallPrompt />
           <BrowserRouter>
           <PageViewTracker />
+          <AccessGateProvider>
           <ContentShell>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -92,6 +94,7 @@ const App = () => (
           <MiniPlayer />
           <FullPlayer />
           <BottomTabs />
+          </AccessGateProvider>
           </BrowserRouter>
         </PlayerProvider>
       </TooltipProvider>

@@ -9,6 +9,7 @@ import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
 import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/haptic";
+import { useRequireFeature, FeatureBadge, Feature } from "@/access";
 
 /* ── Circular progress ring around the play button ── */
 const ProgressRing = ({ progress, size = 48, stroke = 3 }: { progress: number; size?: number; stroke?: number }) => {
@@ -60,6 +61,7 @@ const MiniPlayer = () => {
   } = usePlayer();
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
+  const requireFeature = useRequireFeature();
 
   const audioSrc = track ? getAudioUrl(track.audio_url) : "";
   const displayImage = getTrackDisplayImage(track);
@@ -201,6 +203,9 @@ const MiniPlayer = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      // Gated behind the member tier (see @/access). Stop here
+                      // for guests so we neither open the player nor record a view.
+                      if (!requireFeature(Feature.ViewLyrics)) return;
                       setFullPlayerOpen(true);
                       trackEvent("lyrics_viewed", { track_id: nowPlayingId, source: "mini_player" });
                       setTimeout(() => {
@@ -209,7 +214,10 @@ const MiniPlayer = () => {
                     }}
                     className="h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
                   >
-                    <BookOpenText className="h-5 w-5 text-primary-foreground/40 hover:text-primary-foreground/70" strokeWidth={1.5} />
+                    <span className="relative">
+                      <BookOpenText className="h-5 w-5 text-primary-foreground/40 hover:text-primary-foreground/70" strokeWidth={1.5} />
+                      <FeatureBadge size={12} className="absolute -bottom-1 -left-1.5" />
+                    </span>
                   </button>
                 )}
               </div>

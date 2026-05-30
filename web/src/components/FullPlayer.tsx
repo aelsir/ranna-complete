@@ -16,6 +16,7 @@ import { useMadha } from "@/lib/api/hooks";
 import { getTrackDisplayImage } from "@/lib/format";
 import { ShareButton } from "@/components/ShareButton";
 import { getTrackShareUrl } from "@/lib/share";
+import { useRequireFeature, FeatureBadge, Feature } from "@/access";
 
 const SLEEP_OPTIONS = [
   { label: "١٥ دقيقة", minutes: 15 },
@@ -70,6 +71,7 @@ const FullPlayer = () => {
 
   const { data: track } = useMadha(nowPlayingId ?? undefined);
   const [showLyrics, setShowLyrics] = useState(false);
+  const requireFeature = useRequireFeature();
 
   // Wraps `setShowLyrics(true)` so every transition that surfaces the
   // lyrics view also records a tracking event. We only fire when going
@@ -251,17 +253,28 @@ const FullPlayer = () => {
               />
             )}
 
-            {/* Lyrics */}
+            {/* Lyrics — gated behind the member tier (see @/access). Closing is
+                always allowed; only opening requires entitlement. */}
             {hasLyrics && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => (showLyrics ? setShowLyrics(false) : openLyrics())}
+                onClick={() => {
+                  if (showLyrics) {
+                    setShowLyrics(false);
+                    return;
+                  }
+                  if (!requireFeature(Feature.ViewLyrics)) return;
+                  openLyrics();
+                }}
                 className={`h-11 w-11 rounded-full hover:bg-primary-foreground/10 active:scale-90 transition-transform ${
                   showLyrics ? "text-accent" : "text-primary-foreground/50 hover:text-primary-foreground/80"
                 }`}
               >
-                <BookOpenText className="h-5.5 w-5.5" strokeWidth={2} />
+                <span className="relative">
+                  <BookOpenText className="h-5.5 w-5.5" strokeWidth={2} />
+                  <FeatureBadge size={13} className="absolute -bottom-1 -left-1.5" />
+                </span>
               </Button>
             )}
 
