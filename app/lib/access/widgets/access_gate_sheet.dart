@@ -176,8 +176,8 @@ class _AccessGateScreen extends StatelessWidget {
               height: 54,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: RannaTheme.primary,
-                  foregroundColor: RannaTheme.background,
+                  backgroundColor: RannaTheme.tertiary,
+                  foregroundColor: RannaTheme.tertiaryForeground,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
                       RannaTheme.radiusFull,

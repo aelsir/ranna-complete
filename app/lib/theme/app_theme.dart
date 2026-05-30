@@ -70,6 +70,10 @@ class RannaTheme {
   /// special-occasion banners. Use sparingly so it stays meaningful.
   static const Color accent = Color(0xFFFFD479);
 
+  /// Tertiary accent — vibrant pink/magenta.
+  static const Color tertiary = Color(0xFFFF79E7);
+  static const Color tertiaryForeground = Color(0xFF000000);
+
   /// Heart / favorite icon color — vibrant red-pink.
   static const Color favoriteHeart = Color(0xFFFE365A);
 

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../theme/app_theme.dart';
-import '../access_provider.dart';
 import '../feature.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 /// glyph for paid ones) drawn over a gated control's icon.
@@ -34,11 +32,10 @@ class FeatureBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(canAccessProvider(feature))) return const SizedBox.shrink();
-
-    final tier = feature.requiredTier;
-    final color = tier.badgeColor ?? RannaTheme.accent;
-
+    // The badge is intentionally always shown — even once the user has access —
+    // so gated controls keep their "premium" affordance after sign-in rather
+    // than silently losing it. (Previously this returned SizedBox.shrink() when
+    // canAccessProvider was true.)
     return SvgPicture.asset(
       'assets/icons/signing-badge.svg',
       width: size,

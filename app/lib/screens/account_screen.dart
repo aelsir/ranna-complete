@@ -305,43 +305,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           child: _buildInlineLogin(context),
         ),
         const SizedBox(height: 16),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Text.rich(
-            TextSpan(
-              style: TextStyle(
-                fontFamily: RannaTheme.fontFustat,
-                fontSize: 11,
-                color: RannaTheme.mutedForeground,
-                height: 1.5,
-              ),
-              children: [
-                const TextSpan(text: 'بالدخول فإنك توافق على '),
-                TextSpan(
-                  text: 'شروط الخدمة',
-                  style: const TextStyle(decoration: TextDecoration.underline),
-                  recognizer: TapGestureRecognizer()
-                    ..onTap = () => launchUrl(
-                          Uri.parse('https://ranna.aelsir.sd/terms'),
-                          mode: LaunchMode.externalApplication,
-                        ),
-                ),
-                const TextSpan(text: ' و '),
-                TextSpan(
-                  text: 'سياسة الخصوصية',
-                  style: const TextStyle(decoration: TextDecoration.underline),
-                  recognizer: TapGestureRecognizer()
-                    ..onTap = () => launchUrl(
-                          Uri.parse('https://ranna.aelsir.sd/privacy'),
-                          mode: LaunchMode.externalApplication,
-                        ),
-                ),
-                const TextSpan(text: '.'),
-              ],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
       ],
     )
         .animate()
@@ -615,15 +578,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'دخول ببريدك الإلكتروني',
-          style: TextStyle(
-            fontFamily: RannaTheme.fontFustat,
-            fontSize: 12,
-            color: RannaTheme.mutedForeground,
-          ),
-        ),
-        const SizedBox(height: 8),
         TextField(
           controller: _loginEmailController,
           keyboardType: TextInputType.emailAddress,
