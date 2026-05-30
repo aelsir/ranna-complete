@@ -35,7 +35,10 @@ Future<void> showAccessGateSheet(
   HapticFeedback.lightImpact();
   final tier = feature.requiredTier;
 
-  return Navigator.of(context).push<void>(
+  // Push on the ROOT navigator so the full-screen gate sits ABOVE the app's
+  // floating bottom nav bar (the shell's navbar would otherwise overlap the
+  // pinned "سجِّل الآن" CTA). See StatefulShellRoute in app.dart.
+  return Navigator.of(context, rootNavigator: true).push<void>(
     PageRouteBuilder<void>(
       opaque: true,
       barrierDismissible: false,

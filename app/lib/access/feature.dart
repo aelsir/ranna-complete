@@ -13,7 +13,8 @@ import 'access_tier.dart';
 /// caveat in `access_guard.dart` before relying on it for paid content.
 enum Feature {
   downloadTrack(requiredTier: AccessTier.member),
-  viewLyrics(requiredTier: AccessTier.member);
+  viewLyrics(requiredTier: AccessTier.member),
+  followProfile(requiredTier: AccessTier.member);
 
   const Feature({required this.requiredTier});
 

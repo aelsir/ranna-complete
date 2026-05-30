@@ -4,12 +4,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:ranna/access/access_guard.dart';
+import 'package:ranna/access/feature.dart';
+import 'package:ranna/access/widgets/feature_badge.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/components/track/play_all_button.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/models/madha.dart';
-import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/providers/follows_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -311,26 +313,10 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
   Future<void> _onTap() async {
     if (_busy) return;
 
-    // Gate: following requires a real (email-bound) account. Anonymous users
-    // are routed to the account tab, which presents the inline login + the
-    // "إنشاء حساب جديد" signup link side by side. We surface a snackbar so
-    // the redirect isn't silent.
-    final auth = ref.read(authNotifierProvider);
-    final isRealUser = auth.user != null && !auth.isAnonymous;
-    if (!isRealUser) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'سجّل دخولك للمتابعة',
-            style: TextStyle(fontFamily: RannaTheme.fontFustat),
-          ),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.go('/account');
-      return;
-    }
+    // Gate: following is a member-tier feature, gated through the same access
+    // system as download / view-lyrics. Below-tier users get the access gate
+    // sheet (sign-in today, paywall once premium ships) instead of an action.
+    if (!requireFeature(context, ref, Feature.followProfile)) return;
 
     setState(() => _busy = true);
     final wasFollowing = ref.read(
@@ -443,6 +429,13 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
               duration: 180.ms,
               curve: Curves.easeOutBack,
             ),
+
+        // ── Premium/member badge (bottom-left, like download & lyrics) ──
+        const Positioned(
+          bottom: -4,
+          left: -6,
+          child: FeatureBadge(feature: Feature.followProfile),
+        ),
       ],
     );
   }
