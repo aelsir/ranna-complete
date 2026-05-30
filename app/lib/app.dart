@@ -219,6 +219,18 @@ class ShellScaffold extends ConsumerWidget {
     final showBanner = !isOnline;
     final contentTop = topPadding + (showBanner ? bannerHeight : 0);
 
+    // Space reserved at the BOTTOM of the content area so scrollable screens
+    // stop above the floating nav bar (and the mini player, when a track is
+    // playing) instead of scrolling behind them. This is the single source of
+    // truth for that clearance — individual screens no longer pad for the bar
+    // themselves — which is why nothing gets covered anymore, and why the bar's
+    // translucency now reveals the page background rather than moving content.
+    final contentBottom = navBarHeight +
+        navBarBottomMargin +
+        bottomPadding +
+        8 +
+        (hasTrack ? miniPlayerHeight + 8 : 0);
+
     // iPad: no shell margins, content constrained to phone width inside
     final tablet = isTablet(context);
 
@@ -233,13 +245,16 @@ class ShellScaffold extends ConsumerWidget {
             top: contentTop,
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: contentBottom,
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: contentMaxWidth(context)),
                 child: MediaQuery.removePadding(
                   context: context,
                   removeTop: true,
+                  // contentBottom already reserves the safe-area inset, so
+                  // drop it here to avoid an extra empty gap at list ends.
+                  removeBottom: true,
                   child: navigationShell,
                 ),
               ),
@@ -352,21 +367,22 @@ class _FloatingBottomNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = navigationShell.currentIndex;
 
-    // ClipRRect + BackdropFilter give the nav a frosted-dark feel: anything
-    // scrolling underneath blurs through the bar instead of disappearing
-    // behind a flat surface. We sit at `surface2` (the top tier of the
+    // ClipRRect + BackdropFilter give the nav a frosted-dark feel. Content no
+    // longer scrolls behind it (the content area reserves space — see
+    // `contentBottom` above), so the bar's translucency now reveals the page
+    // background, not moving content. We sit at `surface2` (the top tier of the
     // elevation system) so the nav stays visually distinct from cards
     // (`surface1`) — without this tier separation the nav and a card
     // sitting next to it would read as the same chrome.
     return ClipRRect(
-      borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+      borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           height: 68,
           decoration: BoxDecoration(
             color: RannaTheme.surface2.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(RannaTheme.radiusXl),
+            borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
             border: Border.all(color: RannaTheme.border.withValues(alpha: 0.8)),
             boxShadow: RannaTheme.shadowFloat,
           ),

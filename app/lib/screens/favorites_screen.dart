@@ -397,8 +397,9 @@ class FavoritesScreen extends ConsumerWidget {
                         ),
                       ],
 
-                      // Bottom padding
-                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                      // Bottom breathing room (nav-bar/mini-player clearance
+                      // is reserved globally by the shell — see app.dart).
+                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     ],
                   ),
           ),

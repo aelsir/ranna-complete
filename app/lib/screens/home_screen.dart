@@ -353,7 +353,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.collections.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
-                  final collection = data.collections[index];
+                  // Featured playlists are shown in reverse order on the home
+                  // page (المادحون / الراوون below keep their natural order).
+                  final collection =
+                      data.collections[data.collections.length - 1 - index];
                   return CollectionCard(
                     collection: collection,
                     onTap: () => context.push('/playlist/${collection.id}'),

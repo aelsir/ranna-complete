@@ -164,8 +164,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               const SizedBox(height: 12),
               _buildAnonAuthView(context),
             ] else ...[
-              // Profile card
-              _buildProfileCard(context),
+              // Profile card — tapping it opens account details, same as
+              // the "بيانات الحساب" menu item.
+              GestureDetector(
+                onTap: () => context.push('/account/edit'),
+                child: _buildProfileCard(context),
+              ),
               const SizedBox(height: 28),
               ..._buildAuthedMenus(context),
             ],

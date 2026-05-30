@@ -49,7 +49,7 @@ class AllTariqasScreen extends ConsumerWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.only(top: 8, bottom: 120),
+            padding: const EdgeInsets.only(top: 8, bottom: 16),
             itemCount: tariqas.length,
             separatorBuilder: (_, _) =>
                 const Divider(indent: 72, endIndent: 16),

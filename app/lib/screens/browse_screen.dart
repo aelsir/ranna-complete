@@ -54,7 +54,7 @@ class BrowseScreen extends ConsumerWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.only(top: 8, bottom: 120),
+            padding: const EdgeInsets.only(top: 8, bottom: 16),
             itemCount: sorted.length,
             separatorBuilder: (_, _) =>
                 const Divider(indent: 84, endIndent: 16),
