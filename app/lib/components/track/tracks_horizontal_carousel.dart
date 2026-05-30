@@ -93,11 +93,14 @@ class TracksHorizontalCarousel extends StatelessWidget {
         // the leading padding becomes the peek of the next column.
         final viewportWidth = constraints.maxWidth;
         final columnWidth = viewportWidth * columnWidthFraction;
-        
+
         // Resolve theme colors if custom ones are not provided
-        final resolvedRadius = borderRadius ?? BorderRadius.circular(RannaTheme.radius2xl);
-        final resolvedBorderColor = borderColor ?? RannaTheme.border.withValues(alpha: 0.3);
-        final resolvedDividerColor = dividerColor ?? RannaTheme.border.withValues(alpha: 0.6);
+        final resolvedRadius =
+            borderRadius ?? BorderRadius.circular(RannaTheme.radius2xl);
+        final resolvedBorderColor =
+            borderColor ?? RannaTheme.border.withValues(alpha: 0.3);
+        final resolvedDividerColor =
+            dividerColor ?? RannaTheme.border.withValues(alpha: 0.6);
         final resolvedBgColor = backgroundColor ?? RannaTheme.card;
 
         return TrackQueueScope(
@@ -124,10 +127,12 @@ class TracksHorizontalCarousel extends StatelessWidget {
 
                   for (int j = 0; j < rowsPerColumn; j++) {
                     if (j < colTracks.length) {
-                      trackWidgets.add(_CarouselTrackRow(
-                        track: colTracks[j],
-                        height: trackHeight,
-                      ));
+                      trackWidgets.add(
+                        _CarouselTrackRow(
+                          track: colTracks[j],
+                          height: trackHeight,
+                        ),
+                      );
                       if (showDividers && j < rowsPerColumn - 1) {
                         trackWidgets.add(
                           Divider(
@@ -141,8 +146,9 @@ class TracksHorizontalCarousel extends StatelessWidget {
                       }
                     } else {
                       // Dynamically calculate empty space so the layout doesn't shrink
-                      final emptyHeight = (showDividers && j < rowsPerColumn - 1) 
-                          ? trackHeight + dividerThickness 
+                      final emptyHeight =
+                          (showDividers && j < rowsPerColumn - 1)
+                          ? trackHeight + dividerThickness
                           : trackHeight;
                       trackWidgets.add(SizedBox(height: emptyHeight));
                     }
@@ -169,11 +175,7 @@ class _CarouselTrackRow extends ConsumerWidget {
   final MadhaWithRelations track;
   final double height;
 
-  const _CarouselTrackRow({
-    super.key,
-    required this.track,
-    this.height = 72.0,
-  });
+  const _CarouselTrackRow({required this.track, this.height = 72.0});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

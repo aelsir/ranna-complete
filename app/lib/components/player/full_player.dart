@@ -255,8 +255,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                             Builder(
                               builder: (context) {
                                 final trackId = track?.id;
-                                if (trackId == null)
+                                if (trackId == null) {
                                   return const SizedBox.shrink();
+                                }
 
                                 final isFav = ref
                                     .watch(favoritesProvider)
