@@ -11,6 +11,7 @@ import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/components/auth/oauth_buttons.dart';
 import 'package:ranna/services/last_auth_method.dart';
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/components/common/ranna_app_bar.dart';
 
 /// Magic-link sign-in screen. Arabic RTL layout; single email input.
 ///
@@ -155,23 +156,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: RannaTheme.background,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_forward_rounded, color: RannaTheme.foreground),
-            onPressed: () => context.canPop() ? context.pop() : context.go('/account'),
-          ),
-          title: Text(
-            'تسجيل حساب جديد',
-            style: TextStyle(
-              fontFamily: RannaTheme.fontFustat,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: RannaTheme.foreground,
-            ),
-          ),
-        ),
+        appBar: const RannaAppBar(title: 'تسجيل حساب جديد'),
         body: SafeArea(
           child: _sent
               ? Padding(
@@ -205,7 +190,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'سجّل بحسابك أو سنرسل لك رابط دخول — لا حاجة لكلمة مرور.',
+            'سجل حسابك لتحفظ كل اختياراتك',
             style: TextStyle(
               fontFamily: RannaTheme.fontFustat,
               fontSize: 13,
@@ -267,21 +252,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             items: [
               ...countriesPriority.map(
-                (c) => DropdownMenuItem(
-                  value: c.code,
-                  child: Text(c.label),
-                ),
+                (c) => DropdownMenuItem(value: c.code, child: Text(c.label)),
               ),
               // Visual divider between priority and rest
-              const DropdownMenuItem(
-                enabled: false,
-                child: Divider(height: 1),
-              ),
+              const DropdownMenuItem(enabled: false, child: Divider(height: 1)),
               ...countriesRest.map(
-                (c) => DropdownMenuItem(
-                  value: c.code,
-                  child: Text(c.label),
-                ),
+                (c) => DropdownMenuItem(value: c.code, child: Text(c.label)),
               ),
             ],
             onChanged: (v) {
@@ -371,9 +347,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   style: const TextStyle(decoration: TextDecoration.underline),
                   recognizer: TapGestureRecognizer()
                     ..onTap = () => launchUrl(
-                          Uri.parse('https://ranna.aelsir.sd/terms'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                      Uri.parse('https://ranna.aelsir.sd/terms'),
+                      mode: LaunchMode.externalApplication,
+                    ),
                 ),
                 const TextSpan(text: ' و '),
                 TextSpan(
@@ -381,11 +357,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   style: const TextStyle(decoration: TextDecoration.underline),
                   recognizer: TapGestureRecognizer()
                     ..onTap = () => launchUrl(
-                          Uri.parse('https://ranna.aelsir.sd/privacy'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                      Uri.parse('https://ranna.aelsir.sd/privacy'),
+                      mode: LaunchMode.externalApplication,
+                    ),
                 ),
-                const TextSpan(text: '.\nسنحفظ تفضيلاتك ومفضّلاتك لتعود إليها من أي جهاز.'),
+                const TextSpan(
+                  text: '.\nسنحفظ تفضيلاتك ومفضّلاتك لتعود إليها من أي جهاز.',
+                ),
               ],
             ),
             textAlign: TextAlign.center,
@@ -407,7 +385,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(
                       'أرسل الرابط',

@@ -1,0 +1,5 @@
+Version: 3.5.0+24
+Date: 2026-05-29
+Platform: BOTH
+What's New:
+"Adding the smooth login with Google and Apple"

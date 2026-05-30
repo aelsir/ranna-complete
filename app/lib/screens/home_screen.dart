@@ -267,12 +267,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildContent(BuildContext context, HomeData data) {
-    // Reverse the lists to ensure the first items in the collection
-    // appear at the rightmost position in RTL layout.
-    final reversedCollections = data.collections.reversed.toList();
-    final reversedArtists = data.artists.reversed.toList();
-    final reversedNarrators = data.narrators.reversed.toList();
-
     return CustomScrollView(
       controller: _scrollController,
       physics: const BouncingScrollPhysics(
@@ -359,7 +353,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.collections.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
-                  final collection = reversedCollections[index];
+                  final collection = data.collections[index];
                   return CollectionCard(
                     collection: collection,
                     onTap: () => context.push('/playlist/${collection.id}'),
@@ -387,7 +381,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.artists.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final artist = reversedArtists[index];
+                  final artist = data.artists[index];
                   return _PopularArtistAvatar(
                     artist: artist,
                     onTap: () => context.push('/profile/artist/${artist.id}'),
@@ -415,7 +409,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemCount: data.narrators.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final narrator = reversedNarrators[index];
+                  final narrator = data.narrators[index];
                   return _NarratorCard(
                     narrator: narrator,
                     onTap: () =>
