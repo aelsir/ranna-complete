@@ -1,0 +1,5 @@
+Version: 3.6.0+25
+Date: 2026-05-30
+Platform: BOTH
+What's New:
+"adding the fixed bottom navbar and better UI experice"
