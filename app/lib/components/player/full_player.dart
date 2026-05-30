@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:ranna/access/access_guard.dart';
+import 'package:ranna/access/feature.dart';
+import 'package:ranna/access/widgets/feature_badge.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/player/player_controls.dart';
 import 'package:ranna/models/madha.dart';
@@ -49,12 +52,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
     );
 
     _slideAnimation =
-        Tween<Offset>(
-          begin: const Offset(0, 1.0),
-          end: Offset.zero,
-        ).animate(
+        Tween<Offset>(begin: const Offset(0, 1.0), end: Offset.zero).animate(
           CurvedAnimation(
-            parent: _entryController, 
+            parent: _entryController,
             curve: Curves.easeOutCubic,
             reverseCurve: Curves.easeInCubic,
           ),
@@ -62,7 +62,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
 
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(
-        parent: _entryController, 
+        parent: _entryController,
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       ),
@@ -145,11 +145,13 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
       },
       child: GestureDetector(
         onVerticalDragUpdate: (details) {
-          double fraction = details.primaryDelta! / MediaQuery.of(context).size.height;
+          double fraction =
+              details.primaryDelta! / MediaQuery.of(context).size.height;
           _entryController.value -= fraction * 1.2;
         },
         onVerticalDragEnd: (details) {
-          if ((details.primaryVelocity ?? 0) > 300 || _entryController.value < 0.6) {
+          if ((details.primaryVelocity ?? 0) > 300 ||
+              _entryController.value < 0.6) {
             _entryController.reverse().then((_) {
               if (mounted) notifier.closeFullPlayer();
             });
@@ -172,8 +174,10 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
               builder: (context, constraints) {
                 final h = constraints.maxHeight;
                 final isSmall = h < 650;
-                
-                final coverSize = isSmall ? (h * 0.35).clamp(120.0, 240.0) : (h * 0.40).clamp(200.0, 320.0);
+
+                final coverSize = isSmall
+                    ? (h * 0.35).clamp(120.0, 240.0)
+                    : (h * 0.40).clamp(200.0, 320.0);
                 final glowSize = coverSize * 1.1;
                 final gapLarge = (h * 0.035).clamp(12.0, 40.0);
                 final gapMedium = (h * 0.025).clamp(8.0, 24.0);
@@ -190,7 +194,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(height: isSmall ? 24 : 40),
-                            
+
                             // ===================================================
                             // 1. Cover art / Lyrics toggle
                             // ===================================================
@@ -206,7 +210,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                 duration: const Duration(milliseconds: 300),
                                 child: _showLyrics && hasLyrics
                                     ? _buildLyricsView(track.lyrics!, coverSize)
-                                    : _buildCoverArt(track, coverSize, glowSize),
+                                    : _buildCoverArt(
+                                        track,
+                                        coverSize,
+                                        glowSize,
+                                      ),
                               ),
                             ),
 
@@ -230,7 +238,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                       color: Colors.white,
                                     ),
                                   ),
-                                  _buildSubtitleWidget(context, notifier, track),
+                                  _buildSubtitleWidget(
+                                    context,
+                                    notifier,
+                                    track,
+                                  ),
                                 ],
                               ),
                             ),
@@ -243,7 +255,8 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                             Builder(
                               builder: (context) {
                                 final trackId = track?.id;
-                                if (trackId == null) return const SizedBox.shrink();
+                                if (trackId == null)
+                                  return const SizedBox.shrink();
 
                                 final isFav = ref
                                     .watch(favoritesProvider)
@@ -254,7 +267,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                     // Favorite
                                     GestureDetector(
                                       onTap: () {
-                                        isFav ? Haptics.selection() : Haptics.light();
+                                        isFav
+                                            ? Haptics.selection()
+                                            : Haptics.light();
                                         ref
                                             .read(favoritesProvider.notifier)
                                             .toggle(trackId);
@@ -270,9 +285,8 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                             size: 24,
                                             color: isFav
                                                 ? RannaTheme.favoriteHeart
-                                                : RannaTheme.primaryForeground.withValues(
-                                                    alpha: 0.40,
-                                                  ),
+                                                : RannaTheme.primaryForeground
+                                                      .withValues(alpha: 0.40),
                                           ),
                                         ),
                                       ),
@@ -286,7 +300,8 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                             trackId: track.id,
                                             title: track.title,
                                             artistName:
-                                                track.madihDetails?.name ?? track.madih,
+                                                track.madihDetails?.name ??
+                                                track.madih,
                                           );
                                         }
                                       },
@@ -297,7 +312,8 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                           child: Icon(
                                             Icons.ios_share_rounded,
                                             size: 24,
-                                            color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                                            color: RannaTheme.primaryForeground
+                                                .withValues(alpha: 0.40),
                                           ),
                                         ),
                                       ),
@@ -310,6 +326,13 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                       const SizedBox(width: 24),
                                       GestureDetector(
                                         onTap: () {
+                                          if (!requireFeature(
+                                            context,
+                                            ref,
+                                            Feature.viewLyrics,
+                                          )) {
+                                            return;
+                                          }
                                           Haptics.selection();
                                           final opening = !_showLyrics;
                                           setState(() => _showLyrics = opening);
@@ -321,8 +344,10 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                             LyricsViewTracker.instance.record(
                                               trackId: track.id,
                                               playId: ref
-                                                  .read(audioPlayerProvider
-                                                      .notifier)
+                                                  .read(
+                                                    audioPlayerProvider
+                                                        .notifier,
+                                                  )
                                                   .currentPlayId,
                                             );
                                           }
@@ -331,13 +356,28 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                           width: 44,
                                           height: 44,
                                           child: Center(
-                                            child: Icon(
-                                              Icons.menu_book_rounded,
-                                              size: 24,
-                                              color: _showLyrics
-                                                  ? RannaTheme.accent
-                                                  : RannaTheme.primaryForeground
-                                                        .withValues(alpha: 0.40),
+                                            child: Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Icon(
+                                                  Icons.menu_book_rounded,
+                                                  size: 24,
+                                                  color: _showLyrics
+                                                      ? RannaTheme.accent
+                                                      : RannaTheme
+                                                            .primaryForeground
+                                                            .withValues(
+                                                              alpha: 0.40,
+                                                            ),
+                                                ),
+                                                const Positioned(
+                                                  bottom: -4,
+                                                  left: -6,
+                                                  child: FeatureBadge(
+                                                    feature: Feature.viewLyrics,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
@@ -601,11 +641,7 @@ class ScrollingTitle extends StatefulWidget {
   final String text;
   final TextStyle style;
 
-  const ScrollingTitle({
-    super.key,
-    required this.text,
-    required this.style,
-  });
+  const ScrollingTitle({super.key, required this.text, required this.style});
 
   @override
   State<ScrollingTitle> createState() => _ScrollingTitleState();
@@ -689,11 +725,7 @@ class _ScrollingTitleState extends State<ScrollingTitle> {
       controller: _scrollController,
       scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(), // Only auto-scroll
-      child: Text(
-        widget.text,
-        style: widget.style,
-        maxLines: 1,
-      ),
+      child: Text(widget.text, style: widget.style, maxLines: 1),
     );
   }
 }
@@ -731,7 +763,9 @@ class _ProgressSliderState extends State<_ProgressSlider> {
         : widget.position.inMilliseconds.toDouble().clamp(0.0, maxMs);
 
     // Time label: show drag position during drag, otherwise real position
-    final displayMs = _isDragging ? _dragValue.toInt() : widget.position.inMilliseconds;
+    final displayMs = _isDragging
+        ? _dragValue.toInt()
+        : widget.position.inMilliseconds;
     final displaySeconds = (displayMs / 1000).round();
 
     return Column(
@@ -741,10 +775,10 @@ class _ProgressSliderState extends State<_ProgressSlider> {
             trackHeight: 4,
             trackShape: const RoundedRectSliderTrackShape(),
             activeTrackColor: Colors.white,
-            inactiveTrackColor:
-                RannaTheme.primaryForeground.withValues(alpha: 0.40),
-            secondaryActiveTrackColor:
-                Colors.white.withValues(alpha: 0.30),
+            inactiveTrackColor: RannaTheme.primaryForeground.withValues(
+              alpha: 0.40,
+            ),
+            secondaryActiveTrackColor: Colors.white.withValues(alpha: 0.30),
             thumbColor: Colors.white,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
@@ -758,8 +792,7 @@ class _ProgressSliderState extends State<_ProgressSlider> {
             // Disabled states
             disabledThumbColor: Colors.white.withValues(alpha: 0.40),
             disabledActiveTrackColor: Colors.white.withValues(alpha: 0.30),
-            disabledInactiveTrackColor:
-                Colors.white.withValues(alpha: 0.15),
+            disabledInactiveTrackColor: Colors.white.withValues(alpha: 0.15),
           ),
           child: Slider(
             value: currentValue.toDouble().clamp(0.0, maxMs),
@@ -819,7 +852,9 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (track == null) return const SizedBox.shrink();
 
-    final isDownloaded = ref.watch(downloadedTrackIdsProvider).contains(track!.id);
+    final isDownloaded = ref
+        .watch(downloadedTrackIdsProvider)
+        .contains(track!.id);
     final progress = ref.watch(activeDownloadsProvider)[track!.id];
     final isDownloading = progress != null;
 
@@ -828,7 +863,11 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
         width: 44,
         height: 44,
         child: Center(
-          child: Icon(Icons.check_circle_rounded, size: 24, color: RannaTheme.accent),
+          child: Icon(
+            Icons.check_circle_rounded,
+            size: 24,
+            color: RannaTheme.accent,
+          ),
         ),
       );
     }
@@ -850,7 +889,9 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
                 value: progress > 0 ? progress : null,
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation(RannaTheme.accent),
-                backgroundColor: RannaTheme.primaryForeground.withValues(alpha: 0.1),
+                backgroundColor: RannaTheme.primaryForeground.withValues(
+                  alpha: 0.1,
+                ),
               ),
             ),
           ),
@@ -860,6 +901,7 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () async {
+        if (!requireFeature(context, ref, Feature.downloadTrack)) return;
         try {
           await startDownload(ref, track!);
         } catch (_) {}
@@ -868,10 +910,20 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
         width: 44,
         height: 44,
         child: Center(
-          child: Icon(
-            Icons.download_rounded,
-            size: 24,
-            color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                Icons.download_rounded,
+                size: 24,
+                color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+              ),
+              const Positioned(
+                bottom: -4,
+                left: -6,
+                child: FeatureBadge(feature: Feature.downloadTrack),
+              ),
+            ],
           ),
         ),
       ),

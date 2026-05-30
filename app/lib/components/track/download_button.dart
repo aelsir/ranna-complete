@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../access/access_guard.dart';
+import '../../access/feature.dart';
+import '../../access/widgets/feature_badge.dart';
 import '../../models/madha.dart';
 import '../../providers/download_provider.dart';
 import '../../theme/app_theme.dart';
@@ -16,11 +19,7 @@ class DownloadButton extends ConsumerWidget {
   final MadhaWithRelations track;
   final double iconSize;
 
-  const DownloadButton({
-    super.key,
-    required this.track,
-    this.iconSize = 20,
-  });
+  const DownloadButton({super.key, required this.track, this.iconSize = 20});
 
   String _formatSize(int bytes) {
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} كيلو';
@@ -93,10 +92,20 @@ class DownloadButton extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.download_rounded,
-              size: iconSize,
-              color: RannaTheme.mutedForeground.withValues(alpha: 0.6),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  Icons.download_rounded,
+                  size: iconSize,
+                  color: RannaTheme.mutedForeground.withValues(alpha: 0.6),
+                ),
+                const Positioned(
+                  bottom: -4,
+                  left: -6,
+                  child: FeatureBadge(feature: Feature.downloadTrack),
+                ),
+              ],
             ),
             if (track.fileSizeBytes != null && track.fileSizeBytes! > 0)
               Padding(
@@ -117,6 +126,7 @@ class DownloadButton extends ConsumerWidget {
   }
 
   Future<void> _startDownload(BuildContext context, WidgetRef ref) async {
+    if (!requireFeature(context, ref, Feature.downloadTrack)) return;
     Haptics.light();
     try {
       await startDownload(ref, track);
