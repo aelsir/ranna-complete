@@ -36,7 +36,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _onSearchChanged(String value) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 400), () {
-      ref.read(searchQueryProvider.notifier).state = value.trim();
+      ref.read(searchQueryProvider.notifier).state = value;
     });
   }
 
@@ -53,154 +53,152 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final activeFilter = ref.watch(searchFilterProvider);
     final searchResults = ref.watch(searchResultsProvider);
 
-    // Keep the local TextField controller in sync with the provider so
-    // external resets — e.g. the search button on the all-artists /
-    // all-narrators pages clears the query before switching tab — are
-    // reflected in the visible text field. We only push from provider →
-    // controller (not the reverse) so user typing isn't disturbed.
-    ref.listen<String>(searchQueryProvider, (_, next) {
-      if (_controller.text != next) {
-        _controller.text = next;
-      }
-    });
+    // We no longer sync provider → controller here because the old
+    // approach would push .trim()-ed text back into the TextField,
+    // deleting trailing spaces the user just typed. The clear button
+    // and any external callers reset both provider + controller directly.
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 16),
-            child: Text(
-              'فتّش',
-              style: TextStyle(
-                fontFamily: RannaTheme.fontFustat,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: RannaTheme.foreground,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 16),
+              child: Text(
+                'فتّش',
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: RannaTheme.foreground,
+                ),
               ),
             ),
-          ),
 
-          // Search bar
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 12),
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              onChanged: (val) {
-                _onSearchChanged(val);
-                setState(() {});
-              },
-              style: TextStyle(
-                fontFamily: RannaTheme.fontNotoNaskh,
-                fontSize: 16,
-                color: RannaTheme.foreground,
-              ),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: RannaTheme.muted,
-                hintText: 'ابحث عن مدحة، مادح، راوي أو كلمات...',
-                hintStyle: TextStyle(
+            // Search bar
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 12),
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                onChanged: (val) {
+                  _onSearchChanged(val);
+                  setState(() {});
+                },
+                style: TextStyle(
                   fontFamily: RannaTheme.fontNotoNaskh,
                   fontSize: 16,
-                  color: RannaTheme.mutedForeground,
+                  color: RannaTheme.foreground,
                 ),
-                prefixIcon: const Padding(
-                  padding: EdgeInsetsDirectional.only(start: 16, end: 8),
-                  child: Icon(
-                    Icons.search_rounded,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: RannaTheme.muted,
+                  hintText: 'ابحث عن مدحة، مادح، راوي أو كلمات...',
+                  hintStyle: TextStyle(
+                    fontFamily: RannaTheme.fontKufam,
+                    fontSize: 14,
                     color: RannaTheme.mutedForeground,
-                    size: 22,
                   ),
-                ),
-                prefixIconConstraints: const BoxConstraints(
-                  minWidth: 42,
-                  minHeight: 42,
-                ),
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          size: 20,
-                          color: RannaTheme.mutedForeground,
-                        ),
-                        onPressed: () {
-                          _controller.clear();
-                          ref.read(searchQueryProvider.notifier).state = '';
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
-                  borderSide: const BorderSide(
-                    color: RannaTheme.primary,
-                    width: 1.5,
+                  prefixIcon: const Padding(
+                    padding: EdgeInsetsDirectional.only(start: 16, end: 8),
+                    child: Icon(
+                      Icons.search_rounded,
+                      color: RannaTheme.mutedForeground,
+                      size: 22,
+                    ),
                   ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 42,
+                    minHeight: 42,
+                  ),
+                  suffixIcon: _controller.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 20,
+                            color: RannaTheme.mutedForeground,
+                          ),
+                          onPressed: () {
+                            _controller.clear();
+                            ref.read(searchQueryProvider.notifier).state = '';
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+                    borderSide: const BorderSide(
+                      color: RannaTheme.primary,
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Filter chips with counts
-          SizedBox(
-            height: 36,
-            child: searchResults.when(
-              loading: () => _buildFilterChips(activeFilter, query, []),
-              error: (_, _) => _buildFilterChips(activeFilter, query, []),
-              data: (results) =>
-                  _buildFilterChips(activeFilter, query, results),
+            // Filter chips with counts
+            SizedBox(
+              height: 36,
+              child: searchResults.when(
+                loading: () => _buildFilterChips(activeFilter, query, []),
+                error: (_, _) => _buildFilterChips(activeFilter, query, []),
+                data: (results) =>
+                    _buildFilterChips(activeFilter, query, results),
+              ),
             ),
-          ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Results area
-          Expanded(
-            child: query.isEmpty
-                ? _buildEmptyState()
-                : searchResults.when(
-                    loading: () => _buildLoadingState(),
-                    error: (_, _) => _buildErrorState(),
-                    data: (allResults) {
-                      // Filter results based on active filter
-                      final results = activeFilter == SearchFilter.all
-                          ? allResults
-                          : allResults.where((r) {
-                              switch (activeFilter) {
-                                case SearchFilter.madha:
-                                  return r.type == SearchResultType.madha;
-                                case SearchFilter.kalimat:
-                                  return r.type == SearchResultType.kalimat;
-                                case SearchFilter.madih:
-                                  return r.type == SearchResultType.madih;
-                                case SearchFilter.rawi:
-                                  return r.type == SearchResultType.rawi;
-                                case SearchFilter.all:
-                                  return true;
-                              }
-                            }).toList();
-                      return results.isEmpty
-                          ? _buildNoResultsState()
-                          : _buildResultsList(results);
-                    },
-                  ),
-          ),
-        ],
+            // Results area
+            Expanded(
+              child: query.isEmpty
+                  ? _buildEmptyState()
+                  : searchResults.when(
+                      loading: () => _buildLoadingState(),
+                      error: (_, _) => _buildErrorState(),
+                      data: (allResults) {
+                        // Filter results based on active filter
+                        final results = activeFilter == SearchFilter.all
+                            ? allResults
+                            : allResults.where((r) {
+                                switch (activeFilter) {
+                                  case SearchFilter.madha:
+                                    return r.type == SearchResultType.madha;
+                                  case SearchFilter.kalimat:
+                                    return r.type == SearchResultType.kalimat;
+                                  case SearchFilter.madih:
+                                    return r.type == SearchResultType.madih;
+                                  case SearchFilter.rawi:
+                                    return r.type == SearchResultType.rawi;
+                                  case SearchFilter.all:
+                                    return true;
+                                }
+                              }).toList();
+                        return results.isEmpty
+                            ? _buildNoResultsState()
+                            : _buildResultsList(results);
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

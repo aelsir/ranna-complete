@@ -225,11 +225,18 @@ class ShellScaffold extends ConsumerWidget {
     // truth for that clearance — individual screens no longer pad for the bar
     // themselves — which is why nothing gets covered anymore, and why the bar's
     // translucency now reveals the page background rather than moving content.
-    final contentBottom = navBarHeight +
-        navBarBottomMargin +
-        bottomPadding +
-        8 +
-        (hasTrack ? miniPlayerHeight + 8 : 0);
+    //
+    // When the keyboard is open, the nav bar and mini player are hidden, so
+    // we drop the reservation to 0 — otherwise the reserved space shows as a
+    // dead black strip covering content behind the keyboard.
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final contentBottom = keyboardOpen
+        ? 0.0
+        : navBarHeight +
+            navBarBottomMargin +
+            bottomPadding +
+            8 +
+            (hasTrack ? miniPlayerHeight + 8 : 0);
 
     // iPad: no shell margins, content constrained to phone width inside
     final tablet = isTablet(context);

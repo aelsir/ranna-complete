@@ -65,7 +65,7 @@ final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
   try {
     final dynamic rpcResult = await supabase.rpc(
       'search_all',
-      params: {'p_query': query, 'p_limit': 30},
+      params: {'p_query': query.trim(), 'p_limit': 30},
     );
 
     final data = asMap(rpcResult);
