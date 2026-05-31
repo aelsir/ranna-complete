@@ -12,7 +12,7 @@ class Madha {
   final String? rawiId;
   final String? audioUrl;
   final String? imageUrl;
-  final String? userId;
+  final String? uploaderId;
   final String status;
   final bool needsProcessing;
   final String? tariqaId;
@@ -36,7 +36,7 @@ class Madha {
     this.rawiId,
     this.audioUrl,
     this.imageUrl,
-    this.userId,
+    this.uploaderId,
     required this.status,
     required this.needsProcessing,
     this.tariqaId,
@@ -62,7 +62,7 @@ class Madha {
       rawiId: json['rawi_id'] as String?,
       audioUrl: json['audio_url'] as String?,
       imageUrl: json['image_url'] as String?,
-      userId: json['user_id'] as String?,
+      uploaderId: json['uploader_id'] as String?,
       status: json['status'] as String? ?? 'pending',
       needsProcessing: json['needs_processing'] as bool? ?? true,
       tariqaId: json['tariqa_id'] as String?,
@@ -95,7 +95,7 @@ class MadhaWithRelations extends Madha {
     super.rawiId,
     super.audioUrl,
     super.imageUrl,
-    super.userId,
+    super.uploaderId,
     required super.status,
     required super.needsProcessing,
     super.tariqaId,
@@ -136,7 +136,7 @@ class MadhaWithRelations extends Madha {
       rawiId: json['rawi_id'] as String?,
       audioUrl: json['audio_url'] as String?,
       imageUrl: json['image_url'] as String?,
-      userId: json['user_id'] as String?,
+      uploaderId: json['uploader_id'] as String?,
       status: json['status'] as String? ?? 'pending',
       needsProcessing: json['needs_processing'] as bool? ?? true,
       tariqaId: json['tariqa_id'] as String?,
@@ -170,7 +170,7 @@ class MadhaWithRelations extends Madha {
         'id': id, 'title': title, 'madih': madih, 'writer': writer,
         'madih_id': madihId, 'rawi_id': rawiId,
         'audio_url': audioUrl, 'image_url': imageUrl,
-        'user_id': userId, 'status': status,
+        'uploader_id': uploaderId, 'status': status,
         'needs_processing': needsProcessing,
         'tariqa_id': tariqaId, 'fan_id': fanId,
         'play_count': playCount, 'lyrics': lyrics,

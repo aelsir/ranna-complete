@@ -70,7 +70,14 @@ export type Database = {
 // Status enums
 // ============================================
 
-export type ApprovalStatus = "pending" | "approved" | "rejected";
+// "internal" = staff-only; "hidden" = temporarily pulled. Only "approved"
+// reaches end users (enforced by v_tracks' WHERE clause). See migration 051.
+export type ApprovalStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "internal"
+  | "hidden";
 export type ImportStatus = "pending" | "processing" | "completed" | "failed" | "rejected";
 export type UserRoleType = "superuser" | "admin" | "user";
 
@@ -87,12 +94,9 @@ export interface Madha {
   author_id: string | null;
   audio_url: string | null;
   image_url: string | null;
-  user_id: string | null;
+  uploader_id: string | null;
   status: ApprovalStatus;
   needs_processing: boolean;
-  rejection_reason: string | null;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
   source_url: string | null;
   lyrics: string | null;
   recording_place: string | null;
@@ -123,10 +127,9 @@ export interface MadhaInsert {
   author_id?: string | null;
   audio_url?: string | null;
   image_url?: string | null;
-  user_id?: string | null;
+  uploader_id?: string | null;
   status?: ApprovalStatus;
   needs_processing?: boolean;
-  rejection_reason?: string | null;
   source_url?: string | null;
   lyrics?: string | null;
   recording_place?: string | null;
@@ -135,6 +138,18 @@ export interface MadhaInsert {
   duration_seconds?: number | null;
   content_type?: ContentType | null;
   thumbnail_url?: string | null;
+}
+
+// Append-only moderation log (migration 051). One row per review action.
+// Not yet wired into a promote-to-approve flow — tracks.status is still the
+// source of truth for current state.
+export interface TrackReview {
+  id: string;
+  track_id: string;
+  reviewer_id: string | null;
+  decision: "approved" | "rejected";
+  notes: string | null;
+  created_at: string;
 }
 
 // ============================================
