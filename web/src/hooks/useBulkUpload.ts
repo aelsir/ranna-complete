@@ -407,8 +407,8 @@ export function useBulkUpload() {
           madhaId = await createMadha({
             title: file.title,
             madih_name: effective.madihName,
-            madih_id: effective.madihId || null,
-            rawi_id: effective.rawiId || null,
+            artist_id: effective.madihId || null,
+            author_id: effective.rawiId || null,
             tariqa_id: effective.tariqaId || null,
             fan_id: effective.fanId || null,
             recording_place: effective.recordingPlace || null,

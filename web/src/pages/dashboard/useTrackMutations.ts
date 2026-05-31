@@ -43,7 +43,7 @@ interface Params {
   narrators: MappedNarrator[];
   tariqas: MappedTariqa[];
   funoon: MappedFan[];
-  fetchedTracks: { id: string; madih_id?: string | null; rawi_id?: string | null }[];
+  fetchedTracks: { id: string; artist_id?: string | null; author_id?: string | null }[];
 
   // mutations
   createMadhaMutation: any;
@@ -104,8 +104,8 @@ export function useTrackMutations({
         id: editingTrack.id,
         updates: {
           title: editingTrack.title,
-          madih_id: editingTrack.artistId || null,
-          rawi_id: editingTrack.narratorId || null,
+          artist_id: editingTrack.artistId || null,
+          author_id: editingTrack.narratorId || null,
           tariqa_id: tariqaId,
           fan_id: fanId,
           lyrics: editingTrack.lyrics || null,
@@ -140,8 +140,8 @@ export function useTrackMutations({
       {
         title: newTrack.title,
         madih_name: artistName,
-        madih_id: newTrack.artistId || null,
-        rawi_id: newTrack.narratorId || null,
+        artist_id: newTrack.artistId || null,
+        author_id: newTrack.narratorId || null,
         tariqa_id: tariqaId,
         fan_id: fanId,
         lyrics: newTrack.lyrics || null,
@@ -225,7 +225,7 @@ export function useTrackMutations({
     if (deleteConfirm.type === "madiheen") {
       const count = selectedMadiheen.size;
       const affectedTracks = (fetchedTracks || []).filter(
-        (t) => t.madih_id && selectedMadiheen.has(t.madih_id),
+        (t) => t.artist_id && selectedMadiheen.has(t.artist_id),
       ).length;
       const names = artists.filter((a) => selectedMadiheen.has(a.id)).map((a) => a.name).slice(0, 3);
       const nameStr = names.join("، ") + (count > 3 ? ` و${count - 3} آخرين` : "");
@@ -240,7 +240,7 @@ export function useTrackMutations({
     if (deleteConfirm.type === "ruwat") {
       const count = selectedRuwat.size;
       const affectedTracks = (fetchedTracks || []).filter(
-        (t) => t.rawi_id && selectedRuwat.has(t.rawi_id),
+        (t) => t.author_id && selectedRuwat.has(t.author_id),
       ).length;
       const names = narrators.filter((n) => selectedRuwat.has(n.id)).map((n) => n.name).slice(0, 3);
       const nameStr = names.join("، ") + (count > 3 ? ` و${count - 3} آخرين` : "");
@@ -322,8 +322,8 @@ export function useTrackMutations({
     let dbField: keyof MadhaInsert | null = null;
     let dbValue: any = value;
 
-    if (field === "artistId") dbField = "madih_id";
-    else if (field === "narratorId") dbField = "rawi_id";
+    if (field === "artistId") dbField = "artist_id";
+    else if (field === "narratorId") dbField = "author_id";
     else if (field === "tariqa") {
       dbField = "tariqa_id";
       dbValue = tariqas.find((t) => t.name === value)?.id || null;

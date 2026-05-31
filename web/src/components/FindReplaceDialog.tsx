@@ -33,8 +33,8 @@ interface SelectOption {
 export interface FindReplaceTrack {
   id: string;
   title: string;
-  madih_id: string | null;
-  rawi_id: string | null;
+  artist_id: string | null;
+  author_id: string | null;
   tariqa_id: string | null;
   fan_id: string | null;
   content_type: string | null;
@@ -57,8 +57,8 @@ const NULL_SENTINEL = "__none__";
 
 const FIELD_OPTIONS: { value: EditableField; label: string }[] = [
   { value: "title", label: "العنوان" },
-  { value: "madih_id", label: "المادح" },
-  { value: "rawi_id", label: "الراوي" },
+  { value: "artist_id", label: "المادح" },
+  { value: "author_id", label: "الراوي" },
   { value: "tariqa_id", label: "الطريقة" },
   { value: "fan_id", label: "الفن" },
   { value: "content_type", label: "نوع المحتوى" },
@@ -98,9 +98,9 @@ export function FindReplaceDialog({
   const getOptionsForField = useCallback(
     (field: EditableField): SelectOption[] => {
       switch (field) {
-        case "madih_id":
+        case "artist_id":
           return artists;
-        case "rawi_id":
+        case "author_id":
           return narrators;
         case "tariqa_id":
           return tariqas;
@@ -123,10 +123,10 @@ export function FindReplaceDialog({
       switch (field) {
         case "title":
           return track.title;
-        case "madih_id":
-          return track.madih_id;
-        case "rawi_id":
-          return track.rawi_id;
+        case "artist_id":
+          return track.artist_id;
+        case "author_id":
+          return track.author_id;
         case "tariqa_id":
           return track.tariqa_id;
         case "fan_id":

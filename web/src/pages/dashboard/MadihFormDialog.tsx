@@ -206,7 +206,7 @@ export function MadihFormDialog(props: any) {
         onSave={props.onSave}
         isPending={props.isSaving}
         tariqas={props.tariqas}
-        associatedTracks={props.fetchedTracks.filter((t: any) => t.madih_id === props.madih?.id)}
+        associatedTracks={props.fetchedTracks.filter((t: any) => t.artist_id === props.madih?.id)}
         onOpenImagePicker={props.openImagePicker}
       />
     );

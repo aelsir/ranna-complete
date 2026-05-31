@@ -64,8 +64,8 @@ export async function getAllMadhaatMinimal(): Promise<
     id: string;
     title: string;
     madih: string | null;
-    madih_id: string | null;
-    rawi_id: string | null;
+    artist_id: string | null;
+    author_id: string | null;
     created_at: string;
   }[]
 > {
@@ -73,13 +73,13 @@ export async function getAllMadhaatMinimal(): Promise<
     id: string;
     title: string;
     madih: string | null;
-    madih_id: string | null;
-    rawi_id: string | null;
+    artist_id: string | null;
+    author_id: string | null;
     created_at: string;
   }>((from, to) =>
     supabase
-      .from("madha")
-      .select("id, title, madih, madih_id, rawi_id, created_at")
+      .from("tracks")
+      .select("id, title, madih, artist_id, author_id, created_at")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .range(from, to)
@@ -95,8 +95,8 @@ export async function getAllMadhaatForReplace(): Promise<
   {
     id: string;
     title: string;
-    madih_id: string | null;
-    rawi_id: string | null;
+    artist_id: string | null;
+    author_id: string | null;
     tariqa_id: string | null;
     fan_id: string | null;
     content_type: string | null;
@@ -107,8 +107,8 @@ export async function getAllMadhaatForReplace(): Promise<
   type TrackRow = {
     id: string;
     title: string;
-    madih_id: string | null;
-    rawi_id: string | null;
+    artist_id: string | null;
+    author_id: string | null;
     tariqa_id: string | null;
     fan_id: string | null;
     content_type: string | null;
@@ -117,9 +117,9 @@ export async function getAllMadhaatForReplace(): Promise<
   };
   return paginate<TrackRow>((from, to) =>
     supabase
-      .from("madha")
+      .from("tracks")
       .select(
-        "id, title, madih_id, rawi_id, tariqa_id, fan_id, content_type, lyrics, writer"
+        "id, title, artist_id, author_id, tariqa_id, fan_id, content_type, lyrics, writer"
       )
       .order("created_at", { ascending: false })
       .range(from, to)
@@ -173,8 +173,8 @@ export async function getAdminMadhaat(options?: {
   }
 
   if (contentType) query = query.eq("content_type", contentType);
-  if (artistId) query = query.eq("madih_id", artistId);
-  if (narratorId) query = query.eq("rawi_id", narratorId);
+  if (artistId) query = query.eq("artist_id", artistId);
+  if (narratorId) query = query.eq("author_id", narratorId);
 
   query = query
     .order(sortBy, { ascending: sortAscending })
@@ -197,7 +197,7 @@ export async function getContentTypeCounts(): Promise<Record<string, number>> {
   await Promise.all(
     contentTypes.map(async (ct) => {
       const { count, error } = await supabase
-        .from("madha")
+        .from("tracks")
         .select("*", { count: "exact", head: true })
         .eq("content_type", ct);
       if (!error) counts[ct] = count || 0;
@@ -244,7 +244,7 @@ export async function getMadhaatByMadih(
   const { data, error } = await supabase
     .from("v_tracks")
     .select("*")
-    .eq("madih_id", madihId)
+    .eq("artist_id", madihId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -257,7 +257,7 @@ export async function getMadhaatByRawi(
   const { data, error } = await supabase
     .from("v_tracks")
     .select("*")
-    .eq("rawi_id", rawiId)
+    .eq("author_id", rawiId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -363,13 +363,13 @@ export async function createMadha(
   data: Partial<MadhaInsert> & { madih_name?: string }
 ): Promise<string> {
   const { data: newMadha, error } = await supabase
-    .from("madha")
+    .from("tracks")
     .insert([
       {
         title: data.title!,
         madih: data.madih_name || data.title || "",
-        madih_id: data.madih_id || null,
-        rawi_id: data.rawi_id || null,
+        artist_id: data.artist_id || null,
+        author_id: data.author_id || null,
         tariqa_id: data.tariqa_id || null,
         fan_id: data.fan_id || null,
         lyrics: data.lyrics || null,
@@ -394,7 +394,7 @@ export async function updateMadha(
   id: string,
   updates: Partial<MadhaInsert>
 ): Promise<void> {
-  const { error } = await supabase.from("madha").update(updates).eq("id", id);
+  const { error } = await supabase.from("tracks").update(updates).eq("id", id);
   if (error) throw error;
 }
 
@@ -405,7 +405,7 @@ export async function updateMadha(
  */
 export async function deleteMadhaat(ids: string[]): Promise<void> {
   const { data: records } = await supabase
-    .from("madha")
+    .from("tracks")
     .select("audio_url, image_url, thumbnail_url")
     .in("id", ids);
 
@@ -422,7 +422,7 @@ export async function deleteMadhaat(ids: string[]): Promise<void> {
     await deleteFromStorage(urlsToDelete).catch(console.error);
   }
 
-  const { error } = await supabase.from("madha").delete().in("id", ids);
+  const { error } = await supabase.from("tracks").delete().in("id", ids);
   if (error) throw error;
 }
 
@@ -437,7 +437,7 @@ export async function bulkUpdateMadhaat(
   value: any
 ): Promise<void> {
   const { error } = await supabase
-    .from("madha")
+    .from("tracks")
     .update({ [field]: value })
     .in("id", ids);
   if (error) throw error;
@@ -458,7 +458,7 @@ export async function batchUpdateMadhaat(
     await Promise.all(
       batch.map(({ id, changes }) =>
         supabase
-          .from("madha")
+          .from("tracks")
           .update(changes)
           .eq("id", id)
           .then(({ error }) => {

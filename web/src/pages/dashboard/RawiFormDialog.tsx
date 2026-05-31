@@ -179,7 +179,7 @@ export function RawiFormDialog(props: any) {
         onChange={props.onChange}
         onSave={props.onSave}
         isPending={props.isSaving}
-        associatedTracks={props.fetchedTracks.filter((t: any) => t.rawi_id === props.rawi?.id)}
+        associatedTracks={props.fetchedTracks.filter((t: any) => t.author_id === props.rawi?.id)}
         onOpenImagePicker={props.openImagePicker}
       />
     );

@@ -91,7 +91,7 @@ type TrackForMatch = {
   title: string;
   lyrics: string | null;
   writer: string | null;
-  rawi_id: string | null;
+  author_id: string | null;
 };
 
 /** Normalize Arabic text for comparison: strip tashkeel, unify alef/taa forms, lowercase. */
@@ -517,7 +517,7 @@ export function BulkUploadDialog({
   // Fetch existing tracks for matching (only when dialog is open)
   const { data: allTracksRaw } = useAllMadhaatForReplace(open);
   const allTracks: TrackForMatch[] = useMemo(
-    () => allTracksRaw?.map((t) => ({ id: t.id, title: t.title, lyrics: t.lyrics, writer: t.writer, rawi_id: t.rawi_id })) ?? [],
+    () => allTracksRaw?.map((t) => ({ id: t.id, title: t.title, lyrics: t.lyrics, writer: t.writer, author_id: t.author_id })) ?? [],
     [allTracksRaw]
   );
 
@@ -550,7 +550,7 @@ export function BulkUploadDialog({
 
   const handleLinkTrack = useCallback(
     (fileId: string, track: TrackForMatch) => {
-      linkTrack(fileId, track.id, track.title, track.lyrics ?? "", track.writer ?? "", track.rawi_id ?? "");
+      linkTrack(fileId, track.id, track.title, track.lyrics ?? "", track.writer ?? "", track.author_id ?? "");
       setDismissedSuggestions((prev) => {
         const next = { ...prev };
         delete next[fileId];

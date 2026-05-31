@@ -83,8 +83,8 @@ export interface Madha {
   title: string;
   madih: string;
   writer: string | null;
-  madih_id: string | null;
-  rawi_id: string | null;
+  artist_id: string | null;
+  author_id: string | null;
   audio_url: string | null;
   image_url: string | null;
   user_id: string | null;
@@ -119,8 +119,8 @@ export interface MadhaInsert {
   title: string;
   madih: string;
   writer?: string | null;
-  madih_id?: string | null;
-  rawi_id?: string | null;
+  artist_id?: string | null;
+  author_id?: string | null;
   audio_url?: string | null;
   image_url?: string | null;
   user_id?: string | null;
@@ -383,9 +383,9 @@ export interface PendingImport {
   id: string;
   youtube_url: string;
   title: string;
-  madih_id: string | null;
+  artist_id: string | null;
   madih_name: string | null;
-  rawi_id: string | null;
+  author_id: string | null;
   rawi_name: string | null;
   submitted_by: string;
   status: ImportStatus;
@@ -398,9 +398,9 @@ export interface PendingImport {
 export interface PendingImportInsert {
   youtube_url: string;
   title: string;
-  madih_id?: string | null;
+  artist_id?: string | null;
   madih_name?: string | null;
-  rawi_id?: string | null;
+  author_id?: string | null;
   rawi_name?: string | null;
   submitted_by: string;
   status?: ImportStatus;

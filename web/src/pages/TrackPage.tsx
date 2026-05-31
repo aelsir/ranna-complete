@@ -155,7 +155,7 @@ export default function TrackPage() {
   const [lyricsExpanded, setLyricsExpanded] = useState(false);
 
   const { data: track, isLoading, error } = useMadha(id);
-  const { data: moreTracks } = useMadhaatByMadih(track?.madih_id || undefined);
+  const { data: moreTracks } = useMadhaatByMadih(track?.artist_id || undefined);
 
   // Filter out current track from "more by this artist"
   const relatedTracks = (moreTracks || []).filter((t) => t.id !== id).slice(0, 6);
@@ -324,7 +324,7 @@ export default function TrackPage() {
 
           <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <Link
-              to={`/profile/artist/${track.madih_id}`}
+              to={`/profile/artist/${track.artist_id}`}
               className="font-fustat font-semibold text-foreground/80 hover:text-accent transition-colors"
             >
               {artistName}
@@ -507,7 +507,7 @@ export default function TrackPage() {
             <div className="space-y-0.5">
               <p className="text-[10px] font-fustat text-muted-foreground/60 uppercase">المادح</p>
               <Link
-                to={`/profile/artist/${track.madih_id}`}
+                to={`/profile/artist/${track.artist_id}`}
                 className="text-xs font-fustat font-semibold text-foreground hover:text-accent transition-colors"
               >
                 {artistName}
@@ -554,9 +554,9 @@ export default function TrackPage() {
               <span className="inline-block w-1 h-4 rounded-full bg-secondary/60" />
               المزيد من {artistName}
             </h3>
-            {track.madih_id && (
+            {track.artist_id && (
               <Link
-                to={`/profile/artist/${track.madih_id}`}
+                to={`/profile/artist/${track.artist_id}`}
                 className="font-fustat text-xs text-accent hover:text-accent/80 transition-colors"
               >
                 عرض الكل ←

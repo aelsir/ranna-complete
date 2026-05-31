@@ -210,16 +210,16 @@ export function InlineEditTable({
 
               {/* Artist — editable or static */}
               <div
-                className={`min-w-0 ${cellEditClass(track.id, "madih_id")}`}
+                className={`min-w-0 ${cellEditClass(track.id, "artist_id")}`}
                 onClick={(e) => editable && e.stopPropagation()}
               >
                 {editable ? (
                   <SearchableSelect
-                    value={getEditValue(track.id, "madih_id") ?? track.artistId}
+                    value={getEditValue(track.id, "artist_id") ?? track.artistId}
                     onValueChange={(v) => {
                       onEditChange(
                         track.id,
-                        "madih_id",
+                        "artist_id",
                         v === track.artistId ? null : v
                       );
                     }}
@@ -237,16 +237,16 @@ export function InlineEditTable({
 
               {/* Narrator — editable or static */}
               <div
-                className={`min-w-0 ${cellEditClass(track.id, "rawi_id")}`}
+                className={`min-w-0 ${cellEditClass(track.id, "author_id")}`}
                 onClick={(e) => editable && e.stopPropagation()}
               >
                 {editable ? (
                   <SearchableSelect
-                    value={getEditValue(track.id, "rawi_id") ?? track.narratorId}
+                    value={getEditValue(track.id, "author_id") ?? track.narratorId}
                     onValueChange={(v) => {
                       onEditChange(
                         track.id,
-                        "rawi_id",
+                        "author_id",
                         v === track.narratorId ? null : v
                       );
                     }}

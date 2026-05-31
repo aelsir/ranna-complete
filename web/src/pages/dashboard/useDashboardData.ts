@@ -118,13 +118,13 @@ export function useDashboardData({
   }));
 
   const madhat: ExtendedTrack[] = fetchedTracks.map((t) => {
-    const artist = artists.find((a) => a.id === t.madih_id);
+    const artist = artists.find((a) => a.id === t.artist_id);
     return {
       id: t.id,
       title: t.title,
-      artistId: t.madih_id || "",
+      artistId: t.artist_id || "",
       artistName: t.madiheen?.name || t.madih || "",
-      narratorId: t.rawi_id || "",
+      narratorId: t.author_id || "",
       narratorName: t.ruwat?.name || t.writer || "",
       lyrics: t.lyrics || "",
       tariqa: t.turuq?.name || "",

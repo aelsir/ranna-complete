@@ -51,9 +51,9 @@ export async function getAnalyticsSummary() {
     { count: rawiCount },
     allPlays,
   ] = await Promise.all([
-    supabase.from("madha").select("*", { count: "exact", head: true }),
-    supabase.from("madiheen").select("*", { count: "exact", head: true }),
-    supabase.from("ruwat").select("*", { count: "exact", head: true }),
+    supabase.from("tracks").select("*", { count: "exact", head: true }),
+    supabase.from("artists").select("*", { count: "exact", head: true }),
+    supabase.from("authors").select("*", { count: "exact", head: true }),
     paginate<{ played_at: string; duration_seconds: number | null }>(
       (from, to) =>
         supabase
@@ -301,7 +301,7 @@ export async function getTopFavorited(
 
   const ids = top.map((t) => t[0]);
   const { data: tracks, error: tErr } = await supabase
-    .from("madha")
+    .from("tracks")
     .select("id, title")
     .in("id", ids);
   if (tErr) throw tErr;
@@ -381,8 +381,8 @@ export async function getUserActivity(): Promise<UserActivity> {
 
 export async function getContentHealth() {
   const { data: madhaat, error } = (await supabase
-    .from("madha")
-    .select("lyrics, madih_id, rawi_id, image_url, audio_url")) as {
+    .from("tracks")
+    .select("lyrics, artist_id, author_id, image_url, audio_url")) as {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any[];
     error: { message: string } | null;
@@ -405,8 +405,8 @@ export async function getContentHealth() {
   const stats = madhaat.reduce(
     (acc, m) => {
       if (m.lyrics) acc.lyrics++;
-      if (m.madih_id) acc.madih++;
-      if (m.rawi_id) acc.rawi++;
+      if (m.artist_id) acc.madih++;
+      if (m.author_id) acc.rawi++;
       if (m.image_url) acc.image++;
       if (m.audio_url) acc.audio++;
       return acc;
@@ -514,7 +514,7 @@ export async function getDownloadAnalytics(
   if (topTrackIds.length > 0) {
     const ids = topTrackIds.map(([id]) => id);
     const { data: tracks } = await supabase
-      .from("madha")
+      .from("tracks")
       .select("id, title")
       .in("id", ids);
     type TitleRow = { id: string; title: string };

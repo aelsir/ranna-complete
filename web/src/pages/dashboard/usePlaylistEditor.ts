@@ -6,9 +6,9 @@ type ToastFn = (opts: { title: string; description?: string; variant?: "default"
 interface MinimalTrack {
   id: string;
   title: string;
-  madih_id?: string | null;
+  artist_id?: string | null;
   madih?: string | null;
-  rawi_id?: string | null;
+  author_id?: string | null;
 }
 
 interface Params {
@@ -65,9 +65,9 @@ export function usePlaylistEditor({
       (allMinimalTracks || []).map((t) => ({
         id: t.id,
         title: t.title,
-        artistName: (t.madih_id && artistNameMap[t.madih_id]) || t.madih || "",
-        narratorName: (t.rawi_id && narratorNameMap[t.rawi_id]) || "",
-        madihId: t.madih_id || "",
+        artistName: (t.artist_id && artistNameMap[t.artist_id]) || t.madih || "",
+        narratorName: (t.author_id && narratorNameMap[t.author_id]) || "",
+        madihId: t.artist_id || "",
       })),
     [allMinimalTracks, artistNameMap, narratorNameMap],
   );

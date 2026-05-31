@@ -2,8 +2,7 @@
  * Artists (مادحون / madiheen) and narrators (رواة / ruwat) — the two
  * "people" entity types in Ranna's content model. Reads come from the
  * `v_artists` / `v_narrators` views which include `track_count`. Writes go
- * to the legacy alias-named tables (`madiheen`, `ruwat`) which front the
- * renamed `artists` / `authors` tables via INSTEAD OF triggers.
+ * directly to the `artists` / `authors` base tables.
  */
 
 import type { Madih, MadihInsert, Rawi, RawiInsert } from "@/types/database";
@@ -57,7 +56,7 @@ export async function createMadih(
   data: Partial<MadihInsert>
 ): Promise<string> {
   const { data: newMadih, error } = await supabase
-    .from("madiheen")
+    .from("artists")
     .insert([
       {
         name: data.name!,
@@ -102,7 +101,7 @@ export async function updateMadih(
   );
 
   const { error } = await supabase
-    .from("madiheen")
+    .from("artists")
     .update(payload)
     .eq("id", id);
   if (error) throw error;
@@ -110,7 +109,7 @@ export async function updateMadih(
 
 export async function deleteMadiheen(ids: string[]): Promise<void> {
   const { data: records } = await supabase
-    .from("madiheen")
+    .from("artists")
     .select("image_url")
     .in("id", ids);
   const urlsToDelete = records
@@ -120,7 +119,7 @@ export async function deleteMadiheen(ids: string[]): Promise<void> {
     await deleteFromStorage(urlsToDelete).catch(console.error);
   }
 
-  const { error } = await supabase.from("madiheen").delete().in("id", ids);
+  const { error } = await supabase.from("artists").delete().in("id", ids);
   if (error) throw error;
 }
 
@@ -169,7 +168,7 @@ export async function getRawiById(
 
 export async function createRawi(data: Partial<RawiInsert>): Promise<string> {
   const { data: newRawi, error } = await supabase
-    .from("ruwat")
+    .from("authors")
     .insert([
       {
         name: data.name!,
@@ -207,13 +206,13 @@ export async function updateRawi(
     )
   );
 
-  const { error } = await supabase.from("ruwat").update(payload).eq("id", id);
+  const { error } = await supabase.from("authors").update(payload).eq("id", id);
   if (error) throw error;
 }
 
 export async function deleteRuwat(ids: string[]): Promise<void> {
   const { data: records } = await supabase
-    .from("ruwat")
+    .from("authors")
     .select("image_url")
     .in("id", ids);
   const urlsToDelete = records
@@ -223,6 +222,6 @@ export async function deleteRuwat(ids: string[]): Promise<void> {
     await deleteFromStorage(urlsToDelete).catch(console.error);
   }
 
-  const { error } = await supabase.from("ruwat").delete().in("id", ids);
+  const { error } = await supabase.from("authors").delete().in("id", ids);
   if (error) throw error;
 }
