@@ -44,14 +44,14 @@ sync:
 			rm -rf $(APP_ASSETS)/$$dir; \
 		fi; \
 		if [ ! -L $(APP_ASSETS)/$$dir ]; then \
-			ln -s $(SHARED_DIR)/$$dir $(APP_ASSETS)/$$dir; \
+			ln -s ../../shared/$$dir $(APP_ASSETS)/$$dir; \
 			echo "🔗 Linked $(APP_ASSETS)/$$dir"; \
 		fi; \
 		if [ -d $(WEB_ASSETS)/$$dir ] && [ ! -L $(WEB_ASSETS)/$$dir ]; then \
 			rm -rf $(WEB_ASSETS)/$$dir; \
 		fi; \
 		if [ ! -L $(WEB_ASSETS)/$$dir ]; then \
-			ln -s $(SHARED_DIR)/$$dir $(WEB_ASSETS)/$$dir; \
+			ln -s ../../../shared/$$dir $(WEB_ASSETS)/$$dir; \
 			echo "🔗 Linked $(WEB_ASSETS)/$$dir"; \
 		fi; \
 	done
