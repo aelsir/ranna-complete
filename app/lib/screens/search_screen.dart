@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/providers/supabase_providers.dart';
+import 'package:ranna/providers/recent_searches_provider.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/common/shimmer_loading.dart';
@@ -47,11 +48,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     ref.read(searchFilterProvider.notifier).state = filter;
   }
 
+  /// Run a search for [query] immediately (from a recent or trending tap).
+  /// Pushes the text into the field and skips the debounce so results show
+  /// without waiting.
+  void _applyQuery(String query) {
+    Haptics.selection();
+    _debounceTimer?.cancel();
+    _controller.text = query;
+    _controller.selection = TextSelection.collapsed(offset: query.length);
+    ref.read(searchQueryProvider.notifier).state = query;
+    _focusNode.requestFocus();
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     final activeFilter = ref.watch(searchFilterProvider);
     final searchResults = ref.watch(searchResultsProvider);
+
+    // Record a query in recent searches once it actually returns results.
+    // (Fires per debounced keystroke; the notifier collapses prefixes so
+    // only the longest typed query survives.)
+    ref.listen<AsyncValue<List<SearchResult>>>(searchResultsProvider,
+        (prev, next) {
+      next.whenData((results) {
+        final q = ref.read(searchQueryProvider).trim();
+        if (q.isNotEmpty && results.isNotEmpty) {
+          ref.read(recentSearchesProvider.notifier).add(q);
+        }
+      });
+    });
 
     // We no longer sync provider → controller here because the old
     // approach would push .trim()-ed text back into the TextField,
@@ -323,7 +350,59 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  /// Shown while the query is empty: recent searches + trending artists.
+  /// Falls back to a plain prompt when there's nothing to suggest yet.
   Widget _buildEmptyState() {
+    final recents = ref.watch(recentSearchesProvider);
+    final trending = ref.watch(homeDataProvider).maybeWhen(
+          data: (d) => d.artists.map((a) => a.name).take(8).toList(),
+          orElse: () => const <String>[],
+        );
+
+    if (recents.isEmpty && trending.isEmpty) {
+      return _buildInitialPrompt();
+    }
+
+    return ListView(
+      padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 100),
+      children: [
+        if (recents.isNotEmpty) ...[
+          _buildSectionHeader(
+            'عمليات البحث الأخيرة',
+            action: GestureDetector(
+              onTap: () {
+                Haptics.selection();
+                ref.read(recentSearchesProvider.notifier).clear();
+              },
+              child: Text(
+                'مسح الكل',
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontFustat,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: RannaTheme.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...recents.map(_buildRecentRow),
+          const SizedBox(height: 24),
+        ],
+        if (trending.isNotEmpty) ...[
+          _buildSectionHeader('الأكثر بحثاً'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: trending.map(_buildTrendingChip).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildInitialPrompt() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -343,6 +422,107 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, {Widget? action}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontFamily: RannaTheme.fontFustat,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: RannaTheme.foreground,
+          ),
+        ),
+        ?action,
+      ],
+    );
+  }
+
+  Widget _buildRecentRow(String query) {
+    return InkWell(
+      onTap: () => _applyQuery(query),
+      borderRadius: BorderRadius.circular(RannaTheme.radiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              Icons.history_rounded,
+              size: 20,
+              color: RannaTheme.mutedForeground.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                query,
+                style: TextStyle(
+                  fontFamily: RannaTheme.fontNotoNaskh,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w300,
+                  color: RannaTheme.foreground,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                Haptics.selection();
+                ref.read(recentSearchesProvider.notifier).remove(query);
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: RannaTheme.mutedForeground.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendingChip(String label) {
+    return GestureDetector(
+      onTap: () => _applyQuery(label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: RannaTheme.muted,
+          borderRadius: BorderRadius.circular(RannaTheme.radiusFull),
+          border: Border.all(color: RannaTheme.border.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.trending_up_rounded,
+              size: 14,
+              color: RannaTheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: RannaTheme.fontFustat,
+                fontSize: 13,
+                fontWeight: FontWeight.w300,
+                color: RannaTheme.foreground,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
