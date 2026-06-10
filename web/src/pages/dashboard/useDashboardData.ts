@@ -137,6 +137,7 @@ export function useDashboardData({
       playCount: t.play_count || 0,
       audioUrl: t.audio_url || "",
       imageUrl: t.image_url || "",
+      contentType: t.content_type || "madha",
       duration: t.duration_seconds
         ? `${Math.floor(t.duration_seconds / 60)}:${(t.duration_seconds % 60).toString().padStart(2, "0")}`
         : "٠:٠٠",

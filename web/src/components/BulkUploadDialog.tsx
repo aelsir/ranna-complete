@@ -46,6 +46,7 @@ import {
 } from "@/hooks/useBulkUpload";
 import { useAllMadhaatForReplace } from "@/lib/api/hooks";
 import { useToast } from "@/hooks/use-toast";
+import { CONTENT_TYPES } from "@/types/database";
 
 interface BulkUploadDialogProps {
   open: boolean;
@@ -952,6 +953,27 @@ export function BulkUploadDialog({
 
                 <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
                   <div>
+                    <label className="text-xs font-fustat text-muted-foreground mb-2 block">
+                      نوع المحتوى *
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                      {CONTENT_TYPES.map((ct) => (
+                        <button
+                          key={ct.value}
+                          type="button"
+                          onClick={() => setMetadata({ contentType: ct.value })}
+                          className={`px-3 py-1.5 rounded-full text-xs font-fustat font-bold transition-all border ${
+                            (metadata.contentType || "madha") === ct.value
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                          }`}
+                        >
+                          {ct.icon} {ct.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
                     <label className="text-xs font-fustat text-muted-foreground mb-1 block">
                       المادح *
                     </label>
@@ -1216,6 +1238,28 @@ export function BulkUploadDialog({
             </div>
             
             <div className="grid grid-cols-2 gap-3">
+               <div className="col-span-2">
+                 <label className="text-xs font-fustat text-muted-foreground mb-2 block">نوع المحتوى</label>
+                 <div className="flex gap-2 flex-wrap">
+                   {CONTENT_TYPES.map((ct) => {
+                     const effective = advancedFile.overrides.contentType ?? metadata.contentType ?? "madha";
+                     return (
+                       <button
+                         key={ct.value}
+                         type="button"
+                         onClick={() => setFileOverride(advancedFile.id, { contentType: ct.value })}
+                         className={`px-3 py-1.5 rounded-full text-xs font-fustat font-bold transition-all border ${
+                           effective === ct.value
+                             ? "bg-primary text-primary-foreground border-primary"
+                             : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                         }`}
+                       >
+                         {ct.icon} {ct.label}
+                       </button>
+                     );
+                   })}
+                 </div>
+               </div>
                <div className="col-span-2">
                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">كلمات المدحة</label>
                  <textarea

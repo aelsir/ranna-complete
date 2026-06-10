@@ -17,6 +17,7 @@ export interface FileMetadataOverrides {
   recordingPlace?: string;
   lyrics?: string;
   writer?: string;
+  contentType?: string;
   linkedTrackId?: string;
 }
 
@@ -296,7 +297,7 @@ function getEffectiveMetadata(
     recordingPlace: overrides.recordingPlace ?? shared.recordingPlace,
     lyrics: overrides.lyrics ?? shared.lyrics,
     writer: overrides.writer ?? "",
-    contentType: shared.contentType,
+    contentType: overrides.contentType ?? shared.contentType,
   };
 }
 

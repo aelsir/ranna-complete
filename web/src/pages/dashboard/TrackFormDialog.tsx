@@ -66,6 +66,25 @@ export function EditTrackDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div>
+            <label className="text-xs font-fustat text-muted-foreground mb-2 block">نوع المحتوى</label>
+            <div className="flex gap-2 flex-wrap">
+              {CONTENT_TYPES.map((ct) => (
+                <button
+                  key={ct.value}
+                  type="button"
+                  onClick={() => onChange({ ...track, contentType: ct.value })}
+                  className={`px-3 py-1.5 rounded-full text-xs font-fustat font-bold transition-all border ${
+                    (track.contentType || "madha") === ct.value
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                  }`}
+                >
+                  {ct.icon} {ct.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="text-xs font-fustat text-muted-foreground mb-1 block">العنوان</label>
             <Input value={track.title} onChange={(e) => onChange({ ...track, title: e.target.value })} />
           </div>

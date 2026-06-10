@@ -113,6 +113,7 @@ export function useTrackMutations({
           duration_seconds: parseDuration(editingTrack.duration),
           audio_url: editingTrack.audioUrl || null,
           image_url: editingTrack.imageUrl || null,
+          content_type: (editingTrack.contentType as any) || "madha",
         },
       },
       {
