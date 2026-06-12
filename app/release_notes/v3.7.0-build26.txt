@@ -1,0 +1,5 @@
+Version: 3.7.0+26
+Date: 2026-06-12
+Platform: BOTH
+What's New:
+"Add a beautiful and smooth onboarding to make sure the user understand the features of the app"
