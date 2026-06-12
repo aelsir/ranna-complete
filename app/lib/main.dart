@@ -11,6 +11,7 @@ import 'package:ranna/app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ranna/services/audio_player_service.dart';
 import 'package:ranna/db/local_db.dart';
+import 'package:ranna/onboarding/onboarding_prefs.dart';
 import 'package:ranna/services/mixpanel_service.dart';
 
 void main() {
@@ -65,8 +66,10 @@ void main() {
 }
 
 Future<void> _startApp() async {
-  // Pre-warm SharedPreferences cache so FavoritesNotifier._load() is instant
-  await SharedPreferences.getInstance();
+  // Pre-warm SharedPreferences cache so FavoritesNotifier._load() is instant.
+  // The instance is also injected into Riverpod below so synchronous readers
+  // (router onboarding redirect, tour controller) can use it without await.
+  final prefs = await SharedPreferences.getInstance();
 
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
@@ -111,7 +114,12 @@ Future<void> _startApp() async {
   // Initialize native audio controls (lock screen, notification)
   audioHandler = await initAudioHandler();
 
-  runApp(const ProviderScope(child: RannaApp()));
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const RannaApp(),
+    ),
+  );
 }
 
 Future<void> _configureAudioSession() async {

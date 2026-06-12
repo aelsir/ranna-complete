@@ -9,6 +9,8 @@ import 'package:ranna/access/widgets/feature_badge.dart';
 import 'package:ranna/components/common/ranna_image.dart';
 import 'package:ranna/components/player/player_controls.dart';
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/onboarding/tour/spotlight_tour.dart';
+import 'package:ranna/onboarding/tour/tour_controller.dart';
 import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
@@ -42,6 +44,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
   late final Animation<double> _opacityAnimation;
   late final Animation<double> _coverScaleAnimation;
   bool _showLyrics = false;
+
+  /// Spotlight targets for the first-open lyrics/download/favorite tour.
+  final _lyricsButtonKey = GlobalKey();
+  final _downloadButtonKey = GlobalKey();
+  final _favoriteButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -83,6 +90,15 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
         reverseCurve: Curves.easeInCubic,
       ),
     );
+
+    // First-open mini onboarding (lyrics / download / favorite). The shell
+    // only inserts FullPlayer into the tree while it's open (see app.dart),
+    // so the widget MOUNTS with isFullPlayerOpen already true — the
+    // ref.listen below never sees the closed → open transition. Trigger from
+    // initState instead, after the 600ms entry animation settles.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 800), _maybeShowTour);
+    });
   }
 
   @override
@@ -94,6 +110,67 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
   void _animateEntry(bool isOpen) {
     if (isOpen) {
       _entryController.forward(from: 0);
+    }
+  }
+
+  /// Up to three steps: lyrics (only when this track HAS lyrics — the button
+  /// isn't rendered otherwise), download (only when not yet downloaded), and
+  /// favorite. Each step has its own persisted flag, so a first track
+  /// without lyrics teaches the rest now and lyrics surfaces on a later
+  /// track that has them.
+  void _maybeShowTour() {
+    if (!mounted || !ref.read(isFullPlayerOpenProvider)) return;
+    final track = ref.read(currentTrackProvider);
+    if (track == null) return;
+
+    final hasLyrics = track.lyrics != null && track.lyrics!.isNotEmpty;
+    final isDownloaded = ref
+        .read(downloadedTrackIdsProvider)
+        .contains(track.id);
+
+    final steps = <TourStep>[
+      // When lyrics auto-opened (user came via the mini player's lyrics
+      // button, which marks the step seen) there's nothing to teach and
+      // the cover area is showing lyrics anyway.
+      if (hasLyrics && !_showLyrics)
+        TourStep(
+          id: TourStepIds.lyrics,
+          targetKey: _lyricsButtonKey,
+          icon: Icons.menu_book_rounded,
+          title: 'اقرأ الكلمات أثناء الاستماع',
+          body:
+              'معظم المدائح في رنّة مرفقة بكلماتها الكاملة — اضغط هنا لعرضها مع الاستماع.',
+          holeRadius: RannaTheme.radiusFull,
+        ),
+      if (!isDownloaded)
+        TourStep(
+          id: TourStepIds.download,
+          targetKey: _downloadButtonKey,
+          icon: Icons.download_rounded,
+          title: 'استمع دون إنترنت',
+          body: 'حمِّل المديح ليبقى معك وتستمع إليه في أي وقت دون اتصال.',
+          holeRadius: RannaTheme.radiusFull,
+        ),
+      TourStep(
+        id: TourStepIds.favorite,
+        targetKey: _favoriteButtonKey,
+        icon: Icons.favorite_rounded,
+        title: 'احفظ مُختاراتك',
+        body:
+            'اضغط القلب ليُحفَظ المديح في «مُختاراتي» وتعود إليه متى شئت.',
+        holeRadius: RannaTheme.radiusFull,
+      ),
+    ];
+
+    final shown = maybeShowSpotlightTour(
+      context,
+      ref,
+      tourName: TourNames.fullPlayer,
+      steps: steps,
+    );
+    if (shown) {
+      // The real lesson supersedes the mini player's "open me" pointer.
+      ref.read(tourControllerProvider).markSeen(TourStepIds.miniPlayer);
     }
   }
 
@@ -120,6 +197,9 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
           );
         }
       }
+      // (The tour trigger lives in initState — this listener never fires
+      // for the first open because the shell only mounts FullPlayer while
+      // it's open.)
     });
 
     if (!isOpen) return const SizedBox.shrink();
@@ -262,6 +342,12 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                 final isFav = ref
                                     .watch(favoritesProvider)
                                     .contains(trackId);
+                                // While the spotlight tour points at a
+                                // button, that button renders its
+                                // "activated" look (as if tapped).
+                                final activeTourStep = ref.watch(
+                                  activeTourStepProvider,
+                                );
                                 return Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -271,20 +357,31 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                         isFav
                                             ? Haptics.selection()
                                             : Haptics.light();
+                                        // User found favorites on their own —
+                                        // retire the tour step.
+                                        ref
+                                            .read(tourControllerProvider)
+                                            .markSeen(TourStepIds.favorite);
                                         ref
                                             .read(favoritesProvider.notifier)
                                             .toggle(trackId);
                                       },
                                       child: SizedBox(
+                                        key: _favoriteButtonKey,
                                         width: 44,
                                         height: 44,
                                         child: Center(
                                           child: Icon(
-                                            isFav
+                                            isFav ||
+                                                    activeTourStep ==
+                                                        TourStepIds.favorite
                                                 ? Icons.favorite_rounded
                                                 : Icons.favorite_border_rounded,
                                             size: 24,
-                                            color: isFav
+                                            color:
+                                                isFav ||
+                                                    activeTourStep ==
+                                                        TourStepIds.favorite
                                                 ? RannaTheme.favoriteHeart
                                                 : RannaTheme.primaryForeground
                                                       .withValues(alpha: 0.40),
@@ -321,7 +418,12 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                     ),
                                     // Download
                                     const SizedBox(width: 24),
-                                    _FullPlayerDownloadButton(track: track),
+                                    KeyedSubtree(
+                                      key: _downloadButtonKey,
+                                      child: _FullPlayerDownloadButton(
+                                        track: track,
+                                      ),
+                                    ),
                                     // Lyrics toggle
                                     if (hasLyrics) ...[
                                       const SizedBox(width: 24),
@@ -335,6 +437,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                             return;
                                           }
                                           Haptics.selection();
+                                          // User found lyrics on their own —
+                                          // retire the tour step.
+                                          ref
+                                              .read(tourControllerProvider)
+                                              .markSeen(TourStepIds.lyrics);
                                           final opening = !_showLyrics;
                                           setState(() => _showLyrics = opening);
                                           // Record only on the hidden → visible
@@ -354,6 +461,7 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                           }
                                         },
                                         child: SizedBox(
+                                          key: _lyricsButtonKey,
                                           width: 44,
                                           height: 44,
                                           child: Center(
@@ -363,7 +471,11 @@ class _FullPlayerState extends ConsumerState<FullPlayer>
                                                 Icon(
                                                   Icons.menu_book_rounded,
                                                   size: 24,
-                                                  color: _showLyrics
+                                                  color:
+                                                      _showLyrics ||
+                                                          activeTourStep ==
+                                                              TourStepIds
+                                                                  .lyrics
                                                       ? RannaTheme.accent
                                                       : RannaTheme
                                                             .primaryForeground
@@ -902,6 +1014,8 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () async {
+        // User found download on their own — retire the tour step.
+        ref.read(tourControllerProvider).markSeen(TourStepIds.download);
         if (!requireFeature(context, ref, Feature.downloadTrack)) return;
         try {
           await startDownload(ref, track!);
@@ -917,7 +1031,11 @@ class _FullPlayerDownloadButton extends ConsumerWidget {
               Icon(
                 Icons.download_rounded,
                 size: 24,
-                color: RannaTheme.primaryForeground.withValues(alpha: 0.40),
+                // Gold (the "downloaded" accent) while the tour points here.
+                color:
+                    ref.watch(activeTourStepProvider) == TourStepIds.download
+                    ? RannaTheme.accent
+                    : RannaTheme.primaryForeground.withValues(alpha: 0.40),
               ),
               const Positioned(
                 bottom: -4,

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/onboarding/tour/spotlight_tour.dart';
+import 'package:ranna/onboarding/tour/tour_controller.dart';
 import 'package:ranna/providers/favorites_provider.dart';
 import 'package:ranna/providers/download_provider.dart';
 import 'package:ranna/services/audio_player_service.dart';
@@ -28,9 +30,61 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   double _dragExtent = 0;
   static const _actionWidth = 72.0;
 
+  /// Spotlight target for the first-play tour hint.
+  final _barKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
+    // This widget only enters the tree once a track is playing, so "first
+    // build" == "first time the user ever sees the mini player". Give the
+    // bar a beat to settle on screen before pointing at it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 900), _maybeShowTour);
+    });
+  }
+
+  /// One-step hint whose only job is to pull the user into the full player,
+  /// where the real lyrics/download lesson lives (see TourController docs).
+  void _maybeShowTour() {
+    if (!mounted) return;
+    if (ref.read(currentTrackProvider) == null) return;
+    if (ref.read(isFullPlayerOpenProvider)) return;
+
+    final tours = ref.read(tourControllerProvider);
+    // If the full-player tour already taught lyrics/download (e.g. the user
+    // reached the full player straight away), this pointer is redundant
+    // forever — retire it silently.
+    if (tours.seen(TourStepIds.lyrics) || tours.seen(TourStepIds.download)) {
+      tours.markSeen(TourStepIds.miniPlayer);
+      return;
+    }
+
+    maybeShowSpotlightTour(
+      context,
+      ref,
+      tourName: TourNames.miniPlayer,
+      steps: [
+        TourStep(
+          id: TourStepIds.miniPlayer,
+          targetKey: _barKey,
+          icon: Icons.expand_less_rounded,
+          title: 'هذا مشغّلك',
+          body:
+              'اضغط على الشريط لفتح المشغّل الكامل — حيث تقرأ كلمات المديح وتحمّله للاستماع دون إنترنت.',
+          holeRadius: RannaTheme.radius3xl,
+        ),
+        TourStep(
+          id: TourStepIds.miniPlayerDismiss,
+          targetKey: _barKey,
+          icon: Icons.swipe_left_rounded,
+          title: 'أخفِه متى شئت',
+          body:
+              'اسحب الشريط إلى اليسار ليظهر زر الحذف — يوقف التشغيل ويُخفي المشغّل.',
+          holeRadius: RannaTheme.radius3xl,
+        ),
+      ],
+    );
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
@@ -73,6 +127,12 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
       favoritesProvider.select((s) => s.contains(track.id)),
     );
     final hasLyrics = track.lyrics != null && track.lyrics!.isNotEmpty;
+    // While the spotlight tour points at the bar, its border goes gold —
+    // the highlight IS the element's own border, not a ring drawn around it.
+    final activeTourStep = ref.watch(activeTourStepProvider);
+    final isSpotlighted =
+        activeTourStep == TourStepIds.miniPlayer ||
+        activeTourStep == TourStepIds.miniPlayerDismiss;
 
     return Stack(
       children: [
@@ -103,6 +163,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
 
         // --- Swipeable mini player ---
         AnimatedContainer(
+          key: _barKey,
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           transform: Matrix4.translationValues(-_dragExtent, 0, 0),
@@ -119,7 +180,12 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                   // Top-tier overlay (sits above content, like the nav).
                   color: RannaTheme.surface2.withValues(alpha: 0.80),
                   borderRadius: BorderRadius.circular(RannaTheme.radius3xl),
-                  border: Border.all(color: RannaTheme.border.withValues(alpha: 0.6)),
+                  border: Border.all(
+                    color: isSpotlighted
+                        ? RannaTheme.accent
+                        : RannaTheme.border.withValues(alpha: 0.6),
+                    width: isSpotlighted ? 1.5 : 1,
+                  ),
                 ),
                 child: GestureDetector(
                   onHorizontalDragUpdate: _onDragUpdate,
@@ -221,6 +287,10 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                             ),
                             onTap: () {
                               Haptics.selection();
+                              // User found lyrics on their own — no tour needed.
+                              ref
+                                  .read(tourControllerProvider)
+                                  .markSeen(TourStepIds.lyrics);
                               notifier.openFullPlayerWithLyrics();
                             },
                           ),
@@ -234,6 +304,11 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               : RannaTheme.primaryForeground.withValues(alpha: 0.40),
                           onTap: () {
                             isFav ? Haptics.selection() : Haptics.light();
+                            // User found favorites on their own — no tour
+                            // needed.
+                            ref
+                                .read(tourControllerProvider)
+                                .markSeen(TourStepIds.favorite);
                             ref.read(favoritesProvider.notifier).toggle(track.id);
                           },
                         ),
@@ -327,6 +402,8 @@ class _MiniDownloadButton extends ConsumerWidget {
     return GestureDetector(
       onTap: () async {
         Haptics.light();
+        // User found download on their own — no tour needed.
+        ref.read(tourControllerProvider).markSeen(TourStepIds.download);
         try {
           await startDownload(ref, track);
         } catch (_) {}

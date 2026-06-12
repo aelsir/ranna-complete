@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ranna/constants/countries.dart';
@@ -151,6 +152,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // OAuth (and an existing account logging back in) completes the session
+    // right here, without a deep-link round-trip — when the anonymous user
+    // becomes a real one, leave for the welcome screen instead of sitting
+    // frozen on this form.
+    ref.listen<AuthState>(authNotifierProvider, (prev, next) {
+      final becameMember =
+          (prev?.isAnonymous ?? true) && !next.isAnonymous && next.user != null;
+      if (becameMember && mounted) {
+        context.go('/welcome');
+      }
+    });
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(

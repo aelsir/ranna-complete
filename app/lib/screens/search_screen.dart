@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:ranna/theme/app_theme.dart';
+import 'package:ranna/onboarding/tour/spotlight_tour.dart';
+import 'package:ranna/onboarding/tour/tour_controller.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/providers/recent_searches_provider.dart';
 import 'package:ranna/components/track/track_row.dart';
@@ -26,6 +28,39 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final FocusNode _focusNode = FocusNode();
   Timer? _debounceTimer;
 
+  /// Spotlight target for the first-visit "search by lyrics" tour.
+  final _kalimatChipKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Shell branches build lazily, so initState == first time the user ever
+    // opens the search tab.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 700), _maybeShowTour);
+    });
+  }
+
+  void _maybeShowTour() {
+    if (!mounted) return;
+    maybeShowSpotlightTour(
+      context,
+      ref,
+      tourName: TourNames.search,
+      steps: [
+        TourStep(
+          id: TourStepIds.searchLyrics,
+          targetKey: _kalimatChipKey,
+          icon: Icons.manage_search_rounded,
+          title: 'ابحث في الكلمات',
+          body:
+              'لا يقتصر البحث على العنوان أو المادح أو الراوي — اكتب أي مقطع من كلمات المديح وسنجده لك.',
+          holeRadius: RannaTheme.radiusFull,
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _debounceTimer?.cancel();
@@ -42,6 +77,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _setFilter(SearchFilter filter) {
+    // User found the lyrics filter on their own — retire the tour step.
+    if (filter == SearchFilter.kalimat) {
+      ref.read(tourControllerProvider).markSeen(TourStepIds.searchLyrics);
+    }
     // Tap the same chip twice → no haptic (no state change to confirm).
     if (ref.read(searchFilterProvider) == filter) return;
     Haptics.selection();
@@ -260,12 +299,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           query,
         ),
         const SizedBox(width: 8),
-        _buildFilterChip(
-          'كلمات',
-          SearchFilter.kalimat,
-          activeFilter,
-          query.isNotEmpty ? (counts[SearchResultType.kalimat] ?? 0) : null,
-          query,
+        KeyedSubtree(
+          key: _kalimatChipKey,
+          child: _buildFilterChip(
+            'كلمات',
+            SearchFilter.kalimat,
+            activeFilter,
+            query.isNotEmpty ? (counts[SearchResultType.kalimat] ?? 0) : null,
+            query,
+          ),
         ),
         const SizedBox(width: 8),
         _buildFilterChip(
@@ -294,7 +336,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     int? count,
     String query,
   ) {
-    final isActive = active == filter;
+    // While the spotlight tour points at the كلمات chip, render it in its
+    // selected (emerald) look — the highlight is the chip itself.
+    final spotlighted =
+        filter == SearchFilter.kalimat &&
+        ref.watch(activeTourStepProvider) == TourStepIds.searchLyrics;
+    final isActive = active == filter || spotlighted;
     final hasResults = count == null || count > 0;
     final isDim = query.isNotEmpty && !hasResults && !isActive;
 

@@ -25,6 +25,9 @@ import 'package:ranna/screens/all_funoon_screen.dart';
 import 'package:ranna/screens/track_deeplink_screen.dart';
 import 'package:ranna/screens/auth_screen.dart';
 import 'package:ranna/screens/auth_callback_screen.dart';
+import 'package:ranna/screens/welcome_screen.dart';
+import 'package:ranna/onboarding/onboarding_prefs.dart';
+import 'package:ranna/onboarding/onboarding_screen.dart';
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/components/player/mini_player.dart';
 import 'package:ranna/components/player/full_player.dart';
@@ -61,6 +64,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         final query = uri.hasQuery ? '?${uri.query}' : '';
         return '$path$query';
       }
+      // First-run onboarding. Only intercept the bare home route — deep
+      // links (shared tracks, auth callbacks) must keep working on a fresh
+      // install, so anything with a more specific path passes through.
+      if (state.matchedLocation == '/' &&
+          !ref.read(onboardingCompletedProvider)) {
+        return '/onboarding';
+      }
       return null;
     },
     routes: [
@@ -79,6 +89,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/callback',
         builder: (context, state) => const AuthCallbackScreen(),
+      ),
+      // First-run onboarding — outside the shell so it fills the viewport
+      // with no bottom nav, same as the auth flow.
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      // Post-sign-in welcome — gate-sheet styling, shown after OAuth or a
+      // magic link lands.
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

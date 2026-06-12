@@ -73,6 +73,8 @@ import {
   swapHeroImageOrder,
 } from "./queries";
 
+import { getOnboardingEffectiveness } from "./onboarding-analytics";
+
 import type {
   MadhaInsert,
   MadihInsert,
@@ -806,6 +808,19 @@ export function useDownloadAnalytics() {
   return useQuery({
     queryKey: queryKeys.downloadAnalytics,
     queryFn: () => getDownloadAnalytics(14),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+}
+
+/** Onboarding effectiveness page: new-user cohort activation + feature
+ *  adoption, scoped to a trailing window. */
+export function useOnboardingEffectiveness(windowDays: number) {
+  return useQuery({
+    queryKey: ["onboardingEffectiveness", windowDays],
+    queryFn: () => getOnboardingEffectiveness(windowDays),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,

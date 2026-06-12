@@ -12,6 +12,8 @@ import 'package:ranna/components/common/shimmer_loading.dart';
 import 'package:ranna/components/track/play_all_button.dart';
 import 'package:ranna/components/track/track_row.dart';
 import 'package:ranna/models/madha.dart';
+import 'package:ranna/onboarding/tour/spotlight_tour.dart';
+import 'package:ranna/onboarding/tour/tour_controller.dart';
 import 'package:ranna/providers/follows_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -311,8 +313,43 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
   int _celebrateTick = 0;
   bool _busy = false;
 
+  /// Spotlight target for the first-profile-visit follow tour. One flag
+  /// covers artist AND narrator pages — it's the same feature.
+  final _buttonKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 700), _maybeShowTour);
+    });
+  }
+
+  void _maybeShowTour() {
+    if (!mounted) return;
+    maybeShowSpotlightTour(
+      context,
+      ref,
+      tourName: TourNames.follow,
+      steps: [
+        TourStep(
+          id: TourStepIds.follow,
+          targetKey: _buttonKey,
+          icon: Icons.person_add_alt_1_rounded,
+          title: 'تابع من تحب',
+          body:
+              'تابع المدّاحين والرواة ليظهر لك جديدهم، وتجد كل متابعاتك في زاويتي.',
+          holeRadius: RannaTheme.radiusFull,
+        ),
+      ],
+    );
+  }
+
   Future<void> _onTap() async {
     if (_busy) return;
+
+    // User found the button on their own — retire the tour step.
+    ref.read(tourControllerProvider).markSeen(TourStepIds.follow);
 
     // Gate: following is a member-tier feature, gated through the same access
     // system as download / view-lyrics. Below-tier users get the access gate
@@ -355,9 +392,14 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
     final isFollowing = ref.watch(
       isFollowingProvider((type: widget.targetType, id: widget.targetId)),
     );
+    // While the spotlight tour points here, render the filled "tapped" look
+    // (without changing the label) so the highlight is the button itself.
+    final spotlighted =
+        ref.watch(activeTourStepProvider) == TourStepIds.follow;
     final label = isFollowing ? 'تتابعه' : 'تابـــــع';
-    final fg = isFollowing ? RannaTheme.background : RannaTheme.primary;
-    final bg = isFollowing ? RannaTheme.primary : Colors.transparent;
+    final filled = isFollowing || spotlighted;
+    final fg = filled ? RannaTheme.background : RannaTheme.primary;
+    final bg = filled ? RannaTheme.primary : Colors.transparent;
     final borderColor = RannaTheme.primary;
 
     return Stack(
@@ -385,6 +427,7 @@ class _FollowButtonState extends ConsumerState<_FollowButton> {
 
         // ── The button itself ──
         AnimatedContainer(
+              key: _buttonKey,
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               decoration: BoxDecoration(

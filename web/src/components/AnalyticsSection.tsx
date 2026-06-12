@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   useAnalyticsSummary,
   useContentHealth,
@@ -306,8 +307,7 @@ const AnalyticsSection = ({
       </Card>
 
       {/* ── Sub-page CTAs: deeper analytics pages ── */}
-      {(onOpenCompletion || onOpenLyrics) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {onOpenCompletion && (
             <button
               type="button"
@@ -353,8 +353,31 @@ const AnalyticsSection = ({
               </span>
             </button>
           )}
+
+          {/* Unlike the two above, this opens its OWN PAGE (/dashboard/
+              onboarding) instead of swapping a section inside this view —
+              the direction all analytics sub-pages are migrating toward. */}
+          <Link
+            to="/dashboard/onboarding"
+            className="group w-full text-right rounded-2xl border border-border/40 bg-card shadow-sm hover:border-amber-500/50 hover:bg-amber-500/5 transition-colors p-5 flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-fustat font-bold text-sm">فعالية التهيئة</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  رحلة المستخدم الجديد: التفعيل، تبنّي المزايا (الكلمات،
+                  التحميل، المفضلة، المتابعة)، وقمع التهيئة عند ربط Mixpanel.
+                </p>
+              </div>
+            </div>
+            <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm font-fustat shrink-0">
+              افتح →
+            </span>
+          </Link>
         </div>
-      )}
 
       {/* ── Combined plays + minutes trend (dual y-axis), full width ── */}
       <Card className="border-border/40 shadow-sm">

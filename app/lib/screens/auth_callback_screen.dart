@@ -145,7 +145,9 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
           });
         }
 
-        context.go('/account');
+        // Land on the gate-sheet-styled welcome screen, not the bare
+        // account tab — its CTA takes the user home from there.
+        context.go('/welcome');
       }
     });
 
