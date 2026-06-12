@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+import '../services/mixpanel_service.dart';
 import 'auth_notifier.dart';
 
 /// Composite follow-target identifier.
@@ -92,6 +93,15 @@ class FollowsNotifier extends StateNotifier<Set<FollowKey>> {
             .eq('user_id', user.id)
             .eq('target_type', type)
             .eq('target_id', id);
+      }
+      // ── Mixpanel: follow_toggled ────────────────────────────────────
+      if (MixpanelService.isInitialized) {
+        MixpanelService.instance.track('follow_toggled', properties: {
+          'target_type': type,
+          'target_id': id,
+          'action': willFollow ? 'followed' : 'unfollowed',
+          'platform': MixpanelService.currentPlatform,
+        });
       }
       return willFollow;
     } catch (e) {

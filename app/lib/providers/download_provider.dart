@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../db/local_db.dart';
 import '../models/madha.dart';
 import '../services/download_service.dart';
+import '../services/mixpanel_service.dart';
 
 // ============================================
 // Downloaded Track IDs (reactive set)
@@ -120,6 +121,16 @@ Future<void> startDownload(WidgetRef ref, MadhaWithRelations track) async {
     // Invalidate the full list + storage providers
     ref.invalidate(downloadedTracksProvider);
     ref.invalidate(downloadStorageProvider);
+
+    // ── Mixpanel: track_downloaded ──────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('track_downloaded', properties: {
+        'track_id': track.id,
+        'track_title': track.title,
+        'artist_name': track.madihDetails?.name ?? track.madih,
+        'platform': MixpanelService.currentPlatform,
+      });
+    }
   } catch (e) {
     activeNotifier.remove(track.id);
     debugPrint('⛔ startDownload error: $e');

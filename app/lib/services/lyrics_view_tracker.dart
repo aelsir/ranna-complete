@@ -12,6 +12,8 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:ranna/services/mixpanel_service.dart';
+
 class LyricsViewTracker {
   LyricsViewTracker._();
   static final LyricsViewTracker instance = LyricsViewTracker._();
@@ -31,6 +33,14 @@ class LyricsViewTracker {
     final last = _recent[key];
     if (last != null && now.difference(last) < _dedupeWindow) return;
     _recent[key] = now;
+
+    // ── Mixpanel: lyrics_viewed ────────────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('lyrics_viewed', properties: {
+        'track_id': trackId,
+        'platform': MixpanelService.currentPlatform,
+      });
+    }
 
     // Bounded LRU-ish cleanup so the map doesn't grow forever.
     if (_recent.length > 256) {

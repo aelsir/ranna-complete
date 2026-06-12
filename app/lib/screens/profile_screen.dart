@@ -16,6 +16,7 @@ import 'package:ranna/onboarding/tour/spotlight_tour.dart';
 import 'package:ranna/onboarding/tour/tour_controller.dart';
 import 'package:ranna/providers/follows_provider.dart';
 import 'package:ranna/providers/supabase_providers.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/utils/format.dart';
 
@@ -27,7 +28,26 @@ class ProfileScreen extends ConsumerWidget {
   final String type;
   final String id;
 
+  /// Tracks which profiles have already been recorded in this session
+  /// so the Mixpanel event fires at most once per (type, id) pair.
+  static final Set<String> _trackedProfiles = <String>{};
+
   const ProfileScreen({super.key, required this.type, required this.id});
+
+  void _maybeTrackProfileView(String name, int trackCount) {
+    final key = '$type:$id';
+    if (_trackedProfiles.contains(key)) return;
+    _trackedProfiles.add(key);
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('profile_viewed', properties: {
+        'profile_type': type,
+        'profile_id': id,
+        'profile_name': name,
+        'track_count': trackCount,
+        'platform': MixpanelService.currentPlatform,
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,8 +133,10 @@ class ProfileScreen extends ConsumerWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        data: (tracks) =>
-            _buildBody(context, ref, resolvedName, resolvedImageUrl, tracks),
+        data: (tracks) {
+            _maybeTrackProfileView(resolvedName, tracks.length);
+            return _buildBody(context, ref, resolvedName, resolvedImageUrl, tracks);
+          },
       ),
     );
   }

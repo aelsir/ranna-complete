@@ -10,6 +10,7 @@ import 'package:ranna/constants/countries.dart';
 import 'package:ranna/providers/auth_notifier.dart';
 import 'package:ranna/components/auth/oauth_buttons.dart';
 import 'package:ranna/services/last_auth_method.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/theme/app_theme.dart';
 import 'package:ranna/components/common/ranna_app_bar.dart';
 
@@ -109,6 +110,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
     setState(() => _sent = true);
     _startCooldown();
+
+    // ── Mixpanel: auth_method_selected ────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('auth_method_selected', properties: {
+        'method': 'magic_link',
+        'country': _country,
+        'platform': MixpanelService.currentPlatform,
+      });
+    }
   }
 
   InputDecoration _fieldDecoration({
@@ -426,6 +436,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _googleLoading = false);
     if (result.error != null) {
       setState(() => _error = 'تعذّر التسجيل بحساب Google. حاول لاحقاً.');
+    } else if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('auth_method_selected', properties: {
+        'method': 'google',
+        'platform': MixpanelService.currentPlatform,
+      });
     }
   }
 
@@ -438,6 +453,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _appleLoading = false);
     if (result.error != null) {
       setState(() => _error = 'تعذّر التسجيل بحساب Apple. حاول لاحقاً.');
+    } else if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('auth_method_selected', properties: {
+        'method': 'apple',
+        'platform': MixpanelService.currentPlatform,
+      });
     }
   }
 

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ranna/models/madha.dart';
 import 'package:ranna/models/madih.dart';
 import 'package:ranna/models/rawi.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/utils/lyrics.dart';
 
 import 'supabase_internals.dart';
@@ -136,6 +137,16 @@ final searchResultsProvider = FutureProvider<List<SearchResult>>((ref) async {
     }
 
     debugPrint('🔍 search: ${results.length} results for "$query"');
+
+    // ── Mixpanel: search_performed ──────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('search_performed', properties: {
+        'query': query.trim(),
+        'result_count': results.length,
+        'has_results': results.isNotEmpty,
+        'platform': MixpanelService.currentPlatform,
+      });
+    }
     return results;
   } catch (e, st) {
     debugPrint('⛔ searchResultsProvider error: $e');

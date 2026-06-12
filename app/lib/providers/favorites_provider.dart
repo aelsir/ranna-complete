@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import '../db/local_db.dart';
+import '../services/mixpanel_service.dart';
 import 'auth_notifier.dart';
 
 const _kFavoritesKey = 'favorite_track_ids';
@@ -58,6 +59,15 @@ class FavoritesNotifier extends StateNotifier<Set<String>> {
       state = {...state, trackId};
     }
     await _save();
+
+    // ── Mixpanel: favorite_toggled ──────────────────────────────────────
+    if (MixpanelService.isInitialized) {
+      MixpanelService.instance.track('favorite_toggled', properties: {
+        'track_id': trackId,
+        'action': wasFavorite ? 'unfavorited' : 'favorited',
+        'platform': MixpanelService.currentPlatform,
+      });
+    }
 
     // 2. Try Supabase sync. Read user_id from our AuthNotifier (which
     // guarantees an anon-or-real user is always available once bootstrap

@@ -58,6 +58,7 @@
     "framer-motion": "^12.35.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
+    "mixpanel-browser": "^2.80.0",
     "next-themes": "^0.3.0",
     "posthog-js": "^1.363.6",
     "react": "^18.3.1",
