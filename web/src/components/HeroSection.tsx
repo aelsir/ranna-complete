@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import DownloadAppCTA from "@/components/DownloadAppCTA";
 import { useActiveHeroImages, useHomePageData } from "@/lib/api/hooks";
 import { useCountUp } from "@/lib/useCountUp";
-import { getImageUrl } from "@/lib/format";
+import { getOptimizedImageUrl } from "@/lib/format";
 import heroBgFallback from "@/assets/hero-bg.jpg";
 
 /** Time each hero is on screen before crossfading. */
@@ -29,7 +29,10 @@ const HeroSection = () => {
     heroes && heroes.length > 0
       ? heroes.map((h) => ({
           id: h.id,
-          src: getImageUrl(h.image_url),
+          // Serve a resized WebP instead of the ~900 KB original. 1280px covers
+          // a full-width banner up to ~3× DPR on phones (the LCP that PageSpeed
+          // flagged) without shipping a desktop-sized image to mobile.
+          src: getOptimizedImageUrl(h.image_url, { width: 1280 }),
           linkUrl: h.link_url,
         }))
       : [{ id: "fallback", src: heroBgFallback, linkUrl: null }];
@@ -86,6 +89,11 @@ const HeroSection = () => {
               src={slide.src}
               alt=""
               loading={isFirstSlide ? "eager" : "lazy"}
+              // The first slide is the LCP element — flag it as high priority so
+              // the browser fetches it ahead of other resources (the bundle has
+              // already discovered it by render). Later slides stay low priority
+              // so they don't compete with the visible hero.
+              fetchPriority={isFirstSlide ? "high" : "low"}
               decoding="async"
               className="w-full h-full object-cover select-none"
               onError={(e) => {

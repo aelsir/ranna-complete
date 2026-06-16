@@ -9,6 +9,23 @@
     <meta name="theme-color" content="#1b4144" />
     <!-- iOS Safari smart app banner -->
     <meta name="apple-itunes-app" content="app-id=6761441761" />
+
+    <!-- Preconnect to the image CDNs so the hero (LCP) image starts its
+         TCP+TLS handshake during HTML parse instead of after the JS bundle
+         runs and the API call resolves. These are the R2 / Backblaze buckets
+         that serve the hero banners and cover art. -->
+    <link
+      rel="preconnect"
+      href="https://pub-5231206b23e34ae59ce4f085c70f77be.r2.dev"
+      crossorigin
+    />
+    <link
+      rel="preconnect"
+      href="https://pub-d64dfb9a128f438b8713b034a16568c2.r2.dev"
+      crossorigin
+    />
+    <link rel="preconnect" href="https://f003.backblazeb2.com" crossorigin />
+
     <link rel="icon" type="image/png" href="/logo-ranna.png" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />

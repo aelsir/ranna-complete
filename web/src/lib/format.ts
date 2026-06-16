@@ -31,6 +31,39 @@ export function getImageUrl(
 }
 
 /**
+ * Wrap a remote image URL through the wsrv.nl image CDN so it's delivered as
+ * a resized WebP instead of the full-resolution PNG/JPG original. Our R2 /
+ * Backblaze buckets can't transform images themselves, so this proxy is the
+ * cheapest way to cut the hero/cover payload (≈900 KB PNG → ≈80–120 KB WebP).
+ *
+ * Only remote http(s) assets are proxied — bundled app assets (paths starting
+ * with "/", e.g. the hero fallback or placeholder) are returned untouched,
+ * since wsrv can't reach the dev server and they're already small.
+ *
+ * @param width  Target width in px (height auto). Omit for original width.
+ * @param quality WebP quality 1–100 (default 80 — visually lossless for photos).
+ */
+export function getOptimizedImageUrl(
+  url: string | null | undefined,
+  opts: { width?: number; quality?: number; fallback?: string } = {}
+): string {
+  const { width, quality = 80, fallback } = opts;
+  const resolved = getImageUrl(url, fallback ?? "/placeholder.svg");
+
+  // Leave bundled/relative app assets and already-proxied URLs alone.
+  if (!resolved.startsWith("http") || resolved.includes("wsrv.nl")) {
+    return resolved;
+  }
+
+  // wsrv wants the source without a scheme; https sources use the "ssl:" prefix.
+  const source = resolved.replace(/^https:\/\//, "ssl:").replace(/^http:\/\//, "");
+  // `we` = without enlargement (never upscale past the original).
+  let out = `https://wsrv.nl/?url=${encodeURIComponent(source)}&output=webp&q=${quality}&we`;
+  if (width) out += `&w=${width}`;
+  return out;
+}
+
+/**
  * Get the best display image for a track with full fallback chain:
  * track image → madih image → rawi image → Ranna logo
  */
