@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mixpanel_flutter_session_replay/mixpanel_flutter_session_replay.dart';
+import 'package:ranna/services/mixpanel_service.dart';
 import 'package:ranna/providers/connectivity_provider.dart';
 import 'package:ranna/services/sync_service.dart';
 import 'package:ranna/theme/app_theme.dart';
@@ -174,24 +176,78 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class RannaApp extends ConsumerWidget {
+class RannaApp extends ConsumerStatefulWidget {
   const RannaApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RannaApp> createState() => _RannaAppState();
+}
+
+class _RannaAppState extends ConsumerState<RannaApp> {
+  // Mixpanel Session Replay. Null until init completes (or stays null when
+  // disabled / on platforms it doesn't support); `MixpanelSessionReplayWidget`
+  // accepts a null instance and simply records nothing.
+  MixpanelSessionReplay? _sessionReplay;
+
+  @override
+  void initState() {
+    super.initState();
+    // ignore: discarded_futures
+    _initSessionReplay();
+  }
+
+  Future<void> _initSessionReplay() async {
+    // Same token that gates analytics in main.dart — reading the compile-time
+    // constant again keeps replay enabled in exactly the same builds.
+    const token = String.fromEnvironment('MIXPANEL_TOKEN', defaultValue: '');
+    if (token.isEmpty || !MixpanelService.isInitialized) return;
+
+    try {
+      final distinctId = await MixpanelService.instance.getDistinctId();
+      final result = await MixpanelSessionReplay.initialize(
+        token: token,
+        distinctId: distinctId,
+        options: const SessionReplayOptions(
+          autoRecordSessionsPercent: 100.0,
+          // This Mixpanel project is on EU data residency (the web SDK posts to
+          // api-eu.mixpanel.com). Replay defaults to US, so without this the
+          // recordings would land in the wrong region and never show up.
+          serverUrl: DataResidency.eu,
+          // Mask images only — NOT text. The default masks all text, which is
+          // why replays render every (Arabic) string as "*****". Text inputs
+          // (TextField/TextFormField) are ALWAYS masked regardless, so passwords
+          // and search/login fields stay protected. Wrap any other sensitive
+          // widget in `MixpanelMask(...)` to opt it back into masking.
+          autoMaskedViews: {AutoMaskedView.image},
+        ),
+      );
+      if (result.success && result.instance != null && mounted) {
+        MixpanelService.instance.attachSessionReplay(result.instance!);
+        setState(() => _sessionReplay = result.instance);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Mixpanel session replay init failed (non-fatal): $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    return MaterialApp.router(
-      title: 'رنّة للمدائح',
-      debugShowCheckedModeBanner: false,
-      routerConfig: router,
-      theme: RannaTheme.lightTheme,
-      locale: const Locale('ar'),
-      builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
+    return MixpanelSessionReplayWidget(
+      instance: _sessionReplay,
+      child: MaterialApp.router(
+        title: 'رنّة للمدائح',
+        debugShowCheckedModeBanner: false,
+        routerConfig: router,
+        theme: RannaTheme.lightTheme,
+        locale: const Locale('ar'),
+        builder: (context, child) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+      ),
     );
   }
 }

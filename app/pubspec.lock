@@ -608,6 +608,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.8.0"
+  mixpanel_flutter_common:
+    dependency: transitive
+    description:
+      name: mixpanel_flutter_common
+      sha256: bb4d48da0297f27086bfd2a9e9b7f5a2192e88bdaa1aa14698e49974860b3b36
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
+  mixpanel_flutter_session_replay:
+    dependency: "direct main"
+    description:
+      name: mixpanel_flutter_session_replay
+      sha256: "3df762d9c25b07d82b62198fc75ffe37c98aa8ff685d8fbd54e9b3644d171fa4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0-beta.4"
   nm:
     dependency: transitive
     description:

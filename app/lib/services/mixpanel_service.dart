@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:mixpanel_flutter/mixpanel_flutter.dart';
+import 'package:mixpanel_flutter_session_replay/mixpanel_flutter_session_replay.dart';
 
 /// Singleton wrapper around the Mixpanel Flutter SDK.
 ///
@@ -14,6 +15,12 @@ class MixpanelService {
   MixpanelService._();
   static MixpanelService? _instance;
   late final Mixpanel _mixpanel;
+
+  /// Session replay instance, attached once it has finished initialising in
+  /// the widget tree (see `RannaApp`). Null until then, or when replay is
+  /// disabled (no token). Identity changes are forwarded to it so replays
+  /// stay attributed to the same user as analytics events.
+  MixpanelSessionReplay? _sessionReplay;
 
   /// Access the singleton. Throws if [init] has not been called yet.
   static MixpanelService get instance {
@@ -52,9 +59,20 @@ class MixpanelService {
 
   // ───────────────────── Identity ─────────────────────
 
+  /// The current Mixpanel distinct ID (anonymous or identified). Used to
+  /// associate session replays with the analytics identity.
+  Future<String> getDistinctId() => _mixpanel.getDistinctId();
+
+  /// Register the session replay instance once it has initialised. Forwards
+  /// the current identity so the active recording is attributed correctly.
+  void attachSessionReplay(MixpanelSessionReplay replay) {
+    _sessionReplay = replay;
+  }
+
   /// Call on login / signup / session restore when the user is authenticated.
   void identify(String userId) {
     _mixpanel.identify(userId);
+    _sessionReplay?.identify(userId);
   }
 
   /// Set user profile properties (People).
@@ -72,6 +90,12 @@ class MixpanelService {
   /// Call on logout to generate a fresh anonymous ID.
   void reset() {
     _mixpanel.reset();
+    // Re-point session replay at the new anonymous distinct ID so post-logout
+    // recordings aren't still attributed to the signed-out user.
+    final replay = _sessionReplay;
+    if (replay != null) {
+      _mixpanel.getDistinctId().then(replay.identify).catchError((_) {});
+    }
   }
 
   // ───────────────────── Helpers ─────────────────────

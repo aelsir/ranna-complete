@@ -42,6 +42,7 @@ dependencies:
   sentry_flutter: ^9.16.0
   hijri: ^3.0.0
   mixpanel_flutter: ^2.3.0
+  mixpanel_flutter_session_replay: ^0.1.0-beta.4
 
   # Native OAuth (Google + Apple). On iOS/Android we use the native SDKs and
   # exchange the resulting ID token via `supabase.auth.signInWithIdToken` for a
