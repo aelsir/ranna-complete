@@ -48,6 +48,11 @@ export function initAnalytics() {
       mixpanel.init(token, {
         autocapture: true,
         record_sessions_percent: 100,
+        // By default Mixpanel session replay masks ALL text (selector "*"),
+        // which renders every (Arabic) string as "*****". Opt into masking
+        // instead: only elements tagged with `.mp-mask` are masked, so normal
+        // text is visible in replays. Password inputs are always masked.
+        record_mask_text_selector: ".mp-mask",
         api_host: apiHost || "https://api-eu.mixpanel.com",
         persistence: "localStorage",
       });
