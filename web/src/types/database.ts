@@ -1,67 +1,144 @@
+// Hand-maintained mirror of the live schema (table renames landed in
+// migration 025: madha→tracks, madiheen→artists, ruwat→authors, and the
+// *_id columns followed). Keep the keys here in sync with what the code
+// actually queries — a missing entry makes supabase-js resolve the whole
+// query to `never`, which is how stale entries get caught by `pnpm
+// type-check`. Regenerating via `supabase gen types` would replace this.
 export type Database = {
   public: {
     Tables: {
-      madha: {
+      tracks: {
         Row: Madha;
         Insert: MadhaInsert;
         Update: Partial<MadhaInsert>;
+        Relationships: [];
       };
-      madiheen: {
+      artists: {
         Row: Madih;
         Insert: MadihInsert;
         Update: Partial<MadihInsert>;
+        Relationships: [];
       };
-      ruwat: {
+      authors: {
         Row: Rawi;
         Insert: RawiInsert;
         Update: Partial<RawiInsert>;
+        Relationships: [];
       };
       turuq: {
         Row: Tariqa;
         Insert: TariqaInsert;
         Update: Partial<TariqaInsert>;
+        Relationships: [];
       };
       funun: {
         Row: Fan;
         Insert: FanInsert;
         Update: Partial<FanInsert>;
+        Relationships: [];
       };
       collections: {
         Row: Collection;
         Insert: CollectionInsert;
         Update: Partial<CollectionInsert>;
+        Relationships: [];
       };
       collection_items: {
         Row: CollectionItem;
         Insert: CollectionItemInsert;
         Update: Partial<CollectionItemInsert>;
+        Relationships: [];
       };
       user_profiles: {
         Row: UserProfile;
         Insert: UserProfileInsert;
         Update: Partial<UserProfileInsert>;
+        Relationships: [];
       };
       user_roles: {
         Row: UserRole;
         Insert: UserRoleInsert;
         Update: Partial<UserRoleInsert>;
+        Relationships: [];
       };
       user_favorites: {
         Row: UserFavorite;
         Insert: UserFavoriteInsert;
         Update: Partial<UserFavoriteInsert>;
+        Relationships: [];
       };
       user_plays: {
         Row: UserPlay;
         Insert: UserPlayInsert;
         Update: Partial<UserPlayInsert>;
+        Relationships: [];
       };
       // listening_history table removed — use v_recent_listens view instead
       pending_imports: {
         Row: PendingImport;
         Insert: PendingImportInsert;
         Update: Partial<PendingImportInsert>;
+        Relationships: [];
       };
+      hero_images: {
+        Row: HeroImage;
+        Insert: HeroImageInsert;
+        Update: Partial<HeroImageInsert>;
+        Relationships: [];
+      };
+      track_curation: {
+        Row: TrackCuration;
+        Insert: TrackCurationUpsert;
+        Update: Partial<TrackCurationUpsert>;
+        Relationships: [];
+      };
+      track_reviews: {
+        Row: TrackReview;
+        Insert: Partial<TrackReview> & { track_id: string; decision: "approved" | "rejected" };
+        Update: Partial<TrackReview>;
+        Relationships: [];
+      };
+      // Written via the record_lyrics_view RPC; read by analytics only.
+      lyrics_views: {
+        Row: Record<string, unknown>;
+        Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
+        Relationships: [];
+      };
+      user_follows: {
+        Row: Record<string, unknown>;
+        Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
+        Relationships: [];
+      };
+    };
+    Views: {
+      /** Public read view — approved tracks only, joined with relations. */
+      v_tracks: { Row: MadhaWithRelations; Relationships: [] };
+      /** Admin view — all statuses + curation columns (RLS gates rows). */
+      v_tracks_admin: { Row: MadhaWithRelations; Relationships: [] };
+      v_artists: { Row: Madih & { track_count: number }; Relationships: [] };
+      v_narrators: { Row: Rawi & { track_count: number }; Relationships: [] };
+      v_recent_listens: {
+        Row: { user_id: string; track_id: string; listened_at: string };
+        Relationships: [];
+      };
+      /** user_plays minus internal users (see migration 036). */
+      v_user_plays_external: { Row: UserPlay; Relationships: [] };
+      v_user_favorites_external: { Row: UserFavorite; Relationships: [] };
+      v_download_events_external: { Row: Record<string, unknown>; Relationships: [] };
+    };
+    Functions: {
+      get_trending_tracks: { Args: { days_window: number; max_results: number }; Returns: Madha[] };
+      get_collection_tracks: { Args: { p_collection_id: string }; Returns: Madha[] };
+      get_home_data: { Args: { p_limit: number }; Returns: unknown };
+      // Stats RPCs return one JSON blob each; shapes live in analytics.ts.
+      get_stats_overview: { Args: Record<string, unknown>; Returns: unknown };
+      get_completion_stats: { Args: Record<string, unknown>; Returns: unknown };
+      get_lyrics_stats: { Args: Record<string, unknown>; Returns: unknown };
+      is_admin_or_superuser: { Args: Record<string, never>; Returns: boolean };
+      record_lyrics_view: { Args: Record<string, unknown>; Returns: unknown };
+      search_all: { Args: Record<string, unknown>; Returns: unknown };
     };
   };
 };
@@ -85,7 +162,7 @@ export type UserRoleType = "superuser" | "admin" | "user";
 // Madha (المدحة - main content)
 // ============================================
 
-export interface Madha {
+export type Madha = {
   id: string;
   title: string;
   madih: string;
@@ -94,6 +171,7 @@ export interface Madha {
   author_id: string | null;
   audio_url: string | null;
   image_url: string | null;
+  thumbnail_url: string | null;
   uploader_id: string | null;
   status: ApprovalStatus;
   needs_processing: boolean;
@@ -104,6 +182,8 @@ export interface Madha {
   fan_id: string | null;
   play_count: number;
   duration_seconds: number | null;
+  file_size_bytes: number | null;
+  content_type: ContentType | null;
   is_featured: boolean;
   created_at: string;
   updated_at: string;
@@ -119,7 +199,7 @@ export const CONTENT_TYPES: { value: ContentType; label: string; icon: string }[
   { value: "inshad", label: "إنشاد", icon: "🎤" },
 ];
 
-export interface MadhaInsert {
+export type MadhaInsert = {
   title: string;
   madih: string;
   writer?: string | null;
@@ -149,7 +229,7 @@ export interface MadhaInsert {
 export type LyricsStatus = "unreviewed" | "needs_work" | "reviewed";
 export type AudioQuality = "excellent" | "good" | "poor";
 
-export interface TrackCuration {
+export type TrackCuration = {
   track_id: string;
   lyrics_status: LyricsStatus;
   audio_quality: AudioQuality | null;
@@ -158,7 +238,7 @@ export interface TrackCuration {
   updated_at: string;
 }
 
-export interface TrackCurationUpsert {
+export type TrackCurationUpsert = {
   track_id: string;
   lyrics_status?: LyricsStatus;
   audio_quality?: AudioQuality | null;
@@ -169,7 +249,7 @@ export interface TrackCurationUpsert {
 // Append-only moderation log (migration 051). One row per review action.
 // Not yet wired into a promote-to-approve flow — tracks.status is still the
 // source of truth for current state.
-export interface TrackReview {
+export type TrackReview = {
   id: string;
   track_id: string;
   reviewer_id: string | null;
@@ -182,7 +262,7 @@ export interface TrackReview {
 // Madiheen (المادحين - performers)
 // ============================================
 
-export interface Madih {
+export type Madih = {
   id: string;
   name: string;
   status: ApprovalStatus;
@@ -198,7 +278,7 @@ export interface Madih {
   created_by: string | null;
 }
 
-export interface MadihInsert {
+export type MadihInsert = {
   name: string;
   status?: ApprovalStatus;
   bio?: string | null;
@@ -214,7 +294,7 @@ export interface MadihInsert {
 // Ruwat (الرواة - narrators/writers)
 // ============================================
 
-export interface Rawi {
+export type Rawi = {
   id: string;
   name: string;
   status: ApprovalStatus;
@@ -228,7 +308,7 @@ export interface Rawi {
   created_by: string | null;
 }
 
-export interface RawiInsert {
+export type RawiInsert = {
   name: string;
   status?: ApprovalStatus;
   bio?: string | null;
@@ -242,14 +322,14 @@ export interface RawiInsert {
 // Turuq (الطرق الصوفية - Sufi orders)
 // ============================================
 
-export interface Tariqa {
+export type Tariqa = {
   id: string;
   name: string;
   description: string | null;
   created_at: string;
 }
 
-export interface TariqaInsert {
+export type TariqaInsert = {
   name: string;
   description?: string | null;
 }
@@ -258,14 +338,14 @@ export interface TariqaInsert {
 // Funun (الفنون - taar tones/music styles)
 // ============================================
 
-export interface Fan {
+export type Fan = {
   id: string;
   name: string;
   description: string | null;
   created_at: string;
 }
 
-export interface FanInsert {
+export type FanInsert = {
   name: string;
   description?: string | null;
 }
@@ -274,7 +354,7 @@ export interface FanInsert {
 // Collections (المجموعات)
 // ============================================
 
-export interface Collection {
+export type Collection = {
   id: string;
   name: string;
   name_en: string | null;
@@ -286,7 +366,7 @@ export interface Collection {
   created_by: string | null;
 }
 
-export interface CollectionInsert {
+export type CollectionInsert = {
   name: string;
   name_en?: string | null;
   description?: string | null;
@@ -296,16 +376,16 @@ export interface CollectionInsert {
   created_by?: string | null;
 }
 
-export interface CollectionItem {
+export type CollectionItem = {
   collection_id: string;
-  madha_id: string;
+  track_id: string;
   position: number;
   added_at: string;
 }
 
-export interface CollectionItemInsert {
+export type CollectionItemInsert = {
   collection_id: string;
-  madha_id: string;
+  track_id: string;
   position?: number;
 }
 
@@ -313,7 +393,7 @@ export interface CollectionItemInsert {
 // Hero Images (صور الواجهة)
 // ============================================
 
-export interface HeroImage {
+export type HeroImage = {
   id: string;
   image_url: string;
   title: string | null;
@@ -323,7 +403,7 @@ export interface HeroImage {
   created_at: string;
 }
 
-export interface HeroImageInsert {
+export type HeroImageInsert = {
   image_url: string;
   title?: string | null;
   link_url?: string | null;
@@ -335,7 +415,7 @@ export interface HeroImageInsert {
 // User Profiles
 // ============================================
 
-export interface UserProfile {
+export type UserProfile = {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
@@ -344,11 +424,13 @@ export interface UserProfile {
   city: string | null;
   tariqa_id: string | null;
   email_notifications: boolean;
+  /** Staff flag — rows excluded from analytics (migration 036). */
+  is_internal: boolean;
   created_at: string;
   last_active_at: string | null;
 }
 
-export interface UserProfileInsert {
+export type UserProfileInsert = {
   id: string;
   display_name?: string | null;
   avatar_url?: string | null;
@@ -363,14 +445,14 @@ export interface UserProfileInsert {
 // User Roles
 // ============================================
 
-export interface UserRole {
+export type UserRole = {
   id: string;
   user_id: string;
   role: UserRoleType;
   created_at: string;
 }
 
-export interface UserRoleInsert {
+export type UserRoleInsert = {
   user_id: string;
   role: UserRoleType;
 }
@@ -379,35 +461,38 @@ export interface UserRoleInsert {
 // User Favorites
 // ============================================
 
-export interface UserFavorite {
+export type UserFavorite = {
   id: string;
   user_id: string;
-  madha_id: string;
+  track_id: string;
   created_at: string;
 }
 
-export interface UserFavoriteInsert {
+export type UserFavoriteInsert = {
   user_id: string;
-  madha_id: string;
+  track_id: string;
 }
 
 // ============================================
 // User Plays (analytics)
 // ============================================
 
-export interface UserPlay {
+export type UserPlay = {
   id: string;
   user_id: string | null;
-  madha_id: string;
+  track_id: string;
   played_at: string;
   duration_seconds: number | null;
   completed: boolean;
   device_type: string | null;
 }
 
-export interface UserPlayInsert {
+export type UserPlayInsert = {
+  /** Client-generated UUID so related events can link pre-insert. */
+  id?: string;
   user_id?: string | null;
-  madha_id: string;
+  track_id: string;
+  played_at?: string;
   duration_seconds?: number | null;
   completed?: boolean;
   device_type?: string | null;
@@ -420,7 +505,7 @@ export interface UserPlayInsert {
 // Pending Imports
 // ============================================
 
-export interface PendingImport {
+export type PendingImport = {
   id: string;
   youtube_url: string;
   title: string;
@@ -436,7 +521,7 @@ export interface PendingImport {
   madha_id: string | null;
 }
 
-export interface PendingImportInsert {
+export type PendingImportInsert = {
   youtube_url: string;
   title: string;
   artist_id?: string | null;
@@ -453,7 +538,7 @@ export interface PendingImportInsert {
 // Joined query types (for common queries with relations)
 // ============================================
 
-export interface MadhaWithRelations extends Madha {
+export type MadhaWithRelations = Madha & {
   madiheen?: Madih | null;
   ruwat?: Rawi | null;
   turuq?: Tariqa | null;
@@ -464,6 +549,6 @@ export interface MadhaWithRelations extends Madha {
   curation_notes?: string | null;
 }
 
-export interface CollectionWithItems extends Collection {
+export type CollectionWithItems = Collection & {
   collection_items?: (CollectionItem & { madha: Madha })[];
 }

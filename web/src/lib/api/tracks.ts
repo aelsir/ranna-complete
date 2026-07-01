@@ -7,6 +7,9 @@
  */
 
 import type {
+  AudioQuality,
+  ContentType,
+  LyricsStatus,
   Madha,
   MadhaInsert,
   MadhaWithRelations,
@@ -177,16 +180,18 @@ export async function getAdminMadhaat(options?: {
     );
   }
 
-  if (contentType) query = query.eq("content_type", contentType);
+  // Filter params arrive as plain strings (URL state); narrow for the
+  // typed columns.
+  if (contentType) query = query.eq("content_type", contentType as ContentType);
   if (artistId) query = query.eq("artist_id", artistId);
   if (narratorId) query = query.eq("author_id", narratorId);
-  if (lyricsStatus) query = query.eq("lyrics_status", lyricsStatus);
+  if (lyricsStatus) query = query.eq("lyrics_status", lyricsStatus as LyricsStatus);
   if (audioQuality) {
     // "unrated" = no curation row / no rating yet (NULL in the view).
     query =
       audioQuality === "unrated"
         ? query.is("audio_quality", null)
-        : query.eq("audio_quality", audioQuality);
+        : query.eq("audio_quality", audioQuality as AudioQuality);
   }
 
   query = query
@@ -204,7 +209,7 @@ export async function getAdminMadhaat(options?: {
 
 /** Map of content_type → total count (all records, regardless of status). */
 export async function getContentTypeCounts(): Promise<Record<string, number>> {
-  const contentTypes = ["madha", "quran", "lecture", "dhikr", "inshad"];
+  const contentTypes: ContentType[] = ["madha", "quran", "lecture", "dhikr", "inshad"];
   const counts: Record<string, number> = {};
 
   await Promise.all(

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { setLastAuthMethod, type LastAuthMethod } from "@/lib/lastAuthMethod";
 import type { User } from "@supabase/supabase-js";
+import type { UserProfileInsert } from "@/types/database";
 
 /**
  * Handler route for magic-link redirects (`/auth/callback`).
@@ -53,7 +54,7 @@ function resolveLastAuthMethod(user: User): LastAuthMethod {
 async function syncProfileFromMetadata(user: User): Promise<void> {
   try {
     const meta = user.user_metadata ?? {};
-    const update: Record<string, string> = { id: user.id };
+    const update: UserProfileInsert = { id: user.id };
 
     const name = pickString(meta.display_name, meta.full_name, meta.name);
     if (name) update.display_name = name;

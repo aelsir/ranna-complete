@@ -55,14 +55,21 @@ function earliestByUser(
 }
 
 async function fetchEventTimes(
-  table: string,
+  table:
+    | "v_user_plays_external"
+    | "lyrics_views"
+    | "v_download_events_external"
+    | "v_user_favorites_external"
+    | "user_follows",
   timeColumn: string,
   sinceIso: string
 ): Promise<Map<string, number> | null> {
   try {
     const rows = await paginate<Record<string, string | null>>((from, to) =>
       supabase
-        .from(table)
+        // The param mixes tables and views, which `.from()`'s overloads keep
+        // separate; assert one branch — row typing comes from paginate<T>.
+        .from(table as "lyrics_views" | "user_follows")
         .select(`user_id, ${timeColumn}`)
         .gte(timeColumn, sinceIso)
         .range(from, to)

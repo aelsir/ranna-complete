@@ -20,6 +20,7 @@ function getExtension(name: string): string {
 export interface UploadResult {
   path: string;
   thumbnailPath?: string;
+  storageSlot?: string;
 }
 
 /**

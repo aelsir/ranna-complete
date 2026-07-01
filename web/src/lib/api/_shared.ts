@@ -40,10 +40,14 @@ export function toLocalDay(iso: string): string {
  *                  SQL aggregate function, not bigger client-side scans.
  */
 export async function paginate<T>(
+  // `unknown[]` rather than `T[]`: several callers build the select string
+  // dynamically, which PostgREST's type parser can't resolve to T. The rows
+  // are cast to T below — the caller's type parameter is a promise, not
+  // something the query can verify.
   query: (
     from: number,
     to: number
-  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
   options?: { pageSize?: number; maxPages?: number }
 ): Promise<T[]> {
   const pageSize = options?.pageSize ?? 1000;
@@ -55,7 +59,7 @@ export async function paginate<T>(
     const { data, error } = await query(from, to);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-    rows.push(...data);
+    rows.push(...(data as T[]));
     if (data.length < pageSize) break;
   }
   return rows;

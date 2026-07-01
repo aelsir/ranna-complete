@@ -7,7 +7,7 @@
  * since we don't want this file to know about React contexts).
  */
 
-import type { MadhaWithRelations } from "@/types/database";
+import type { MadhaWithRelations, UserPlayInsert } from "@/types/database";
 
 import { supabase } from "./_shared";
 
@@ -146,7 +146,7 @@ export async function recordPlay(params: {
    *  the record write finally completed. */
   playedAt?: string;
 }): Promise<void> {
-  const row: Record<string, unknown> = {
+  const row: UserPlayInsert = {
     user_id: params.userId || null,
     track_id: params.madhaId,
     duration_seconds: params.durationSeconds,
