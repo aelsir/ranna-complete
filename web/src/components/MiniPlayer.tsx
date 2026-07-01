@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Heart, Pause, BookOpenText } from "lucide-react";
 import { RtlPlay } from "@/components/icons/rtl-icons";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,6 +64,12 @@ const MiniPlayer = () => {
   const { data: track } = useMadha(nowPlayingId ?? undefined);
   const requireFeature = useRequireFeature();
 
+  // The dashboard docks its own player bar into its layout (so it never
+  // covers the track list) — hide the floating card there. The <audio>
+  // element below still renders: it drives playback for the whole app.
+  const { pathname } = useLocation();
+  const isDashboard = pathname.startsWith("/dashboard");
+
   const audioSrc = track ? getAudioUrl(track.audio_url) : "";
   const displayImage = getTrackDisplayImage(track);
   const trackTitle = track?.title || "";
@@ -126,7 +133,7 @@ const MiniPlayer = () => {
     <>
       <audio ref={audioRef} preload="metadata" />
       <AnimatePresence>
-        {nowPlayingId && track && !isFullPlayerOpen && (
+        {nowPlayingId && track && !isFullPlayerOpen && !isDashboard && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

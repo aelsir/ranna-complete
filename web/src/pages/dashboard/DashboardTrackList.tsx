@@ -1,10 +1,18 @@
+/**
+ * Generic dashboard track table.
+ *
+ * Renders a fixed frame — selection checkbox, thumbnail with play overlay,
+ * and an actions cell — around a configurable set of data columns (see
+ * track-table-columns.tsx). Sections differ only in the `columns` prop.
+ */
+
+import { Fragment } from "react";
 import { motion } from "framer-motion";
 import {
   Music,
   Edit3,
   Play,
   Pause,
-  Headphones,
   CheckSquare,
   Square,
   ArrowUp,
@@ -15,32 +23,36 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { InlineEditTable } from "@/components/InlineEditTable";
 import type { ExtendedTrack, MappedArtist, MappedNarrator } from "./dashboard-types";
-import { AUDIO_QUALITY_META, LYRICS_STATUS_META, getCompletionStatus } from "./dashboard-types";
+import type { TrackColumn } from "./track-table-columns";
 import { getImageUrl } from "@/lib/format";
 import type { PendingEdits } from "@/types/bulk-edit";
 import type { MadhaInsert } from "@/types/database";
 
-/** Small visual indicator for track metadata completeness */
-function CompletionRing({ status }: { status: "complete" | "partial" | "basic" }) {
-  const colors = {
-    complete: "border-green-500 bg-green-500/20",
-    partial: "border-yellow-500 bg-yellow-500/20",
-    basic: "border-muted-foreground/30 bg-muted/30",
-  };
-  const dotColors = {
-    complete: "bg-green-500",
-    partial: "bg-yellow-500",
-    basic: "bg-muted-foreground/40",
-  };
-  return (
-    <div className={`h-3 w-3 rounded-full border-2 flex items-center justify-center ${colors[status]}`}>
-      <div className={`h-1.5 w-1.5 rounded-full ${dotColors[status]}`} />
-    </div>
-  );
+/**
+ * Page items with ellipsis: always 1 and last, plus a window around the
+ * current page. E.g. current=7/20 → [1, …, 6, 7, 8, …, 20].
+ */
+function getPageItems(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = new Set<number>([1, total]);
+  for (let p = current - 1; p <= current + 1; p++) {
+    if (p >= 1 && p <= total) pages.add(p);
+  }
+  const sorted = [...pages].sort((a, b) => a - b);
+  const items: (number | "ellipsis")[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i] - sorted[i - 1] > 1) items.push("ellipsis");
+    items.push(sorted[i]);
+  }
+  return items;
 }
 
 interface Props {
   tracks: ExtendedTrack[];
+  /** Data columns between the thumbnail and the actions cell. */
+  columns: TrackColumn[];
   selectedTracks: Set<string>;
   onToggleSelect: (id: string) => void;
   onSelectAll: () => void;
@@ -69,13 +81,11 @@ interface Props {
   onEditChange: (trackId: string, field: keyof MadhaInsert, value: string | null) => void;
   artists: MappedArtist[];
   narrators: MappedNarrator[];
-
-  /** الكلمات review tab: writer + curation indicators instead of artist/plays. */
-  curationMode?: boolean;
 }
 
 export function DashboardTrackList({
   tracks,
+  columns,
   selectedTracks,
   onToggleSelect,
   onSelectAll,
@@ -96,11 +106,7 @@ export function DashboardTrackList({
   onEditChange,
   artists,
   narrators,
-  curationMode = false,
 }: Props) {
-  const gridCols = curationMode
-    ? "grid-cols-[40px_40px_1.5fr_1fr_80px_110px_90px]"
-    : "grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px]";
   if (isEditMode) {
     return (
       <InlineEditTable
@@ -118,10 +124,16 @@ export function DashboardTrackList({
     );
   }
 
+  // select + thumbnail + data columns + actions
+  const gridTemplateColumns = `40px 40px ${columns.map((c) => c.width).join(" ")} 90px`;
+
   return (
     <>
       {/* Table Header */}
-      <div className={`grid ${gridCols} gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide`}>
+      <div
+        className="grid gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide"
+        style={{ gridTemplateColumns }}
+      >
         <button onClick={onSelectAll} className="flex items-center justify-center">
           {selectedTracks.size === tracks.length && tracks.length > 0 ? (
             <CheckSquare className="h-4 w-4 text-primary" />
@@ -130,38 +142,21 @@ export function DashboardTrackList({
           )}
         </button>
         <span></span>
-        <span>العنوان</span>
-        {curationMode ? (
-          <>
-            <span>الكاتب / الراوي</span>
-            <span>الكلمات</span>
-            <span>جودة الصوت</span>
-          </>
-        ) : (
-          <>
-            <span>المادح</span>
-            <span>الراوي</span>
+        {columns.map((col) =>
+          col.sortField ? (
             <button
+              key={col.id}
               className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
-              onClick={() => onSortChange("play_count")}
+              onClick={() => onSortChange(col.sortField!)}
             >
-              <span>التشغيل</span>
-              {sortBy === "play_count"
+              <span>{col.header}</span>
+              {sortBy === col.sortField
                 ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
                 : <ArrowUpDown className="h-3 w-3 opacity-40" />}
             </button>
-          </>
-        )}
-        {!curationMode && (
-          <button
-            className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
-            onClick={() => onSortChange("created_at")}
-          >
-            <span>تاريخ الإضافة</span>
-            {sortBy === "created_at"
-              ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-              : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-          </button>
+          ) : (
+            <span key={col.id}>{col.header}</span>
+          ),
         )}
         <span className="text-center">إجراءات</span>
       </div>
@@ -170,28 +165,17 @@ export function DashboardTrackList({
       {/* Rows */}
       <div className="space-y-1">
         {tracks.map((track) => {
-          const status = getCompletionStatus(track);
           const isPlaying = nowPlayingId === track.id;
-          const relativeDate = track.createdAt
-            ? (() => {
-                const diff = Date.now() - new Date(track.createdAt).getTime();
-                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                if (days === 0) return "اليوم";
-                if (days === 1) return "أمس";
-                if (days < 7) return `${days} أيام`;
-                if (days < 30) return `${Math.floor(days / 7)} أسابيع`;
-                return `${Math.floor(days / 30)} شهر`;
-              })()
-            : "—";
           return (
             <motion.div
               key={track.id}
               layout
-              className={`grid ${gridCols} gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
+              className={`grid gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
                 selectedTracks.has(track.id)
                   ? "bg-primary/5 border border-primary/20"
                   : "hover:bg-muted/50 border border-transparent"
               }`}
+              style={{ gridTemplateColumns }}
               onClick={() => onToggleSelect(track.id)}
               onDoubleClick={(e) => { e.stopPropagation(); onEditTrack(track); }}
               onContextMenu={(e) => onRightClickDetect(e, track.id, () => onEditTrack(track))}
@@ -225,59 +209,9 @@ export function DashboardTrackList({
                   )}
                 </button>
               </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <CompletionRing status={status} />
-                <div className="min-w-0">
-                  <p className="font-fustat font-semibold text-foreground truncate">{track.title}</p>
-                  <span className={`text-[10px] ${
-                    status === "complete" ? "text-green-600" : status === "partial" ? "text-yellow-600" : "text-muted-foreground/60"
-                  }`}>
-                    {status === "complete" ? "مكتملة" : status === "partial" ? "ناقصة جزئياً" : "بيانات أساسية"}
-                  </span>
-                </div>
-              </div>
-              {curationMode ? (
-                (() => {
-                  const lyricsMeta = LYRICS_STATUS_META[track.lyricsStatus || "unreviewed"];
-                  const qualityMeta = track.audioQuality ? AUDIO_QUALITY_META[track.audioQuality] : null;
-                  return (
-                    <>
-                      <span className="text-muted-foreground truncate">{track.narratorName || "—"}</span>
-                      <span className="flex items-center">
-                        <span
-                          title={lyricsMeta.label}
-                          className={`h-3.5 w-3.5 rounded-[4px] shrink-0 ${lyricsMeta.color}`}
-                        />
-                      </span>
-                      <span className="flex items-center gap-2">
-                        {qualityMeta ? (
-                          <>
-                            <span className={`h-3.5 w-3.5 rounded-full shrink-0 ${qualityMeta.color}`} />
-                            <span className="text-[11px] text-muted-foreground">{qualityMeta.label}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="h-3.5 w-3.5 rounded-full shrink-0 border-2 border-dashed border-muted-foreground/40" />
-                            <span className="text-[11px] text-muted-foreground/60">غير مقيّمة</span>
-                          </>
-                        )}
-                      </span>
-                    </>
-                  );
-                })()
-              ) : (
-                <>
-                  <span className="text-muted-foreground truncate">{track.artistName}</span>
-                  <span className="text-muted-foreground truncate">{track.narratorName}</span>
-                  <span className="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
-                    <Headphones className="h-3 w-3 opacity-50" />
-                    {(track.playCount || 0).toLocaleString("ar-SA")}
-                  </span>
-                </>
-              )}
-              {!curationMode && (
-                <span className="text-muted-foreground/60 text-center text-[10px]">{relativeDate}</span>
-              )}
+              {columns.map((col) => (
+                <Fragment key={col.id}>{col.cell(track)}</Fragment>
+              ))}
               <div className="flex items-center justify-center">
                 <Button
                   variant="secondary"
@@ -310,7 +244,7 @@ export function DashboardTrackList({
           <span className="text-xs text-muted-foreground font-fustat">
             {totalCount} {sectionLabel || "محتوى"} — صفحة {currentPage} من {totalPages}
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
@@ -320,6 +254,23 @@ export function DashboardTrackList({
             >
               السابق
             </Button>
+            {getPageItems(currentPage, totalPages).map((item, idx) =>
+              item === "ellipsis" ? (
+                <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted-foreground select-none">
+                  …
+                </span>
+              ) : (
+                <Button
+                  key={item}
+                  variant={item === currentPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onPageChange(item)}
+                  className="text-xs min-w-8 px-2"
+                >
+                  {item}
+                </Button>
+              ),
+            )}
             <Button
               variant="outline"
               size="sm"

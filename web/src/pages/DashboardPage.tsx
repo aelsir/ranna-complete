@@ -14,6 +14,7 @@ import { DashboardLogin } from "./dashboard/DashboardLogin";
 import { DashboardUnauthorized } from "./dashboard/DashboardUnauthorized";
 import { DashboardSidebar } from "./dashboard/DashboardSidebar";
 import { DashboardHeader } from "./dashboard/DashboardHeader";
+import { DashboardPlayerBar } from "./dashboard/DashboardPlayerBar";
 
 import { usePlayer } from "@/context/PlayerContext";
 import { useAuth } from "@/context/AuthContext";
@@ -666,6 +667,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           onTogglePlaylistActive={togglePlaylistActive}
           setEditingPlaylist={setEditingPlaylist}
         />
+
+        <DashboardPlayerBar />
       </main>
 
       <DashboardDialogs

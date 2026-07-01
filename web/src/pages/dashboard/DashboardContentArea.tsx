@@ -4,6 +4,7 @@ import CompletionSection from "@/components/CompletionSection";
 import LyricsSection from "@/components/LyricsSection";
 import { HeroImagesPanel } from "@/components/HeroImagesPanel";
 import { DashboardTrackList } from "./DashboardTrackList";
+import { CONTENT_COLUMNS, CURATION_COLUMNS } from "./track-table-columns";
 import { DashboardMadiheen } from "./DashboardMadiheen";
 import { DashboardRuwat } from "./DashboardRuwat";
 import { DashboardPlaylists } from "./DashboardPlaylists";
@@ -175,7 +176,7 @@ export function DashboardContentArea({
             transition={{ duration: 0.2 }}
           >
             <DashboardTrackList
-              curationMode={activeSection === "lyrics_review"}
+              columns={activeSection === "lyrics_review" ? CURATION_COLUMNS : CONTENT_COLUMNS}
               tracks={paginatedMadhat}
               selectedTracks={selectedTracks}
               onToggleSelect={onToggleTrackSelect}
