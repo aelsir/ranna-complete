@@ -10,7 +10,7 @@
  */
 
 import { Headphones } from "lucide-react";
-import type { ExtendedTrack } from "./dashboard-types";
+import type { ExtendedTrack, SidebarItem } from "./dashboard-types";
 import {
   AUDIO_QUALITY_META,
   LYRICS_STATUS_META,
@@ -100,7 +100,7 @@ export const narratorColumn: TrackColumn = {
 export const writerColumn: TrackColumn = {
   id: "writer",
   width: "1fr",
-  header: "الكاتب / الراوي",
+  header: "الراوي",
   cell: (track) => <span className="text-muted-foreground truncate">{track.narratorName || "—"}</span>,
 };
 
@@ -185,3 +185,13 @@ export const CURATION_COLUMNS: TrackColumn[] = [
   lyricsStatusColumn,
   audioQualityColumn,
 ];
+
+/** Per-section overrides; sections not listed use CONTENT_COLUMNS. To give
+ *  a section its own layout, add an entry here — nothing else changes. */
+const SECTION_COLUMNS: Partial<Record<SidebarItem, TrackColumn[]>> = {
+  lyrics_review: CURATION_COLUMNS,
+};
+
+export function getSectionColumns(section: SidebarItem): TrackColumn[] {
+  return SECTION_COLUMNS[section] ?? CONTENT_COLUMNS;
+}

@@ -10,6 +10,7 @@ import {
   getAllMadhaatMinimal,
   getAllMadhaatForReplace,
   getAdminMadhaat,
+  getLyricsWorkQueueCounts,
   upsertTrackCuration,
   bulkUpsertTrackCuration,
   getMadhaById,
@@ -564,6 +565,15 @@ export function useCreateMadha() {
   });
 }
 
+/** Work-queue counters (unreviewed / missing lyrics) for the digest card. */
+export function useLyricsWorkQueueCounts() {
+  return useQuery({
+    queryKey: [...queryKeys.madhaat, "workQueueCounts"],
+    queryFn: getLyricsWorkQueueCounts,
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useUpsertTrackCuration() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -797,8 +807,9 @@ export function useTrendingThisWeek(days = 7, limit = 5) {
   });
 }
 
-export function useContentTypeDistribution() {
+export function useContentTypeDistribution(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.contentTypeDistribution,
     queryFn: getContentTypeCounts,
     staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
@@ -808,8 +819,9 @@ export function useContentTypeDistribution() {
   });
 }
 
-export function useTopFavorited(limit = 5) {
+export function useTopFavorited(limit = 5, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.topFavorited(limit),
     queryFn: () => getTopFavorited(limit),
     staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
@@ -819,8 +831,9 @@ export function useTopFavorited(limit = 5) {
   });
 }
 
-export function useUserActivity() {
+export function useUserActivity(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.userActivity,
     queryFn: getUserActivity,
     staleTime: 5 * 60 * 1000, // fresh for 5 min — no refetch on remount
@@ -830,8 +843,9 @@ export function useUserActivity() {
   });
 }
 
-export function useDownloadAnalytics() {
+export function useDownloadAnalytics(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: queryKeys.downloadAnalytics,
     queryFn: () => getDownloadAnalytics(14),
     staleTime: 5 * 60 * 1000,

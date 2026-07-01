@@ -248,6 +248,12 @@ export function DashboardHeader({
                         </span>
                       </SelectItem>
                     ))}
+                    <SelectItem value="missing">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-4 rounded-sm border-2 border-dashed border-muted-foreground/40" />
+                        بدون كلمات
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

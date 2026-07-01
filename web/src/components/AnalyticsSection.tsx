@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  useAnalyticsSummary,
   useContentHealth,
   useEngagementMetrics,
   useTrendingThisWeek,
@@ -10,6 +9,7 @@ import {
   useUserActivity,
   useDownloadAnalytics,
   useStatsOverview,
+  useLyricsWorkQueueCounts,
 } from "@/lib/api/hooks";
 import {
   CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -21,7 +21,7 @@ import {
   ArrowUpRight, ArrowDownRight, Headphones, Activity,
   Heart, Clock, Flame, PieChart as PieIcon, Smartphone,
   UserCheck, Sparkles, Trophy, Percent, Timer, Download, Info,
-  CalendarClock, UsersRound, BookOpenText,
+  CalendarClock, BookOpenText, ChevronDown, Minus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,44 @@ const TIME_WINDOWS: TimeWindow[] = [
 /** Western-digit number formatter — used throughout the stats page. */
 const fmt = (n: number) => n.toLocaleString("en-US");
 
+/** % change vs. previous period. `null` = prev was 0 but now there's data
+ *  (a percentage would be meaningless — the UI shows "جديد" instead). */
+function pctChange(current: number, prev: number): number | null {
+  if (prev === 0) return current > 0 ? null : 0;
+  return ((current - prev) / prev) * 100;
+}
+
+const formatPct = (pct: number) =>
+  `${Math.abs(pct) < 10 ? Math.abs(pct).toFixed(1) : Math.round(Math.abs(pct))}%`;
+
+/**
+ * Delta vs. previous equal-length window. Green when up, red when down,
+ * neutral when flat; "جديد" when the previous window had zero. Hidden
+ * entirely when no comparison exists (lifetime view / RPC pre-055).
+ */
+const DeltaChip = ({ current, prev }: { current: number; prev?: number | null }) => {
+  if (prev === undefined || prev === null) return null;
+  const pct = pctChange(current, prev);
+  const chip = (cls: string, content: React.ReactNode) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-fustat font-bold ${cls}`}>
+          {content}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-[11px] font-fustat" dir="rtl">
+        الفترة السابقة المماثلة: {fmt(prev)}
+      </TooltipContent>
+    </Tooltip>
+  );
+  if (pct === null) return chip("bg-emerald-500/10 text-emerald-500", <>جديد</>);
+  if (pct === 0)
+    return chip("bg-muted/40 text-muted-foreground", <><Minus className="h-2.5 w-2.5" />0%</>);
+  if (pct > 0)
+    return chip("bg-emerald-500/10 text-emerald-500", <><ArrowUpRight className="h-2.5 w-2.5" />{formatPct(pct)}</>);
+  return chip("bg-red-500/10 text-red-500", <><ArrowDownRight className="h-2.5 w-2.5" />{formatPct(pct)}</>);
+};
+
 interface AnalyticsSectionProps {
   onOpenCompletion?: () => void;
   onOpenLyrics?: () => void;
@@ -72,20 +110,26 @@ const AnalyticsSection = ({
 }: AnalyticsSectionProps = {}) => {
   // NOTE: Each card renders independently — no page-wide loading gate.
   // Cards show a skeleton while their own query resolves.
-  // Legacy analytics queries — kept for the lower sections (content health,
-  // trending this week, content type distribution, devices, downloads).
-  const { data: summary } = useAnalyticsSummary();
   const { data: health, isLoading: healthLoading } = useContentHealth();
   const { data: engagement, isLoading: engagementLoading } = useEngagementMetrics();
   const { data: trendingWeek, isLoading: trendingLoading } = useTrendingThisWeek(7, 5);
-  const { data: typeDist, isLoading: typeDistLoading } = useContentTypeDistribution();
-  const { data: topFavs, isLoading: topFavsLoading } = useTopFavorited(5);
-  const { data: userActivity, isLoading: userActivityLoading } = useUserActivity();
-  const { data: downloads, isLoading: downloadsLoading } = useDownloadAnalytics();
+  const { data: workQueue } = useLyricsWorkQueueCounts();
 
   // Time-window filter (defaults to last 30 days). Scopes the top KPI
   // bar and the trend chart; the heatmap keeps its own 4-week window.
   const [windowDays, setWindowDays] = useState<number | null>(30);
+
+  // The activity chart is one card with two views (see below).
+  const [activityView, setActivityView] = useState<"plays" | "dau">("plays");
+
+  // Secondary blocks live behind "المزيد من الإحصائيات" and only fetch
+  // once expanded — they rarely drive decisions, so don't pay for them
+  // on every page visit.
+  const [showMore, setShowMore] = useState(false);
+  const { data: typeDist, isLoading: typeDistLoading } = useContentTypeDistribution(showMore);
+  const { data: topFavs, isLoading: topFavsLoading } = useTopFavorited(5, showMore);
+  const { data: userActivity, isLoading: userActivityLoading } = useUserActivity(showMore);
+  const { data: downloads, isLoading: downloadsLoading } = useDownloadAnalytics(showMore);
 
   // New single-RPC aggregator. Powers the top KPI bar, the combined
   // plays/minutes trend chart, and the listening heatmap below.
@@ -103,11 +147,12 @@ const AnalyticsSection = ({
   }));
 
   // ── Top KPI bar — exactly four cards per the spec ────────────────
-  // المستمعين and المفضلة get info-tooltips because the numbers aren't
-  // self-explanatory (see TopKpiBar below).
+  // Each card carries its previous-period value (migration 055) so the
+  // DeltaChip can show an honest ± comparison.
   const topKpis: Array<{
     label: string;
     value: number;
+    prev?: number | null;
     icon: typeof Headphones;
     color: string;
     bg: string;
@@ -116,6 +161,7 @@ const AnalyticsSection = ({
     {
       label: "إجمالي مرات الاستماع",
       value: stats?.total_plays ?? 0,
+      prev: stats?.prev?.total_plays,
       icon: Headphones,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
@@ -123,6 +169,7 @@ const AnalyticsSection = ({
     {
       label: "ساعات الاستماع",
       value: stats?.total_hours ?? 0,
+      prev: stats?.prev?.total_hours,
       icon: Clock,
       color: "text-accent",
       bg: "bg-accent/10",
@@ -130,6 +177,7 @@ const AnalyticsSection = ({
     {
       label: "المستمعين",
       value: stats?.unique_listeners ?? 0,
+      prev: stats?.prev?.unique_listeners,
       icon: UserCheck,
       color: "text-cyan-500",
       bg: "bg-cyan-500/10",
@@ -139,6 +187,7 @@ const AnalyticsSection = ({
     {
       label: "المفضلة",
       value: stats?.total_favorites ?? 0,
+      prev: stats?.prev?.total_favorites,
       icon: Heart,
       color: "text-rose-500",
       bg: "bg-rose-500/10",
@@ -146,6 +195,18 @@ const AnalyticsSection = ({
         "عدد علامات ❤️ (المفضلة) التي أُضيفت ضمن الفترة المختارة عبر كل المستخدمين. مثلاً: 3 مستخدمين أضافوا 4 مقاطع كلٌّ = 12. ليس عدد المقاطع الفريدة ولا عدد المستخدمين.",
     },
   ];
+
+  // ── Digest: the biggest mover among the four KPIs vs. the previous
+  // period — one sentence that answers "what changed?" ────────────────
+  const kpiDeltas = stats?.prev
+    ? topKpis
+        .map((k) => ({ label: k.label, cur: k.value, prev: k.prev ?? 0, pct: pctChange(k.value, k.prev ?? 0) }))
+        .filter((d) => d.pct !== null && (d.cur > 0 || d.prev > 0))
+    : [];
+  const biggestMover = [...kpiDeltas].sort(
+    (a, b) => Math.abs(b.pct as number) - Math.abs(a.pct as number),
+  )[0];
+  const topTrackOfWeek = trendingWeek?.[0];
 
   const healthMetrics = [
     { label: "اكتمال الكلمات (Lyrics)", value: health?.lyricsPct || 0, color: "bg-blue-500" },
@@ -199,6 +260,16 @@ const AnalyticsSection = ({
     ? engagement.avgDurationSeconds % 60
     : 0;
 
+  // Completion rate with an explicit judgment scale — audio apps typically
+  // sit around 40–60%; below ~30% most plays are being cut short.
+  const completionRate = engagement?.completionRate ?? 0;
+  const completionMeta =
+    completionRate >= 40
+      ? { verdict: "أداء جيد", text: "text-emerald-500", bg: "bg-emerald-500/10", bar: "bg-emerald-500" }
+      : completionRate >= 30
+        ? { verdict: "متوسط — راقبه", text: "text-amber-500", bg: "bg-amber-500/10", bar: "bg-amber-500" }
+        : { verdict: "منخفض — أغلب التشغيلات تُقطع مبكرًا", text: "text-red-500", bg: "bg-red-500/10", bar: "bg-red-500" };
+
   return (
     <TooltipProvider delayDuration={150}>
     <div className="p-6 space-y-6 overflow-y-auto h-full pb-20 scrollbar-hide">
@@ -229,6 +300,103 @@ const AnalyticsSection = ({
             : `البطاقات والمنحنى يعرضان آخر ${fmt(windowDays)} يوم`}
         </span>
       </div>
+
+      {/* ── Digest: what changed, what's hot, what needs work ── */}
+      <Card className="border-primary/20 bg-primary/[0.03] shadow-sm" dir="rtl">
+        <CardContent className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* What changed vs. previous period */}
+            <div>
+              <p className="text-[10px] font-fustat text-muted-foreground uppercase tracking-wider mb-2">
+                ماذا تغيّر؟
+              </p>
+              {statsLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : windowDays === null ? (
+                <p className="text-xs font-fustat text-muted-foreground leading-relaxed">
+                  اختر فترة (٧ / ٣٠ / ٩٠ يوم) بالأعلى لعرض المقارنة مع الفترة السابقة.
+                </p>
+              ) : !stats?.prev || !biggestMover ? (
+                <p className="text-xs font-fustat text-muted-foreground leading-relaxed">
+                  لا توجد بيانات كافية للمقارنة مع الفترة السابقة بعد.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-sm font-fustat font-bold leading-relaxed">
+                    {biggestMover.label}{" "}
+                    <span className={(biggestMover.pct as number) >= 0 ? "text-emerald-500" : "text-red-500"}>
+                      {(biggestMover.pct as number) >= 0 ? "ارتفعت" : "انخفضت"} {formatPct(biggestMover.pct as number)}
+                    </span>{" "}
+                    عن الفترة السابقة
+                  </p>
+                  <p className="text-[11px] font-fustat text-muted-foreground">
+                    من {fmt(biggestMover.prev)} إلى {fmt(biggestMover.cur)} خلال آخر {fmt(windowDays)} يوم — التفاصيل في البطاقات أدناه.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Breakout track (fixed 7-day window, independent of the filter) */}
+            <div className="md:border-x md:border-border/40 md:px-5">
+              <p className="text-[10px] font-fustat text-muted-foreground uppercase tracking-wider mb-2">
+                الأبرز آخر ٧ أيام
+              </p>
+              {trendingLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : topTrackOfWeek ? (
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
+                    <Flame className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-fustat font-bold truncate">{topTrackOfWeek.title}</p>
+                    {topTrackOfWeek.playCount > 0 && (
+                      <p className="text-[11px] font-fustat text-muted-foreground">
+                        {fmt(topTrackOfWeek.playCount)} تشغيلة هذا الأسبوع
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs font-fustat text-muted-foreground">لا توجد تشغيلات هذا الأسبوع.</p>
+              )}
+            </div>
+
+            {/* Work queues — stats that end in a click */}
+            <div>
+              <p className="text-[10px] font-fustat text-muted-foreground uppercase tracking-wider mb-2">
+                مهام المحتوى
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Link
+                  to="/dashboard?section=lyrics_review&lyrics=unreviewed"
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-background/60 px-3 py-1.5 hover:border-orange-400/60 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-xs font-fustat">
+                    <span className="h-2.5 w-2.5 rounded-[3px] bg-orange-400 shrink-0" />
+                    كلمات بانتظار المراجعة
+                  </span>
+                  <span className="text-xs font-fustat font-bold text-orange-400 group-hover:translate-x-[-2px] transition-transform">
+                    {workQueue ? fmt(workQueue.unreviewed) : "…"} ←
+                  </span>
+                </Link>
+                <Link
+                  to="/dashboard?section=lyrics_review&lyrics=missing"
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-background/60 px-3 py-1.5 hover:border-red-400/60 transition-colors"
+                >
+                  <span className="flex items-center gap-2 text-xs font-fustat">
+                    <span className="h-2.5 w-2.5 rounded-[3px] border-2 border-dashed border-red-400/70 shrink-0" />
+                    مقاطع بدون كلمات
+                  </span>
+                  <span className="text-xs font-fustat font-bold text-red-400 group-hover:translate-x-[-2px] transition-transform">
+                    {workQueue ? fmt(workQueue.missing) : "…"} ←
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Top KPI bar — 4 cards (plays · hours · listeners · favorites) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -273,9 +441,12 @@ const AnalyticsSection = ({
                   {statsLoading ? (
                     <Skeleton className="h-7 w-20 mt-1" />
                   ) : (
-                    <h3 className="text-2xl font-bold font-fustat mt-1 leading-none">
-                      {kpi.value.toLocaleString("en-US")}
-                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <h3 className="text-2xl font-bold font-fustat leading-none">
+                        {kpi.value.toLocaleString("en-US")}
+                      </h3>
+                      <DeltaChip current={kpi.value} prev={kpi.prev} />
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -379,25 +550,83 @@ const AnalyticsSection = ({
           </Link>
         </div>
 
-      {/* ── Combined plays + minutes trend (dual y-axis), full width ── */}
+      {/* ── Listening activity — ONE chart, two views (plays+minutes / DAU).
+             Merged because they answer the same question ("when do people
+             listen?") and three separate time-series buried the signal. ── */}
       <Card className="border-border/40 shadow-sm">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3 flex-wrap" dir="rtl">
             <div>
               <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
                 <Activity className="h-4 w-4 text-primary" />
-                عدد مرات التشغيل ودقائق الاستماع
+                نشاط الاستماع
               </CardTitle>
               <CardDescription className="text-xs">
-                مقارنة عدد التشغيلات بدقائق الاستماع — إذا تشابهت المنحنيات فالمستمعون يكملون المقاطع، أمّا إذا ارتفع التشغيل وانخفضت الدقائق فأغلبهم يتخطّى بسرعة.
+                {activityView === "plays" ? (
+                  <>مقارنة عدد التشغيلات بدقائق الاستماع — إذا تشابهت المنحنيات فالمستمعون يكملون المقاطع، أمّا إذا ارتفع التشغيل وانخفضت الدقائق فأغلبهم يتخطّى بسرعة.</>
+                ) : (
+                  <>
+                    عدد المستخدمين الفريدين الذين شغّلوا مقطعًا واحدًا على الأقل كل يوم.{" "}
+                    <span className="text-amber-500/90">ملاحظة:</span>{" "}
+                    لا يحتسب المستمعين غير المسجَّلين.
+                  </>
+                )}
               </CardDescription>
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
+              {activityView === "dau" && (
+                <div className="flex items-center gap-4 text-[11px] font-fustat">
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground">المتوسط</span>
+                    {statsLoading ? (
+                      <Skeleton className="h-5 w-12 mt-0.5" />
+                    ) : (
+                      <span className="text-lg font-bold font-mono">{fmt(stats?.dau_avg ?? 0)}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground">الذروة</span>
+                    {statsLoading ? (
+                      <Skeleton className="h-5 w-16 mt-0.5" />
+                    ) : stats?.dau_peak ? (
+                      <span className="font-mono">
+                        <span className="text-lg font-bold">{fmt(stats.dau_peak.users)}</span>{" "}
+                        <span className="text-[10px] text-muted-foreground">
+                          ({new Date(stats.dau_peak.date).toLocaleDateString("ar-EG", { weekday: "long" })})
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/40">
+                {([
+                  { key: "plays", label: "التشغيل والدقائق" },
+                  { key: "dau", label: "المستخدمون اليوميون" },
+                ] as const).map((v) => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    onClick={() => setActivityView(v.key)}
+                    className={`px-3 py-1.5 text-xs font-fustat rounded-lg transition-colors ${
+                      activityView === v.key
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-4 h-[320px]">
           {statsLoading ? (
             <CardSpinner />
-          ) : (
+          ) : activityView === "plays" ? (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={trendData}
@@ -494,66 +723,6 @@ const AnalyticsSection = ({
                 />
               </ComposedChart>
             </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Daily Active Users ── */}
-      <Card className="border-border/40 shadow-sm">
-        <CardHeader className="pb-2">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
-                <UsersRound className="h-4 w-4 text-cyan-500" />
-                المستخدمون اليوميون
-              </CardTitle>
-              <CardDescription className="text-xs">
-                عدد المستخدمين الفريدين الذين شغّلوا مقطعًا واحدًا على الأقل كل يوم.{" "}
-                <span className="text-amber-500/90">ملاحظة:</span>{" "}
-                لا يحتسب هذا الرقم المستمعين غير المسجَّلين (الاستماع بدون تسجيل دخول).
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-4 text-[11px] font-fustat shrink-0">
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">المتوسط</span>
-                {statsLoading ? (
-                  <Skeleton className="h-5 w-12 mt-0.5" />
-                ) : (
-                  <span className="text-lg font-bold font-mono">
-                    {fmt(stats?.dau_avg ?? 0)}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-foreground">الذروة</span>
-                {statsLoading ? (
-                  <Skeleton className="h-5 w-24 mt-0.5" />
-                ) : stats?.dau_peak ? (
-                  <span className="font-mono">
-                    <span className="text-lg font-bold">
-                      {fmt(stats.dau_peak.users)}
-                    </span>{" "}
-                    <span className="text-[10px] text-muted-foreground">
-                      ({new Date(stats.dau_peak.date).toLocaleDateString("ar-EG", {
-                        weekday: "long",
-                      })}
-                      {" · "}
-                      {new Date(stats.dau_peak.date).toLocaleDateString("en-US", {
-                        day: "numeric",
-                        month: "short",
-                      })})
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground text-sm">—</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4 h-[320px]">
-          {statsLoading ? (
-            <CardSpinner />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
@@ -660,29 +829,7 @@ const AnalyticsSection = ({
         </CardContent>
       </Card>
 
-      {/* ── Listening heatmap (last 4 weeks, hour × day-of-week) ── */}
-      <Card className="border-border/40 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 text-accent" />
-            خريطة أوقات الاستماع
-          </CardTitle>
-          <CardDescription className="text-xs">
-            تكثيف عمليات التشغيل آخر {fmt(stats?.heatmap_weeks ?? 4)} أسابيع
-            موزّعةً على أيام الأسبوع (محور Y) وساعات اليوم (محور X) — بتوقيت {stats?.tz ?? "الخرطوم"}.
-            كلّ خانة لون أغمق = نشاط أعلى في تلك الساعة من ذلك اليوم.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {statsLoading ? (
-            <div className="h-[260px]"><CardSpinner /></div>
-          ) : (
-            <ListeningHeatmap cells={stats?.heatmap ?? []} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Content Health (full width, under the heatmap) ── */}
+      {/* ── Content Health ── */}
       <Card className="border-border/40 shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
@@ -718,16 +865,24 @@ const AnalyticsSection = ({
                 ))}
               </div>
 
-              <div className="mt-2 p-4 rounded-xl bg-muted/20 border border-border/20">
+              {/* Actionable: this stat ends in a click, not contemplation. */}
+              <Link
+                to="/dashboard?section=lyrics_review&lyrics=missing"
+                className="group mt-2 p-4 rounded-xl bg-muted/20 border border-border/20 hover:border-orange-500/50 hover:bg-orange-500/5 transition-colors flex items-center justify-between gap-3"
+                dir="rtl"
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
                     <AlertCircle className="h-4 w-4 text-orange-500" />
                   </div>
                   <p className="text-[11px] font-fustat text-muted-foreground leading-tight">
-                    هناك {fmt(Math.round((health?.totalCount || 0) * (1 - (health?.lyricsPct || 0)/100)))} مدحة مفقودة الكلمات، يوصى بالتركيز على إضافتها لزيادة التفاعل.
+                    هناك {fmt(workQueue?.missing ?? Math.round((health?.totalCount || 0) * (1 - (health?.lyricsPct || 0) / 100)))} مقطع بدون كلمات — إضافتها ترفع التفاعل (شاشة الكلمات من أكثر المزايا استخدامًا).
                   </p>
                 </div>
-              </div>
+                <span className="text-xs font-fustat text-muted-foreground group-hover:text-orange-500 transition-colors shrink-0">
+                  افتح القائمة ←
+                </span>
+              </Link>
             </>
           )}
         </CardContent>
@@ -788,6 +943,114 @@ const AnalyticsSection = ({
           </CardContent>
         </Card>
 
+        {/* Listening quality — completion with an explicit "what good looks
+            like" band, plus average session length. */}
+        <div className="space-y-6">
+          <Card className="border-border/40 shadow-sm">
+            <CardContent className="p-5" dir="rtl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`p-2 rounded-lg ${completionMeta.bg} ${completionMeta.text}`}>
+                  <Percent className="h-4 w-4" />
+                </div>
+                <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">نسبة الإكمال</p>
+              </div>
+              {engagementLoading ? (
+                <Skeleton className="h-8 w-24 mb-2" />
+              ) : (
+                <div className="flex items-baseline gap-3 mb-2">
+                  <h3 className={`text-3xl font-bold font-fustat leading-none ${completionMeta.text}`}>
+                    {completionRate.toLocaleString("en-US")}%
+                  </h3>
+                  <span className={`text-[11px] font-fustat font-bold ${completionMeta.text}`}>
+                    {completionMeta.verdict}
+                  </span>
+                </div>
+              )}
+              <p className="text-[11px] font-fustat text-muted-foreground">
+                نسبة جلسات التشغيل التي وصلت إلى نهاية المقطع.{" "}
+                <span className="text-muted-foreground/70">
+                  النطاق المعتاد لتطبيقات الاستماع ٤٠–٦٠٪ — أقل من ٣٠٪ يعني أن أغلب التشغيلات تُقطع مبكرًا.
+                </span>
+              </p>
+              {!engagementLoading && (
+                <div className="relative mt-3">
+                  <Progress
+                    value={completionRate}
+                    className="h-1.5 bg-muted/30"
+                    indicatorClassName={completionMeta.bar}
+                  />
+                  {/* Healthy-range marker at 40% */}
+                  <div className="absolute top-[-3px] bottom-[-3px] w-px bg-muted-foreground/40" style={{ right: "40%" }} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/40 shadow-sm">
+            <CardContent className="p-5" dir="rtl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                  <Timer className="h-4 w-4" />
+                </div>
+                <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">متوسط مدة الاستماع</p>
+              </div>
+              {engagementLoading ? (
+                <Skeleton className="h-8 w-28 mb-2" />
+              ) : (
+                <h3 className="text-3xl font-bold font-fustat leading-none mb-2">
+                  {avgDurMin.toLocaleString("en-US")}
+                  <span className="text-lg text-muted-foreground">د </span>
+                  {avgDurSec.toLocaleString("en-US")}
+                  <span className="text-lg text-muted-foreground">ث</span>
+                </h3>
+              )}
+              <p className="text-[11px] font-fustat text-muted-foreground">
+                متوسط طول الاستماع لكل جلسة تشغيل
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ── المزيد من الإحصائيات — secondary blocks. Collapsed by default
+             and their queries only fire on expand: they're context, not
+             decisions. If one starts driving weekly action, promote it. ── */}
+      <button
+        type="button"
+        onClick={() => setShowMore((v) => !v)}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-border/60 text-sm font-fustat text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+        dir="rtl"
+      >
+        <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? "rotate-180" : ""}`} />
+        {showMore ? "إخفاء الإحصائيات الإضافية" : "المزيد من الإحصائيات — خريطة الأوقات، التوزيع، الأجهزة، المفضلة، التحميلات"}
+      </button>
+
+      {showMore && (
+      <>
+      {/* ── Listening heatmap (last 4 weeks, hour × day-of-week) ── */}
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-accent" />
+            خريطة أوقات الاستماع
+          </CardTitle>
+          <CardDescription className="text-xs">
+            تكثيف عمليات التشغيل آخر {fmt(stats?.heatmap_weeks ?? 4)} أسابيع
+            موزّعةً على أيام الأسبوع (محور Y) وساعات اليوم (محور X) — بتوقيت {stats?.tz ?? "الخرطوم"}.
+            كلّ خانة لون أغمق = نشاط أعلى في تلك الساعة من ذلك اليوم.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          {statsLoading ? (
+            <div className="h-[260px]"><CardSpinner /></div>
+          ) : (
+            <ListeningHeatmap cells={stats?.heatmap ?? []} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Content distribution + device split ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/40 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-fustat font-bold flex items-center gap-2">
@@ -842,64 +1105,9 @@ const AnalyticsSection = ({
             )}
           </CardContent>
         </Card>
-      </div>
-
-      {/* Row 4: Listening behavior — 3 stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
-                <Percent className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">نسبة الإكمال</p>
-            </div>
-            {engagementLoading ? (
-              <Skeleton className="h-8 w-24 mb-2" />
-            ) : (
-              <h3 className="text-3xl font-bold font-fustat leading-none mb-2">
-                {(engagement?.completionRate ?? 0).toLocaleString("en-US")}%
-              </h3>
-            )}
-            <p className="text-[11px] font-fustat text-muted-foreground">
-              نسبة المستمعين الذين أكملوا المقطع حتى النهاية
-            </p>
-            {!engagementLoading && (
-              <Progress
-                value={engagement?.completionRate || 0}
-                className="h-1.5 bg-muted/30 mt-3"
-                indicatorClassName="bg-emerald-500"
-              />
-            )}
-          </CardContent>
-        </Card>
 
         <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
-                <Timer className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-fustat text-muted-foreground uppercase tracking-wider">متوسط مدة الاستماع</p>
-            </div>
-            {engagementLoading ? (
-              <Skeleton className="h-8 w-28 mb-2" />
-            ) : (
-              <h3 className="text-3xl font-bold font-fustat leading-none mb-2">
-                {avgDurMin.toLocaleString("en-US")}
-                <span className="text-lg text-muted-foreground">د </span>
-                {avgDurSec.toLocaleString("en-US")}
-                <span className="text-lg text-muted-foreground">ث</span>
-              </h3>
-            )}
-            <p className="text-[11px] font-fustat text-muted-foreground">
-              متوسط طول الاستماع لكل جلسة تشغيل
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-5">
+          <CardContent className="p-5" dir="rtl">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-500">
                 <Smartphone className="h-4 w-4" />
@@ -1266,6 +1474,8 @@ const AnalyticsSection = ({
           </Card>
         </div>
       </div>
+      </>
+      )}
     </div>
     </TooltipProvider>
   );

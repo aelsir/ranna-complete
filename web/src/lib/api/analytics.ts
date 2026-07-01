@@ -572,6 +572,15 @@ export interface StatsOverview {
   total_hours: number;       // numeric, 2 decimals
   unique_listeners: number;
   total_favorites: number;
+  /** Same four counters over the equal-length window immediately before
+   *  this one (migration 055). Null for lifetime queries — "all time" has
+   *  no previous period. */
+  prev: {
+    total_plays: number;
+    total_hours: number;
+    unique_listeners: number;
+    total_favorites: number;
+  } | null;
   /** Funnel — all three are all-time, not windowed. */
   total_accounts: number;       // count(*) from auth.users
   played_accounts: number;      // distinct user_id in user_plays

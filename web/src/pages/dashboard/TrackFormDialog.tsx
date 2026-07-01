@@ -30,6 +30,7 @@ import {
   type MappedTariqa,
   type MappedFan,
 } from "./dashboard-types";
+import { getTrackFormConfig } from "./track-form-config";
 
 const LYRICS_STATUS_ORDER: LyricsStatus[] = ["unreviewed", "needs_work", "reviewed"];
 const AUDIO_QUALITY_ORDER: AudioQuality[] = ["poor", "good", "excellent"];
@@ -73,12 +74,13 @@ export function EditTrackDialog({
   isAudioTarget,
 }: EditTrackDialogProps) {
   if (!track) return null;
+  const cfg = getTrackFormConfig(track.contentType);
 
   return (
     <Dialog open={!!track} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="font-fustat">تعديل المدحة</DialogTitle>
+          <DialogTitle className="font-fustat">تعديل {cfg.singular}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
@@ -101,12 +103,12 @@ export function EditTrackDialog({
             </div>
           </div>
           <div>
-            <label className="text-xs font-fustat text-muted-foreground mb-1 block">العنوان</label>
+            <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.titleLabel}</label>
             <Input value={track.title} onChange={(e) => onChange({ ...track, title: e.target.value })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-fustat text-muted-foreground mb-1 block">المادح</label>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.artistLabel}</label>
               <SearchableSelect
                 value={track.artistId}
                 onValueChange={(v) => {
@@ -114,12 +116,12 @@ export function EditTrackDialog({
                   onChange({ ...track, artistId: v, artistName: a?.name || "" });
                 }}
                 options={artists.map((a) => ({ value: a.id, label: a.name }))}
-                placeholder="اختر المادح"
-                searchPlaceholder="ابحث عن مادح..."
+                placeholder={cfg.artistPlaceholder}
+                searchPlaceholder="ابحث..."
               />
             </div>
             <div>
-              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الراوي</label>
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.narratorLabel}</label>
               <SearchableSelect
                 value={track.narratorId}
                 onValueChange={(v) => {
@@ -127,33 +129,49 @@ export function EditTrackDialog({
                   onChange({ ...track, narratorId: v, narratorName: n?.name || "" });
                 }}
                 options={narrators.map((n) => ({ value: n.id, label: n.name }))}
-                placeholder="اختر الراوي"
-                searchPlaceholder="ابحث عن راوي..."
+                placeholder="اختر..."
+                searchPlaceholder="ابحث..."
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          {(cfg.showTariqa || cfg.showFan) && (
+            <div className="grid grid-cols-2 gap-3">
+              {cfg.showTariqa && (
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+                  <SearchableSelect
+                    value={track.tariqa || "none"}
+                    onValueChange={(v) => onChange({ ...track, tariqa: v === "none" ? "" : v })}
+                    options={[{ value: "none", label: "بدون" }, ...tariqas.map((tq) => ({ value: tq.name, label: tq.name }))]}
+                    placeholder="اختر الطريقة"
+                    searchPlaceholder="ابحث عن طريقة..."
+                  />
+                </div>
+              )}
+              {cfg.showFan && (
+                <div>
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الفن</label>
+                  <SearchableSelect
+                    value={track.fan || "none"}
+                    onValueChange={(v) => onChange({ ...track, fan: v === "none" ? "" : v })}
+                    options={[{ value: "none", label: "بدون" }, ...funoon.map((fn) => ({ value: fn.name, label: fn.name }))]}
+                    placeholder="اختر الفن"
+                    searchPlaceholder="ابحث عن فن..."
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          {cfg.showRecordingPlace && (
             <div>
-              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
-              <SearchableSelect
-                value={track.tariqa || "none"}
-                onValueChange={(v) => onChange({ ...track, tariqa: v === "none" ? "" : v })}
-                options={[{ value: "none", label: "بدون" }, ...tariqas.map((tq) => ({ value: tq.name, label: tq.name }))]}
-                placeholder="اختر الطريقة"
-                searchPlaceholder="ابحث عن طريقة..."
+              <label className="text-xs font-fustat text-muted-foreground mb-1 block">مكان التسجيل</label>
+              <Input
+                value={track.location || ""}
+                onChange={(e) => onChange({ ...track, location: e.target.value })}
+                placeholder="مثال: أمدرمان، حجر العسل، الخرطوم..."
               />
             </div>
-            <div>
-              <label className="text-xs font-fustat text-muted-foreground mb-1 block">الفن</label>
-              <SearchableSelect
-                value={track.fan || "none"}
-                onValueChange={(v) => onChange({ ...track, fan: v === "none" ? "" : v })}
-                options={[{ value: "none", label: "بدون" }, ...funoon.map((fn) => ({ value: fn.name, label: fn.name }))]}
-                placeholder="اختر الفن"
-                searchPlaceholder="ابحث عن فن..."
-              />
-            </div>
-          </div>
+          )}
           <div>
             <label className="text-xs font-fustat text-muted-foreground mb-1 block">المدة</label>
             <Input value={track.duration} onChange={(e) => onChange({ ...track, duration: e.target.value })} className="w-32" />
@@ -210,14 +228,15 @@ export function EditTrackDialog({
             </div>
           </div>
           <div>
-            <label className="text-xs font-fustat text-muted-foreground mb-1 block">الكلمات</label>
+            <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.lyricsLabel}</label>
             <Textarea
               value={track.lyrics || ""}
               onChange={(e) => onChange({ ...track, lyrics: e.target.value })}
-              placeholder="أدخل كلمات المدحة هنا..."
+              placeholder={cfg.lyricsPlaceholder}
               className="min-h-[120px] text-sm leading-relaxed"
             />
           </div>
+          {cfg.showCuration && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-fustat text-muted-foreground mb-2 block">حالة مراجعة الكلمات</label>
@@ -262,6 +281,7 @@ export function EditTrackDialog({
               </div>
             </div>
           </div>
+          )}
           <div>
             <label className="text-xs font-fustat text-muted-foreground mb-1 block">ملاحظات</label>
             <Textarea
@@ -336,6 +356,7 @@ export function AddTrackDialog({
   isAudioTarget,
 }: AddTrackDialogProps) {
   const contentType = track.contentType || "madha";
+  const cfg = getTrackFormConfig(contentType);
 
   const handleClose = () => {
     if (Object.keys(track).length > 0) {
@@ -467,37 +488,31 @@ export function AddTrackDialog({
                 </div>
               </div>
               <div>
-                <label className="text-xs font-fustat text-muted-foreground mb-1 block">
-                  {contentType === "madha" ? "اسم المدحة *" : contentType === "quran" ? "اسم السورة / المقطع *" : contentType === "lecture" ? "عنوان الدرس *" : contentType === "dhikr" ? "اسم الذكر *" : "العنوان *"}
-                </label>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.titleLabel} *</label>
                 <Input
                   value={track.title || ""}
                   onChange={(e) => onChange({ ...track, title: e.target.value })}
-                  placeholder={contentType === "madha" ? "أدخل اسم المدحة..." : contentType === "quran" ? "أدخل اسم السورة أو المقطع..." : contentType === "lecture" ? "أدخل عنوان الدرس..." : contentType === "dhikr" ? "أدخل اسم الذكر..." : "أدخل العنوان..."}
+                  placeholder={cfg.titlePlaceholder}
                 />
               </div>
               <div>
-                <label className="text-xs font-fustat text-muted-foreground mb-1 block">
-                  {contentType === "madha" ? "المادح *" : contentType === "quran" ? "القارئ *" : contentType === "lecture" ? "المحاضر *" : contentType === "dhikr" ? "المنشد *" : "الفنان *"}
-                </label>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.artistLabel} *</label>
                 <SearchableSelect
                   value={track.artistId}
                   onValueChange={(v) => onChange({ ...track, artistId: v })}
                   options={artists.map((a) => ({ value: a.id, label: a.name }))}
-                  placeholder={contentType === "madha" ? "اختر المادح" : contentType === "quran" ? "اختر القارئ" : contentType === "lecture" ? "اختر المحاضر" : "اختر المنشد"}
+                  placeholder={cfg.artistPlaceholder}
                   searchPlaceholder="ابحث..."
                 />
               </div>
               <div>
-                <label className="text-xs font-fustat text-muted-foreground mb-1 block">
-                  {contentType === "madha" ? "الراوي (اختياري)" : contentType === "quran" ? "الرواية (اختياري)" : "الكاتب (اختياري)"}
-                </label>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.narratorLabel} (اختياري)</label>
                 <SearchableSelect
                   value={track.narratorId}
                   onValueChange={(v) => onChange({ ...track, narratorId: v })}
                   options={narrators.map((n) => ({ value: n.id, label: n.name }))}
-                  placeholder="اختر الراوي"
-                  searchPlaceholder="ابحث عن راوي..."
+                  placeholder="اختر..."
+                  searchPlaceholder="ابحث..."
                 />
               </div>
             </div>
@@ -512,47 +527,53 @@ export function AddTrackDialog({
             </div>
             <div className="bg-muted/30 rounded-2xl border border-border p-5 space-y-4">
               <div>
-                <label className="text-xs font-fustat text-muted-foreground mb-1 block">
-                  {contentType === "madha" ? "كلمات المدحة" : contentType === "quran" ? "نص الآيات" : contentType === "lecture" ? "ملخص الدرس" : "كلمات الذكر"}
-                </label>
+                <label className="text-xs font-fustat text-muted-foreground mb-1 block">{cfg.lyricsLabel}</label>
                 <Textarea
                   value={track.lyrics || ""}
                   onChange={(e) => onChange({ ...track, lyrics: e.target.value })}
-                  placeholder="أدخل كلمات المدحة هنا..."
+                  placeholder={cfg.lyricsPlaceholder}
                   className="min-h-[120px] text-sm leading-relaxed"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">سيتم مراجعة الكلمات من قبل المشرفين قبل الموافقة</p>
               </div>
-              <div>
-                <label className="text-xs font-fustat text-muted-foreground mb-1 block">مكان التسجيل</label>
-                <Input
-                  value={track.location || ""}
-                  onChange={(e) => onChange({ ...track, location: e.target.value })}
-                  placeholder="مثال: أمدرمان، حجر العسل، الخرطوم..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              {cfg.showRecordingPlace && (
                 <div>
-                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
-                  <SearchableSelect
-                    value={track.tariqa}
-                    onValueChange={(v) => onChange({ ...track, tariqa: v })}
-                    options={tariqas.map((tq) => ({ value: tq.name, label: tq.name }))}
-                    placeholder="اختر الطريقة..."
-                    searchPlaceholder="ابحث عن طريقة..."
+                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">مكان التسجيل</label>
+                  <Input
+                    value={track.location || ""}
+                    onChange={(e) => onChange({ ...track, location: e.target.value })}
+                    placeholder="مثال: أمدرمان، حجر العسل، الخرطوم..."
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-fustat text-muted-foreground mb-1 block">الفن</label>
-                  <SearchableSelect
-                    value={track.fan}
-                    onValueChange={(v) => onChange({ ...track, fan: v })}
-                    options={funoon.map((fn) => ({ value: fn.name, label: fn.name }))}
-                    placeholder="اختر الفن..."
-                    searchPlaceholder="ابحث عن فن..."
-                  />
+              )}
+              {(cfg.showTariqa || cfg.showFan) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {cfg.showTariqa && (
+                    <div>
+                      <label className="text-xs font-fustat text-muted-foreground mb-1 block">الطريقة</label>
+                      <SearchableSelect
+                        value={track.tariqa}
+                        onValueChange={(v) => onChange({ ...track, tariqa: v })}
+                        options={tariqas.map((tq) => ({ value: tq.name, label: tq.name }))}
+                        placeholder="اختر الطريقة..."
+                        searchPlaceholder="ابحث عن طريقة..."
+                      />
+                    </div>
+                  )}
+                  {cfg.showFan && (
+                    <div>
+                      <label className="text-xs font-fustat text-muted-foreground mb-1 block">الفن</label>
+                      <SearchableSelect
+                        value={track.fan}
+                        onValueChange={(v) => onChange({ ...track, fan: v })}
+                        options={funoon.map((fn) => ({ value: fn.name, label: fn.name }))}
+                        placeholder="اختر الفن..."
+                        searchPlaceholder="ابحث عن فن..."
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
               <div>
                 <label className="text-xs font-fustat text-muted-foreground mb-1 block">المدة</label>
                 <Input
@@ -570,7 +591,7 @@ export function AddTrackDialog({
           <Button variant="outline" onClick={handleClose} disabled={isPending} className="font-fustat">إلغاء</Button>
           <Button onClick={onSave} disabled={isPending} className="gap-1.5 w-full sm:w-auto font-fustat">
             <Upload className="h-3.5 w-3.5" />
-            {isPending ? "جاري الإضافة..." : "رفع المدحة"}
+            {isPending ? "جاري الإضافة..." : `رفع ${cfg.singular}`}
           </Button>
         </DialogFooter>
       </DialogContent>

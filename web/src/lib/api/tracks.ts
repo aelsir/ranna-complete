@@ -185,7 +185,13 @@ export async function getAdminMadhaat(options?: {
   if (contentType) query = query.eq("content_type", contentType as ContentType);
   if (artistId) query = query.eq("artist_id", artistId);
   if (narratorId) query = query.eq("author_id", narratorId);
-  if (lyricsStatus) query = query.eq("lyrics_status", lyricsStatus as LyricsStatus);
+  if (lyricsStatus === "missing") {
+    // Pseudo-status: tracks with no lyrics text at all (null or empty) —
+    // distinct from the curation pipeline, used by the content-health links.
+    query = query.or('lyrics.is.null,lyrics.eq.""');
+  } else if (lyricsStatus) {
+    query = query.eq("lyrics_status", lyricsStatus as LyricsStatus);
+  }
   if (audioQuality) {
     // "unrated" = no curation row / no rating yet (NULL in the view).
     query =
@@ -376,6 +382,31 @@ export async function getTrendingTracks(
 // ============================================================================
 // Track curation (admin-only editorial state — lyrics review, audio quality)
 // ============================================================================
+
+/**
+ * Work-queue counters for the analytics digest: how many tracks await
+ * lyrics review, and how many have no lyrics text at all. Two head-only
+ * count queries — cheap enough to refresh often.
+ */
+export async function getLyricsWorkQueueCounts(): Promise<{
+  unreviewed: number;
+  missing: number;
+}> {
+  const [unreviewedRes, missingRes] = await Promise.all([
+    supabase
+      .from("v_tracks_admin")
+      .select("*", { count: "exact", head: true })
+      .eq("lyrics_status", "unreviewed"),
+    supabase
+      .from("v_tracks_admin")
+      .select("*", { count: "exact", head: true })
+      .or('lyrics.is.null,lyrics.eq.""'),
+  ]);
+  return {
+    unreviewed: unreviewedRes.count || 0,
+    missing: missingRes.count || 0,
+  };
+}
 
 /**
  * Create-or-update a track's curation row (1:1, lazily created — see
