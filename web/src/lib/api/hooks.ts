@@ -10,6 +10,7 @@ import {
   getAllMadhaatMinimal,
   getAllMadhaatForReplace,
   getAdminMadhaat,
+  upsertTrackCuration,
   getMadhaById,
   getMadhaatByIds,
   getMadhaatByMadih,
@@ -81,6 +82,7 @@ import type {
   RawiInsert,
   CollectionInsert,
   HeroImageInsert,
+  TrackCurationUpsert,
 } from "@/types/database";
 
 // ============================================
@@ -178,6 +180,8 @@ export function useAdminMadhaat(options?: {
   tariqa?: string;
   statusMode?: "all" | "approved" | "pending";
   contentType?: string;
+  lyricsStatus?: string;
+  audioQuality?: string;
   sortBy?: "created_at" | "play_count";
   sortAscending?: boolean;
 }) {
@@ -555,6 +559,16 @@ export function useCreateMadha() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.madhaat });
       queryClient.invalidateQueries({ queryKey: queryKeys.homePageData });
+    },
+  });
+}
+
+export function useUpsertTrackCuration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (curation: TrackCurationUpsert) => upsertTrackCuration(curation),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.madhaat });
     },
   });
 }

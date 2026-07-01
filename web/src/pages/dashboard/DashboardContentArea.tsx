@@ -166,7 +166,7 @@ export function DashboardContentArea({
           </motion.div>
         )}
 
-        {isContentSection && (
+        {(isContentSection || activeSection === "lyrics_review") && (
           <motion.div
             key="madhat"
             initial={{ opacity: 0, y: 8 }}
@@ -175,6 +175,7 @@ export function DashboardContentArea({
             transition={{ duration: 0.2 }}
           >
             <DashboardTrackList
+              curationMode={activeSection === "lyrics_review"}
               tracks={paginatedMadhat}
               selectedTracks={selectedTracks}
               onToggleSelect={onToggleTrackSelect}

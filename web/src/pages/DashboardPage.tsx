@@ -66,6 +66,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
   const [filterTariqa, setFilterTariqa] = useState<string>("");
   const [filterDateRange, setFilterDateRange] = useState<string>("");
   const [filterPlayCount, setFilterPlayCount] = useState<string>("");
+  const [filterLyricsStatus, setFilterLyricsStatus] = useState<string>("");
+  const [filterAudioQuality, setFilterAudioQuality] = useState<string>("");
   const [sortBy, setSortBy] = useState<"created_at" | "play_count">("created_at");
   const [sortAscending, setSortAscending] = useState(false);
 
@@ -92,6 +94,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     mutations: {
       createMadhaMutation,
       updateMadhaMutation,
+      upsertCurationMutation,
       deleteMadhaatMutation,
       bulkUpdateMadhaatMutation,
       batchUpdateMutation,
@@ -109,6 +112,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     searchQuery,
     filterArtist,
     filterNarrator,
+    filterLyricsStatus,
+    filterAudioQuality,
     activeContentType,
     sortBy,
     sortAscending,
@@ -254,7 +259,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
-  const activeFilterCount = [filterArtist, filterNarrator, filterTariqa, filterDateRange, filterPlayCount].filter(Boolean).length;
+  const activeFilterCount = [filterArtist, filterNarrator, filterTariqa, filterDateRange, filterPlayCount, filterLyricsStatus, filterAudioQuality].filter(Boolean).length;
 
   const filteredMadhatServerSide = madhat;
 
@@ -317,6 +322,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     fetchedTracks,
     createMadhaMutation,
     updateMadhaMutation,
+    upsertCurationMutation,
     deleteMadhaatMutation,
     bulkUpdateMadhaatMutation,
     batchUpdateMutation,
@@ -570,6 +576,10 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           onFilterDateRangeChange={(v) => { setFilterDateRange(v); setCurrentPage(1); }}
           filterPlayCount={filterPlayCount}
           onFilterPlayCountChange={(v) => { setFilterPlayCount(v); setCurrentPage(1); }}
+          filterLyricsStatus={filterLyricsStatus}
+          onFilterLyricsStatusChange={(v) => { setFilterLyricsStatus(v); setCurrentPage(1); }}
+          filterAudioQuality={filterAudioQuality}
+          onFilterAudioQualityChange={(v) => { setFilterAudioQuality(v); setCurrentPage(1); }}
           activeFilterCount={activeFilterCount}
           onClearFilters={() => {
             setFilterArtist("");
@@ -577,6 +587,8 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
             setFilterTariqa("");
             setFilterDateRange("");
             setFilterPlayCount("");
+            setFilterLyricsStatus("");
+            setFilterAudioQuality("");
             setCurrentPage(1);
           }}
           sortBy={sortBy}

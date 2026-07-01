@@ -18,8 +18,20 @@ import {
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CONTENT_TYPES } from "@/types/database";
+import type { AudioQuality, LyricsStatus } from "@/types/database";
 import { getImageUrl } from "@/lib/format";
-import type { ExtendedTrack, MappedArtist, MappedNarrator, MappedTariqa, MappedFan } from "./dashboard-types";
+import {
+  AUDIO_QUALITY_META,
+  LYRICS_STATUS_META,
+  type ExtendedTrack,
+  type MappedArtist,
+  type MappedNarrator,
+  type MappedTariqa,
+  type MappedFan,
+} from "./dashboard-types";
+
+const LYRICS_STATUS_ORDER: LyricsStatus[] = ["unreviewed", "needs_work", "reviewed"];
+const AUDIO_QUALITY_ORDER: AudioQuality[] = ["poor", "good", "excellent"];
 
 // ============================================
 // Edit Track Dialog
@@ -201,6 +213,50 @@ export function EditTrackDialog({
               placeholder="أدخل كلمات المدحة هنا..."
               className="min-h-[120px] text-sm leading-relaxed"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-2 block">حالة مراجعة الكلمات</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {LYRICS_STATUS_ORDER.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => onChange({ ...track, lyricsStatus: status })}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-fustat font-bold transition-all border ${
+                      (track.lyricsStatus || "unreviewed") === status
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className={`h-2.5 w-4 rounded-sm ${LYRICS_STATUS_META[status].color}`} />
+                    {LYRICS_STATUS_META[status].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-fustat text-muted-foreground mb-2 block">جودة الصوت</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {AUDIO_QUALITY_ORDER.map((quality) => (
+                  <button
+                    key={quality}
+                    type="button"
+                    onClick={() =>
+                      onChange({ ...track, audioQuality: track.audioQuality === quality ? null : quality })
+                    }
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-fustat font-bold transition-all border ${
+                      track.audioQuality === quality
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className={`h-2.5 w-2.5 rounded-full ${AUDIO_QUALITY_META[quality].color}`} />
+                    {AUDIO_QUALITY_META[quality].label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div>
             <label className="text-xs font-fustat text-muted-foreground mb-1 block">ملاحظات</label>

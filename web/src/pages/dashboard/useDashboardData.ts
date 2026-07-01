@@ -5,6 +5,7 @@ import {
   useFunun,
   useCreateMadha,
   useUpdateMadha,
+  useUpsertTrackCuration,
   useDeleteMadhaat,
   useBulkUpdateMadhaat,
   useBatchUpdateMadhaat,
@@ -33,6 +34,8 @@ interface Params {
   searchQuery: string;
   filterArtist: string;
   filterNarrator: string;
+  filterLyricsStatus: string;
+  filterAudioQuality: string;
   activeContentType: string;
   sortBy: "created_at" | "play_count";
   sortAscending: boolean;
@@ -44,6 +47,8 @@ export function useDashboardData({
   searchQuery,
   filterArtist,
   filterNarrator,
+  filterLyricsStatus,
+  filterAudioQuality,
   activeContentType,
   sortBy,
   sortAscending,
@@ -55,6 +60,8 @@ export function useDashboardData({
     searchQuery,
     artistId: filterArtist,
     narratorId: filterNarrator,
+    lyricsStatus: filterLyricsStatus,
+    audioQuality: filterAudioQuality,
     contentType: activeContentType,
     sortBy,
     sortAscending,
@@ -75,6 +82,7 @@ export function useDashboardData({
 
   const createMadhaMutation = useCreateMadha();
   const updateMadhaMutation = useUpdateMadha();
+  const upsertCurationMutation = useUpsertTrackCuration();
   const deleteMadhaatMutation = useDeleteMadhaat();
   const bulkUpdateMadhaatMutation = useBulkUpdateMadhaat();
   const batchUpdateMutation = useBatchUpdateMadhaat();
@@ -129,7 +137,7 @@ export function useDashboardData({
       lyrics: t.lyrics || "",
       tariqa: t.turuq?.name || "",
       fan: t.funun?.name || "",
-      notes: "",
+      notes: t.curation_notes || "",
       location: t.recording_place || "",
       updatedAt: t.updated_at || "",
       createdAt: t.created_at || "",
@@ -138,6 +146,8 @@ export function useDashboardData({
       audioUrl: t.audio_url || "",
       imageUrl: t.image_url || "",
       contentType: t.content_type || "madha",
+      lyricsStatus: t.lyrics_status || "unreviewed",
+      audioQuality: t.audio_quality || null,
       duration: t.duration_seconds
         ? `${Math.floor(t.duration_seconds / 60)}:${(t.duration_seconds % 60).toString().padStart(2, "0")}`
         : "٠:٠٠",
@@ -177,6 +187,7 @@ export function useDashboardData({
     mutations: {
       createMadhaMutation,
       updateMadhaMutation,
+      upsertCurationMutation,
       deleteMadhaatMutation,
       bulkUpdateMadhaatMutation,
       batchUpdateMutation,

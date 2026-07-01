@@ -11,6 +11,7 @@ import {
   Podcast,
   AudioLines,
   PenTool,
+  FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export function DashboardSidebar({
     { id: "playlists", label: "قوائم مميزة", icon: ListMusic, count: playlistCount },
     { id: "hero_images", label: "صور الواجهة", icon: GalleryHorizontal },
     { divider: true },
+    { id: "lyrics_review", label: "الكلمات", icon: FileText },
     { id: "analytics", label: "الإحصائيات", icon: BarChart3 },
   ];
 

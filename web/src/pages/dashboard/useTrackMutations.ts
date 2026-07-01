@@ -48,6 +48,7 @@ interface Params {
   // mutations
   createMadhaMutation: any;
   updateMadhaMutation: any;
+  upsertCurationMutation: any;
   deleteMadhaatMutation: any;
   bulkUpdateMadhaatMutation: any;
   batchUpdateMutation: any;
@@ -85,6 +86,7 @@ export function useTrackMutations({
   fetchedTracks,
   createMadhaMutation,
   updateMadhaMutation,
+  upsertCurationMutation,
   deleteMadhaatMutation,
   bulkUpdateMadhaatMutation,
   batchUpdateMutation,
@@ -94,10 +96,23 @@ export function useTrackMutations({
 }: Params) {
   const sectionLabels = SECTION_LABELS[activeSection];
 
-  const handleSaveTrack = () => {
+  const handleSaveTrack = async () => {
     if (!editingTrack) return;
     const tariqaId = tariqas.find((t) => t.name === (editingTrack.tariqa === "none" ? "" : editingTrack.tariqa))?.id || null;
     const fanId = funoon.find((f) => f.name === (editingTrack.fan === "none" ? "" : editingTrack.fan))?.id || null;
+
+    // Curation state lives in track_curation, not tracks (migration 054).
+    try {
+      await upsertCurationMutation.mutateAsync({
+        track_id: editingTrack.id,
+        lyrics_status: editingTrack.lyricsStatus || "unreviewed",
+        audio_quality: editingTrack.audioQuality || null,
+        notes: editingTrack.notes || null,
+      });
+    } catch (err) {
+      toast({ title: "خطأ في حفظ حالة المراجعة", description: (err as Error).message, variant: "destructive" });
+      return;
+    }
 
     updateMadhaMutation.mutate(
       {

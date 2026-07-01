@@ -140,6 +140,32 @@ export interface MadhaInsert {
   thumbnail_url?: string | null;
 }
 
+// ============================================
+// Track curation (migration 054) — admin-only editorial state, 1:1 with
+// tracks, lazily created. A missing row means unreviewed / unrated (the
+// v_tracks_admin view coalesces the defaults).
+// ============================================
+
+export type LyricsStatus = "unreviewed" | "needs_work" | "reviewed";
+export type AudioQuality = "excellent" | "good" | "poor";
+
+export interface TrackCuration {
+  track_id: string;
+  lyrics_status: LyricsStatus;
+  audio_quality: AudioQuality | null;
+  notes: string | null;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export interface TrackCurationUpsert {
+  track_id: string;
+  lyrics_status?: LyricsStatus;
+  audio_quality?: AudioQuality | null;
+  notes?: string | null;
+  updated_by?: string | null;
+}
+
 // Append-only moderation log (migration 051). One row per review action.
 // Not yet wired into a promote-to-approve flow — tracks.status is still the
 // source of truth for current state.
@@ -432,6 +458,10 @@ export interface MadhaWithRelations extends Madha {
   ruwat?: Rawi | null;
   turuq?: Tariqa | null;
   funun?: Fan | null;
+  // Curation state — only present on v_tracks_admin reads (migration 054).
+  lyrics_status?: LyricsStatus;
+  audio_quality?: AudioQuality | null;
+  curation_notes?: string | null;
 }
 
 export interface CollectionWithItems extends Collection {

@@ -6,7 +6,7 @@
  * re-declaring its own copies.
  */
 
-import type { MadhaInsert } from "@/types/database";
+import type { AudioQuality, LyricsStatus, MadhaInsert } from "@/types/database";
 
 // ============================================
 // Sidebar
@@ -24,7 +24,8 @@ export type SidebarItem =
   | "ruwat"
   | "analytics"
   | "completion"
-  | "lyrics";
+  | "lyrics"
+  | "lyrics_review";
 
 /** Map sidebar tabs to their content_type filter */
 export const SECTION_CONTENT_TYPE: Partial<Record<SidebarItem, string>> = {
@@ -122,7 +123,31 @@ export interface ExtendedTrack extends Track {
   thumbnailUrl?: string;
   contentType?: string;
   content_type?: string;
+  lyricsStatus?: LyricsStatus;
+  audioQuality?: AudioQuality | null;
 }
+
+// ============================================
+// Curation display metadata (form selectors + الكلمات tab indicators)
+// ============================================
+
+export const LYRICS_STATUS_META: Record<
+  LyricsStatus,
+  { label: string; color: string }
+> = {
+  reviewed: { label: "تمت المراجعة", color: "bg-emerald-500" },
+  unreviewed: { label: "لم تُراجع", color: "bg-orange-400" },
+  needs_work: { label: "تحتاج عمل", color: "bg-red-500" },
+};
+
+export const AUDIO_QUALITY_META: Record<
+  AudioQuality,
+  { label: string; color: string }
+> = {
+  excellent: { label: "ممتازة", color: "bg-emerald-500" },
+  good: { label: "جيدة", color: "bg-orange-400" },
+  poor: { label: "ضعيفة", color: "bg-red-500" },
+};
 
 export type Playlist = {
   id: string;

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SidebarItem, MappedArtist, MappedNarrator, MappedTariqa } from "./dashboard-types";
-import { SECTION_CONTENT_TYPE, SECTION_LABELS } from "./dashboard-types";
+import { AUDIO_QUALITY_META, LYRICS_STATUS_META, SECTION_CONTENT_TYPE, SECTION_LABELS } from "./dashboard-types";
 
 interface Props {
   activeSection: SidebarItem;
@@ -45,6 +45,10 @@ interface Props {
   onFilterDateRangeChange: (v: string) => void;
   filterPlayCount: string;
   onFilterPlayCountChange: (v: string) => void;
+  filterLyricsStatus: string;
+  onFilterLyricsStatusChange: (v: string) => void;
+  filterAudioQuality: string;
+  onFilterAudioQualityChange: (v: string) => void;
   activeFilterCount: number;
   onClearFilters: () => void;
 
@@ -87,6 +91,10 @@ export function DashboardHeader({
   onFilterDateRangeChange,
   filterPlayCount,
   onFilterPlayCountChange,
+  filterLyricsStatus,
+  onFilterLyricsStatusChange,
+  filterAudioQuality,
+  onFilterAudioQualityChange,
   activeFilterCount,
   onClearFilters,
   artists,
@@ -99,6 +107,9 @@ export function DashboardHeader({
   onDeleteRuwat,
 }: Props) {
   const sectionLabels = SECTION_LABELS[activeSection];
+  // lyrics_review reuses the whole track-list pipeline (search, filters,
+  // pagination) minus the content-management actions (add / bulk upload).
+  const isTrackSection = isContentSection || activeSection === "lyrics_review";
 
   return (
     <>
@@ -108,6 +119,8 @@ export function DashboardHeader({
           <h2 className="font-fustat font-bold text-lg text-foreground">
             {activeSection === "analytics"
               ? "إحصائيات المنصة"
+              : activeSection === "lyrics_review"
+              ? "مراجعة الكلمات"
               : isContentSection
                 ? `إدارة ${sectionLabels?.plural || "المحتوى"}`
                 : activeSection === "madiheen"
@@ -158,7 +171,7 @@ export function DashboardHeader({
               {sectionLabels?.uploadBulk || "رفع مجمّع"}
             </Button>
           )}
-          {activeSection !== "hero_images" && activeSection !== "analytics" && (
+          {activeSection !== "hero_images" && activeSection !== "analytics" && activeSection !== "lyrics_review" && (
             <Button
               size="sm"
               className="!gap-1.5 bg-primary hover:bg-primary/90 text-xs font-fustat"
@@ -190,7 +203,7 @@ export function DashboardHeader({
                 className="pr-9 h-9 text-sm bg-background"
               />
             </div>
-            {isContentSection && (
+            {isTrackSection && (
               <Button
                 variant={showFilters ? "default" : "outline"}
                 size="sm"
@@ -209,7 +222,7 @@ export function DashboardHeader({
           </div>
 
           {/* Advanced Filters */}
-          {showFilters && isContentSection && (
+          {showFilters && isTrackSection && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -282,6 +295,45 @@ export function DashboardHeader({
                     <SelectItem value="low">أقل من ١٠٠</SelectItem>
                     <SelectItem value="mid">١٠٠ - ١٠٠٠</SelectItem>
                     <SelectItem value="high">أكثر من ١٠٠٠</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-40">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">حالة الكلمات</label>
+                <Select value={filterLyricsStatus} onValueChange={(v) => onFilterLyricsStatusChange(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="الكل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    {(Object.keys(LYRICS_STATUS_META) as (keyof typeof LYRICS_STATUS_META)[]).map((status) => (
+                      <SelectItem key={status} value={status}>
+                        <span className="flex items-center gap-2">
+                          <span className={`h-2.5 w-4 rounded-sm ${LYRICS_STATUS_META[status].color}`} />
+                          {LYRICS_STATUS_META[status].label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-40">
+                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">جودة الصوت</label>
+                <Select value={filterAudioQuality} onValueChange={(v) => onFilterAudioQualityChange(v === "all" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="الكل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    {(Object.keys(AUDIO_QUALITY_META) as (keyof typeof AUDIO_QUALITY_META)[]).map((quality) => (
+                      <SelectItem key={quality} value={quality}>
+                        <span className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${AUDIO_QUALITY_META[quality].color}`} />
+                          {AUDIO_QUALITY_META[quality].label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="unrated">غير مقيّمة</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

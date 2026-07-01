@@ -12,6 +12,7 @@ import type {
   MadhaWithRelations,
   Madih,
   Rawi,
+  TrackCurationUpsert,
 } from "@/types/database";
 
 import { deleteFromStorage, paginate, supabase } from "./_shared";
@@ -139,6 +140,8 @@ export async function getAdminMadhaat(options?: {
   tariqa?: string;
   statusMode?: "all" | "approved" | "pending";
   contentType?: string;
+  lyricsStatus?: string;
+  audioQuality?: string;
   sortBy?: "created_at" | "play_count";
   sortAscending?: boolean;
 }): Promise<{ data: MadhaWithRelations[]; count: number }> {
@@ -150,6 +153,8 @@ export async function getAdminMadhaat(options?: {
     narratorId = "",
     statusMode = "all",
     contentType = "",
+    lyricsStatus = "",
+    audioQuality = "",
     sortBy = "created_at",
     sortAscending = false,
   } = options || {};
@@ -175,6 +180,14 @@ export async function getAdminMadhaat(options?: {
   if (contentType) query = query.eq("content_type", contentType);
   if (artistId) query = query.eq("artist_id", artistId);
   if (narratorId) query = query.eq("author_id", narratorId);
+  if (lyricsStatus) query = query.eq("lyrics_status", lyricsStatus);
+  if (audioQuality) {
+    // "unrated" = no curation row / no rating yet (NULL in the view).
+    query =
+      audioQuality === "unrated"
+        ? query.is("audio_quality", null)
+        : query.eq("audio_quality", audioQuality);
+  }
 
   query = query
     .order(sortBy, { ascending: sortAscending })
@@ -353,6 +366,24 @@ export async function getTrendingTracks(
 
   // Fallback: no trending data yet, use all-time play_count.
   return getPopularMadhaat(limit);
+}
+
+// ============================================================================
+// Track curation (admin-only editorial state — lyrics review, audio quality)
+// ============================================================================
+
+/**
+ * Create-or-update a track's curation row (1:1, lazily created — see
+ * migration 054). Stamps `updated_by` with the current admin.
+ */
+export async function upsertTrackCuration(
+  curation: TrackCurationUpsert
+): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("track_curation")
+    .upsert({ ...curation, updated_by: auth?.user?.id ?? null });
+  if (error) throw error;
 }
 
 // ============================================================================

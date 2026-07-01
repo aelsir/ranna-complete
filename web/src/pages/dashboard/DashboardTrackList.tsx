@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { InlineEditTable } from "@/components/InlineEditTable";
 import type { ExtendedTrack, MappedArtist, MappedNarrator } from "./dashboard-types";
-import { getCompletionStatus } from "./dashboard-types";
+import { AUDIO_QUALITY_META, LYRICS_STATUS_META, getCompletionStatus } from "./dashboard-types";
 import { getImageUrl } from "@/lib/format";
 import type { PendingEdits } from "@/types/bulk-edit";
 import type { MadhaInsert } from "@/types/database";
@@ -69,6 +69,9 @@ interface Props {
   onEditChange: (trackId: string, field: keyof MadhaInsert, value: string | null) => void;
   artists: MappedArtist[];
   narrators: MappedNarrator[];
+
+  /** الكلمات review tab: writer + curation indicators instead of artist/plays. */
+  curationMode?: boolean;
 }
 
 export function DashboardTrackList({
@@ -93,7 +96,11 @@ export function DashboardTrackList({
   onEditChange,
   artists,
   narrators,
+  curationMode = false,
 }: Props) {
+  const gridCols = curationMode
+    ? "grid-cols-[40px_40px_1.5fr_1fr_80px_110px_90px]"
+    : "grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px]";
   if (isEditMode) {
     return (
       <InlineEditTable
@@ -114,7 +121,7 @@ export function DashboardTrackList({
   return (
     <>
       {/* Table Header */}
-      <div className="grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide">
+      <div className={`grid ${gridCols} gap-3 px-4 py-2.5 text-[11px] font-fustat font-bold text-muted-foreground uppercase tracking-wide`}>
         <button onClick={onSelectAll} className="flex items-center justify-center">
           {selectedTracks.size === tracks.length && tracks.length > 0 ? (
             <CheckSquare className="h-4 w-4 text-primary" />
@@ -124,26 +131,38 @@ export function DashboardTrackList({
         </button>
         <span></span>
         <span>العنوان</span>
-        <span>المادح</span>
-        <span>الراوي</span>
-        <button
-          className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
-          onClick={() => onSortChange("play_count")}
-        >
-          <span>التشغيل</span>
-          {sortBy === "play_count"
-            ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-            : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-        </button>
-        <button
-          className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
-          onClick={() => onSortChange("created_at")}
-        >
-          <span>تاريخ الإضافة</span>
-          {sortBy === "created_at"
-            ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-            : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-        </button>
+        {curationMode ? (
+          <>
+            <span>الكاتب / الراوي</span>
+            <span>الكلمات</span>
+            <span>جودة الصوت</span>
+          </>
+        ) : (
+          <>
+            <span>المادح</span>
+            <span>الراوي</span>
+            <button
+              className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
+              onClick={() => onSortChange("play_count")}
+            >
+              <span>التشغيل</span>
+              {sortBy === "play_count"
+                ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+            </button>
+          </>
+        )}
+        {!curationMode && (
+          <button
+            className="flex items-center justify-center gap-1 w-full hover:text-foreground transition-colors"
+            onClick={() => onSortChange("created_at")}
+          >
+            <span>تاريخ الإضافة</span>
+            {sortBy === "created_at"
+              ? sortAscending ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+              : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+          </button>
+        )}
         <span className="text-center">إجراءات</span>
       </div>
       <Separator className="mb-1" />
@@ -168,7 +187,7 @@ export function DashboardTrackList({
             <motion.div
               key={track.id}
               layout
-              className={`grid grid-cols-[40px_40px_1.5fr_1fr_1fr_80px_80px_90px] gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
+              className={`grid ${gridCols} gap-3 items-center px-4 py-2.5 rounded-xl text-sm transition-colors cursor-pointer ${
                 selectedTracks.has(track.id)
                   ? "bg-primary/5 border border-primary/20"
                   : "hover:bg-muted/50 border border-transparent"
@@ -217,13 +236,48 @@ export function DashboardTrackList({
                   </span>
                 </div>
               </div>
-              <span className="text-muted-foreground truncate">{track.artistName}</span>
-              <span className="text-muted-foreground truncate">{track.narratorName}</span>
-              <span className="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
-                <Headphones className="h-3 w-3 opacity-50" />
-                {(track.playCount || 0).toLocaleString("ar-SA")}
-              </span>
-              <span className="text-muted-foreground/60 text-center text-[10px]">{relativeDate}</span>
+              {curationMode ? (
+                (() => {
+                  const lyricsMeta = LYRICS_STATUS_META[track.lyricsStatus || "unreviewed"];
+                  const qualityMeta = track.audioQuality ? AUDIO_QUALITY_META[track.audioQuality] : null;
+                  return (
+                    <>
+                      <span className="text-muted-foreground truncate">{track.narratorName || "—"}</span>
+                      <span className="flex items-center">
+                        <span
+                          title={lyricsMeta.label}
+                          className={`h-3.5 w-3.5 rounded-[4px] shrink-0 ${lyricsMeta.color}`}
+                        />
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {qualityMeta ? (
+                          <>
+                            <span className={`h-3.5 w-3.5 rounded-full shrink-0 ${qualityMeta.color}`} />
+                            <span className="text-[11px] text-muted-foreground">{qualityMeta.label}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="h-3.5 w-3.5 rounded-full shrink-0 border-2 border-dashed border-muted-foreground/40" />
+                            <span className="text-[11px] text-muted-foreground/60">غير مقيّمة</span>
+                          </>
+                        )}
+                      </span>
+                    </>
+                  );
+                })()
+              ) : (
+                <>
+                  <span className="text-muted-foreground truncate">{track.artistName}</span>
+                  <span className="text-muted-foreground truncate">{track.narratorName}</span>
+                  <span className="text-muted-foreground text-center text-xs flex items-center justify-center gap-1">
+                    <Headphones className="h-3 w-3 opacity-50" />
+                    {(track.playCount || 0).toLocaleString("ar-SA")}
+                  </span>
+                </>
+              )}
+              {!curationMode && (
+                <span className="text-muted-foreground/60 text-center text-[10px]">{relativeDate}</span>
+              )}
               <div className="flex items-center justify-center">
                 <Button
                   variant="secondary"
