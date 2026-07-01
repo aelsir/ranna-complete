@@ -5,6 +5,7 @@ import {
   Loader2,
   X,
   ImagePlus,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,8 @@ interface EditTrackDialogProps {
   onClose: () => void;
   onChange: (track: ExtendedTrack) => void;
   onSave: () => void;
+  /** Save, then open the next track matching the current dashboard filters. */
+  onSaveAndNext?: () => void;
   isPending: boolean;
   artists: MappedArtist[];
   narrators: MappedNarrator[];
@@ -58,6 +61,7 @@ export function EditTrackDialog({
   onClose,
   onChange,
   onSave,
+  onSaveAndNext,
   isPending,
   artists,
   narrators,
@@ -274,6 +278,18 @@ export function EditTrackDialog({
             <Save className="h-3.5 w-3.5" />
             {isPending ? "جاري الحفظ..." : "حفظ"}
           </Button>
+          {onSaveAndNext && (
+            <Button
+              variant="secondary"
+              onClick={onSaveAndNext}
+              disabled={isPending}
+              className="gap-1.5 font-fustat"
+              title="حفظ وفتح المقطع التالي حسب الفلاتر الحالية"
+            >
+              حفظ والتالي
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -574,6 +590,7 @@ export function TrackFormDialog(props: any) {
         onClose={() => props.onOpenChange(false)}
         onChange={props.onChange}
         onSave={props.onSave}
+        onSaveAndNext={props.onSaveAndNext}
         isPending={props.isSaving}
         artists={props.artists}
         narrators={props.narrators}

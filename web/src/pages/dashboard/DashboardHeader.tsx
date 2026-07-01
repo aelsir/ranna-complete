@@ -5,19 +5,14 @@ import {
   Trash2,
   Upload,
   Filter,
-  Headphones,
-  CalendarIcon,
   RotateCcw,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import type { SidebarItem, MappedArtist, MappedNarrator, MappedTariqa } from "./dashboard-types";
+import type { SidebarItem, MappedArtist, MappedNarrator } from "./dashboard-types";
 import { AUDIO_QUALITY_META, LYRICS_STATUS_META, SECTION_CONTENT_TYPE, SECTION_LABELS } from "./dashboard-types";
 
 interface Props {
@@ -39,12 +34,6 @@ interface Props {
   onFilterArtistChange: (v: string) => void;
   filterNarrator: string;
   onFilterNarratorChange: (v: string) => void;
-  filterTariqa: string;
-  onFilterTariqaChange: (v: string) => void;
-  filterDateRange: string;
-  onFilterDateRangeChange: (v: string) => void;
-  filterPlayCount: string;
-  onFilterPlayCountChange: (v: string) => void;
   filterLyricsStatus: string;
   onFilterLyricsStatusChange: (v: string) => void;
   filterAudioQuality: string;
@@ -60,7 +49,6 @@ interface Props {
   // Reference data for filter dropdowns
   artists: MappedArtist[];
   narrators: MappedNarrator[];
-  tariqas: MappedTariqa[];
 
   // Actions
   onAdd: () => void;
@@ -85,12 +73,6 @@ export function DashboardHeader({
   onFilterArtistChange,
   filterNarrator,
   onFilterNarratorChange,
-  filterTariqa,
-  onFilterTariqaChange,
-  filterDateRange,
-  onFilterDateRangeChange,
-  filterPlayCount,
-  onFilterPlayCountChange,
   filterLyricsStatus,
   onFilterLyricsStatusChange,
   filterAudioQuality,
@@ -99,7 +81,6 @@ export function DashboardHeader({
   onClearFilters,
   artists,
   narrators,
-  tariqas,
   onAdd,
   onBulkUpload,
   onFindReplace,
@@ -250,53 +231,6 @@ export function DashboardHeader({
                   searchPlaceholder="ابحث عن راوي..."
                   triggerClassName="h-8 text-xs font-fustat"
                 />
-              </div>
-              <div className="w-40">
-                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">الطريقة</label>
-                <SearchableSelect
-                  value={filterTariqa}
-                  onValueChange={onFilterTariqaChange}
-                  options={[{ value: "", label: "الكل" }, ...tariqas.map((tq) => ({ value: tq.name, label: tq.name }))]}
-                  placeholder="الكل"
-                  searchPlaceholder="ابحث عن طريقة..."
-                  triggerClassName="h-8 text-xs font-fustat"
-                />
-              </div>
-              <div className="w-36">
-                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">
-                  <CalendarIcon className="h-3 w-3 inline-block me-1 opacity-60" />
-                  زمن التحديث
-                </label>
-                <Select value={filterDateRange} onValueChange={(v) => onFilterDateRangeChange(v === "all" ? "" : v)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="الكل" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل</SelectItem>
-                    <SelectItem value="today">اليوم</SelectItem>
-                    <SelectItem value="week">آخر أسبوع</SelectItem>
-                    <SelectItem value="month">آخر شهر</SelectItem>
-                    <SelectItem value="older">أقدم من شهر</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-36">
-                <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">
-                  <Headphones className="h-3 w-3 inline-block me-1 opacity-60" />
-                  مرات التشغيل
-                </label>
-                <Select value={filterPlayCount} onValueChange={(v) => onFilterPlayCountChange(v === "all" ? "" : v)}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="الكل" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل</SelectItem>
-                    <SelectItem value="0">لم تُشغّل</SelectItem>
-                    <SelectItem value="low">أقل من ١٠٠</SelectItem>
-                    <SelectItem value="mid">١٠٠ - ١٠٠٠</SelectItem>
-                    <SelectItem value="high">أكثر من ١٠٠٠</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               <div className="w-40">
                 <label className="text-[10px] font-fustat text-muted-foreground mb-1 block">حالة الكلمات</label>

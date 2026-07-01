@@ -386,6 +386,26 @@ export async function upsertTrackCuration(
   if (error) throw error;
 }
 
+/**
+ * Set the same curation fields on many tracks at once (bulk actions in the
+ * dashboard). On conflict, only the provided fields are overwritten — an
+ * existing audio_quality survives a bulk lyrics_status change and vice versa.
+ */
+export async function bulkUpsertTrackCuration(
+  ids: string[],
+  fields: Omit<TrackCurationUpsert, "track_id">
+): Promise<void> {
+  if (!ids.length) return;
+  const { data: auth } = await supabase.auth.getUser();
+  const rows = ids.map((id) => ({
+    track_id: id,
+    ...fields,
+    updated_by: auth?.user?.id ?? null,
+  }));
+  const { error } = await supabase.from("track_curation").upsert(rows);
+  if (error) throw error;
+}
+
 // ============================================================================
 // Track CRUD (admin / dashboard mutations)
 // ============================================================================

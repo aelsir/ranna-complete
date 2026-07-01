@@ -6,6 +6,7 @@ import {
   useCreateMadha,
   useUpdateMadha,
   useUpsertTrackCuration,
+  useBulkUpsertTrackCuration,
   useDeleteMadhaat,
   useBulkUpdateMadhaat,
   useBatchUpdateMadhaat,
@@ -27,6 +28,7 @@ import {
   ITEMS_PER_PAGE,
   ExtendedTrack,
   ExtendedPlaylist,
+  mapTrackRowToExtended,
 } from "./dashboard-types";
 
 interface Params {
@@ -83,6 +85,7 @@ export function useDashboardData({
   const createMadhaMutation = useCreateMadha();
   const updateMadhaMutation = useUpdateMadha();
   const upsertCurationMutation = useUpsertTrackCuration();
+  const bulkUpsertCurationMutation = useBulkUpsertTrackCuration();
   const deleteMadhaatMutation = useDeleteMadhaat();
   const bulkUpdateMadhaatMutation = useBulkUpdateMadhaat();
   const batchUpdateMutation = useBatchUpdateMadhaat();
@@ -126,31 +129,11 @@ export function useDashboardData({
   }));
 
   const madhat: ExtendedTrack[] = fetchedTracks.map((t) => {
+    const mapped = mapTrackRowToExtended(t);
     const artist = artists.find((a) => a.id === t.artist_id);
     return {
-      id: t.id,
-      title: t.title,
-      artistId: t.artist_id || "",
-      artistName: t.madiheen?.name || t.madih || "",
-      narratorId: t.author_id || "",
-      narratorName: t.ruwat?.name || t.writer || "",
-      lyrics: t.lyrics || "",
-      tariqa: t.turuq?.name || "",
-      fan: t.funun?.name || "",
-      notes: t.curation_notes || "",
-      location: t.recording_place || "",
-      updatedAt: t.updated_at || "",
-      createdAt: t.created_at || "",
+      ...mapped,
       thumbnail: t.image_url || artist?.image || "/placeholder.svg",
-      playCount: t.play_count || 0,
-      audioUrl: t.audio_url || "",
-      imageUrl: t.image_url || "",
-      contentType: t.content_type || "madha",
-      lyricsStatus: t.lyrics_status || "unreviewed",
-      audioQuality: t.audio_quality || null,
-      duration: t.duration_seconds
-        ? `${Math.floor(t.duration_seconds / 60)}:${(t.duration_seconds % 60).toString().padStart(2, "0")}`
-        : "٠:٠٠",
     };
   });
 
@@ -188,6 +171,7 @@ export function useDashboardData({
       createMadhaMutation,
       updateMadhaMutation,
       upsertCurationMutation,
+      bulkUpsertCurationMutation,
       deleteMadhaatMutation,
       bulkUpdateMadhaatMutation,
       batchUpdateMutation,

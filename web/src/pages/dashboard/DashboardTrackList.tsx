@@ -245,15 +245,6 @@ export function DashboardTrackList({
             {totalCount} {sectionLabel || "محتوى"} — صفحة {currentPage} من {totalPages}
           </span>
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => onPageChange(currentPage - 1)}
-              className="text-xs"
-            >
-              السابق
-            </Button>
             {getPageItems(currentPage, totalPages).map((item, idx) =>
               item === "ellipsis" ? (
                 <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted-foreground select-none">
@@ -271,15 +262,6 @@ export function DashboardTrackList({
                 </Button>
               ),
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === totalPages}
-              onClick={() => onPageChange(currentPage + 1)}
-              className="text-xs"
-            >
-              التالي
-            </Button>
           </div>
         </div>
       )}

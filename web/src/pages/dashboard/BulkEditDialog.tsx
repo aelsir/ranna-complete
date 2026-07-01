@@ -1,7 +1,18 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { CONTENT_TYPES } from "@/types/database";
-import type { MappedArtist, MappedNarrator, MappedTariqa, MappedFan } from "./dashboard-types";
+import type { AudioQuality, LyricsStatus } from "@/types/database";
+import {
+  AUDIO_QUALITY_META,
+  LYRICS_STATUS_META,
+  type MappedArtist,
+  type MappedNarrator,
+  type MappedTariqa,
+  type MappedFan,
+} from "./dashboard-types";
+
+const LYRICS_STATUS_ORDER: LyricsStatus[] = ["unreviewed", "needs_work", "reviewed"];
+const AUDIO_QUALITY_ORDER: AudioQuality[] = ["poor", "good", "excellent"];
 
 interface Props {
   field: string | null;
@@ -38,7 +49,11 @@ export function BulkEditDialog({
                     ? "الفن"
                     : field === "contentType"
                       ? "نوع المحتوى"
-                      : ""}
+                      : field === "lyricsStatus"
+                        ? "حالة الكلمات"
+                        : field === "audioQuality"
+                          ? "جودة الصوت"
+                          : ""}
           </DialogTitle>
         </DialogHeader>
         <div>
@@ -56,6 +71,42 @@ export function BulkEditDialog({
               placeholder="اختر الراوي"
               searchPlaceholder="ابحث عن راوي..."
             />
+          ) : field === "lyricsStatus" ? (
+            <div className="flex gap-2 flex-wrap">
+              {LYRICS_STATUS_ORDER.map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => onApply("lyricsStatus", status)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-fustat font-bold border bg-background text-muted-foreground border-border hover:border-primary/50 transition-all"
+                >
+                  <span className={`h-2.5 w-2.5 rounded-[3px] ${LYRICS_STATUS_META[status].color}`} />
+                  {LYRICS_STATUS_META[status].label}
+                </button>
+              ))}
+            </div>
+          ) : field === "audioQuality" ? (
+            <div className="flex gap-2 flex-wrap">
+              {AUDIO_QUALITY_ORDER.map((quality) => (
+                <button
+                  key={quality}
+                  type="button"
+                  onClick={() => onApply("audioQuality", quality)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-fustat font-bold border bg-background text-muted-foreground border-border hover:border-primary/50 transition-all"
+                >
+                  <span className={`h-2.5 w-2.5 rounded-full ${AUDIO_QUALITY_META[quality].color}`} />
+                  {AUDIO_QUALITY_META[quality].label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => onApply("audioQuality", "unrated")}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-fustat font-bold border bg-background text-muted-foreground border-border hover:border-primary/50 transition-all"
+              >
+                <span className="h-2.5 w-2.5 rounded-full border-2 border-dashed border-muted-foreground/40" />
+                غير مقيّمة
+              </button>
+            </div>
           ) : field === "contentType" ? (
             <SearchableSelect
               onValueChange={(v) => onApply("contentType", v)}

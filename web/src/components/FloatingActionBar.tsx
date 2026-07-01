@@ -179,6 +179,13 @@ export function FloatingActionBar({
                       تغيير نوع المحتوى للجميع
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onBulkFieldEdit("lyricsStatus")}>
+                      تغيير حالة الكلمات للجميع
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onBulkFieldEdit("audioQuality")}>
+                      تغيير جودة الصوت للجميع
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={onPasteImage}>
                       <ImagePlus className="h-3.5 w-3.5 me-2" />
                       لصق صورة للجميع

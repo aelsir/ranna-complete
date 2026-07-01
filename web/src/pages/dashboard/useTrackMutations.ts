@@ -37,6 +37,11 @@ interface Params {
   pendingEdits: PendingEdits;
   setPendingEdits: React.Dispatch<React.SetStateAction<PendingEdits>>;
 
+  /** "Save & next": fetch the next track to review, honouring the current
+   *  dashboard filters (defaults to lyrics_status=unreviewed when no lyrics
+   *  filter is active). Returns null when nothing is left. */
+  getNextTrackForReview: (excludeId: string) => Promise<ExtendedTrack | null>;
+
   // reference data
   activeSection: SidebarItem;
   artists: MappedArtist[];
@@ -49,6 +54,7 @@ interface Params {
   createMadhaMutation: any;
   updateMadhaMutation: any;
   upsertCurationMutation: any;
+  bulkUpsertCurationMutation: any;
   deleteMadhaatMutation: any;
   bulkUpdateMadhaatMutation: any;
   batchUpdateMutation: any;
@@ -78,6 +84,7 @@ export function useTrackMutations({
   setIsEditMode,
   pendingEdits,
   setPendingEdits,
+  getNextTrackForReview,
   activeSection,
   artists,
   narrators,
@@ -87,6 +94,7 @@ export function useTrackMutations({
   createMadhaMutation,
   updateMadhaMutation,
   upsertCurationMutation,
+  bulkUpsertCurationMutation,
   deleteMadhaatMutation,
   bulkUpdateMadhaatMutation,
   batchUpdateMutation,
@@ -96,8 +104,10 @@ export function useTrackMutations({
 }: Params) {
   const sectionLabels = SECTION_LABELS[activeSection];
 
-  const handleSaveTrack = async () => {
-    if (!editingTrack) return;
+  /** Persist the edit dialog's state (curation row + track row). Returns
+   *  false — with an error toast already shown — when either write fails. */
+  const saveEditingTrack = async (): Promise<boolean> => {
+    if (!editingTrack) return false;
     const tariqaId = tariqas.find((t) => t.name === (editingTrack.tariqa === "none" ? "" : editingTrack.tariqa))?.id || null;
     const fanId = funoon.find((f) => f.name === (editingTrack.fan === "none" ? "" : editingTrack.fan))?.id || null;
 
@@ -111,11 +121,11 @@ export function useTrackMutations({
       });
     } catch (err) {
       toast({ title: "خطأ في حفظ حالة المراجعة", description: (err as Error).message, variant: "destructive" });
-      return;
+      return false;
     }
 
-    updateMadhaMutation.mutate(
-      {
+    try {
+      await updateMadhaMutation.mutateAsync({
         id: editingTrack.id,
         updates: {
           title: editingTrack.title,
@@ -130,17 +140,38 @@ export function useTrackMutations({
           image_url: editingTrack.imageUrl || null,
           content_type: (editingTrack.contentType as any) || "madha",
         },
-      },
-      {
-        onSuccess: () => {
-          setEditingTrack(null);
-          toast({ title: "تم الحفظ", description: "تم تحديث المدحة بنجاح" });
-        },
-        onError: (err: Error) => {
-          toast({ title: "خطأ في الحفظ", description: err.message, variant: "destructive" });
-        },
-      },
-    );
+      });
+    } catch (err) {
+      toast({ title: "خطأ في الحفظ", description: (err as Error).message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveTrack = async () => {
+    if (await saveEditingTrack()) {
+      setEditingTrack(null);
+      toast({ title: "تم الحفظ", description: "تم تحديث المدحة بنجاح" });
+    }
+  };
+
+  const handleSaveTrackAndNext = async () => {
+    if (!editingTrack) return;
+    const savedId = editingTrack.id;
+    if (!(await saveEditingTrack())) return;
+    try {
+      const next = await getNextTrackForReview(savedId);
+      if (next) {
+        setEditingTrack(next);
+        toast({ title: "تم الحفظ", description: `التالي: ${next.title}` });
+      } else {
+        setEditingTrack(null);
+        toast({ title: "تم الحفظ", description: "لا توجد مقاطع أخرى مطابقة للمراجعة 🎉" });
+      }
+    } catch (err) {
+      setEditingTrack(null);
+      toast({ title: "تم الحفظ", description: `تعذر جلب المقطع التالي: ${(err as Error).message}`, variant: "destructive" });
+    }
   };
 
   const handleAddTrack = () => {
@@ -335,6 +366,29 @@ export function useTrackMutations({
   }, [isEditMode, handleCancelEditMode]);
 
   const handleBulkUpdate = (field: string, value: string) => {
+    // Curation fields live in track_curation, not tracks — bulk upsert there.
+    if (field === "lyricsStatus" || field === "audioQuality") {
+      const count = selectedTracks.size;
+      const fields =
+        field === "lyricsStatus"
+          ? { lyrics_status: value }
+          : { audio_quality: value === "unrated" ? null : value };
+      bulkUpsertCurationMutation.mutate(
+        { ids: Array.from(selectedTracks), fields },
+        {
+          onSuccess: () => {
+            setBulkEditField(null);
+            setSelectedTracks(new Set());
+            toast({ title: "تم التحديث", description: `تم تحديث ${count} مقطع بنجاح` });
+          },
+          onError: (err: Error) => {
+            toast({ title: "خطأ في التحديث", description: err.message, variant: "destructive" });
+          },
+        },
+      );
+      return;
+    }
+
     let dbField: keyof MadhaInsert | null = null;
     let dbValue: any = value;
 
@@ -371,6 +425,7 @@ export function useTrackMutations({
 
   return {
     handleSaveTrack,
+    handleSaveTrackAndNext,
     handleAddTrack,
     handleDeleteSelected,
     confirmDelete,

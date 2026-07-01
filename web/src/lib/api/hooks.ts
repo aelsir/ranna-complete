@@ -11,6 +11,7 @@ import {
   getAllMadhaatForReplace,
   getAdminMadhaat,
   upsertTrackCuration,
+  bulkUpsertTrackCuration,
   getMadhaById,
   getMadhaatByIds,
   getMadhaatByMadih,
@@ -567,6 +568,17 @@ export function useUpsertTrackCuration() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (curation: TrackCurationUpsert) => upsertTrackCuration(curation),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.madhaat });
+    },
+  });
+}
+
+export function useBulkUpsertTrackCuration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, fields }: { ids: string[]; fields: Omit<TrackCurationUpsert, "track_id"> }) =>
+      bulkUpsertTrackCuration(ids, fields),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.madhaat });
     },

@@ -6,7 +6,7 @@
  * re-declaring its own copies.
  */
 
-import type { AudioQuality, LyricsStatus, MadhaInsert } from "@/types/database";
+import type { AudioQuality, LyricsStatus, MadhaInsert, MadhaWithRelations } from "@/types/database";
 
 // ============================================
 // Sidebar
@@ -218,6 +218,35 @@ export interface MappedFan {
 // ============================================
 // Helpers
 // ============================================
+
+/** Map a v_tracks_admin row to the shape the dashboard UI works with. */
+export function mapTrackRowToExtended(t: MadhaWithRelations): ExtendedTrack {
+  return {
+    id: t.id,
+    title: t.title,
+    artistId: t.artist_id || "",
+    artistName: t.madiheen?.name || t.madih || "",
+    narratorId: t.author_id || "",
+    narratorName: t.ruwat?.name || t.writer || "",
+    lyrics: t.lyrics || "",
+    tariqa: t.turuq?.name || "",
+    fan: t.funun?.name || "",
+    notes: t.curation_notes || "",
+    location: t.recording_place || "",
+    updatedAt: t.updated_at || "",
+    createdAt: t.created_at || "",
+    thumbnail: t.image_url || "/placeholder.svg",
+    playCount: t.play_count || 0,
+    audioUrl: t.audio_url || "",
+    imageUrl: t.image_url || "",
+    contentType: t.content_type || "madha",
+    lyricsStatus: t.lyrics_status || "unreviewed",
+    audioQuality: t.audio_quality || null,
+    duration: t.duration_seconds
+      ? `${Math.floor(t.duration_seconds / 60)}:${(t.duration_seconds % 60).toString().padStart(2, "0")}`
+      : "٠:٠٠",
+  };
+}
 
 /** Completion status for a track's metadata fields */
 export function getCompletionStatus(

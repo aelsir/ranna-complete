@@ -33,6 +33,8 @@ interface Props {
   fetchedTracks: { id: string }[];
   activeContentType: string;
   isContentSection: boolean;
+  /** Content sections + lyrics_review — anywhere the track table renders. */
+  isTrackSection: boolean;
 
   // Track form
   editingTrack: ExtendedTrack | null;
@@ -43,6 +45,7 @@ interface Props {
   isAddDialogOpen: boolean;
   setIsAddDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleSaveTrack: () => void;
+  handleSaveTrackAndNext: () => void;
   handleAddTrack: () => void;
   createMadhaMutation: any;
   updateMadhaMutation: any;
@@ -170,6 +173,7 @@ export function DashboardDialogs(p: Props) {
         funoon={p.funoon}
         isSaving={p.updateMadhaMutation.isPending || p.createMadhaMutation.isPending}
         onSave={p.editingTrack ? p.handleSaveTrack : p.handleAddTrack}
+        onSaveAndNext={p.editingTrack ? p.handleSaveTrackAndNext : undefined}
         audioUploading={p.audioUploading}
         audioUploadTarget={p.audioUploadTarget}
         openAudioPicker={p.openAudioPicker}
@@ -303,14 +307,13 @@ export function DashboardDialogs(p: Props) {
       />
 
       <BulkEditDialog
-        isOpen={!!p.bulkEditField}
-        onOpenChange={(open) => !open && p.setBulkEditField(null)}
-        bulkEditField={p.bulkEditField}
+        field={p.bulkEditField}
+        onClose={() => p.setBulkEditField(null)}
+        onApply={p.handleBulkUpdate}
         artists={p.artists}
         narrators={p.narrators}
         tariqas={p.tariqas}
         funoon={p.funoon}
-        onBulkUpdate={p.handleBulkUpdate}
       />
 
       <DeleteConfirmDialog
@@ -364,7 +367,7 @@ export function DashboardDialogs(p: Props) {
         contentType={p.activeContentType || "madha"}
       />
 
-      {p.isContentSection && (
+      {p.isTrackSection && (
         <FloatingActionBar
           selectedCount={p.selectedTracks.size}
           isEditMode={p.isEditMode}

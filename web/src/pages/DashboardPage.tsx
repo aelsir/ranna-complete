@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PendingEdits } from "@/types/bulk-edit";
@@ -10,6 +11,7 @@ import { usePlaylistEditor } from "./dashboard/usePlaylistEditor";
 import { DashboardContentArea } from "./dashboard/DashboardContentArea";
 import { DashboardDialogs } from "./dashboard/DashboardDialogs";
 import { uploadToR2 } from "@/lib/upload";
+import { getAdminMadhaat } from "@/lib/api/queries";
 import { DashboardLogin } from "./dashboard/DashboardLogin";
 import { DashboardUnauthorized } from "./dashboard/DashboardUnauthorized";
 import { DashboardSidebar } from "./dashboard/DashboardSidebar";
@@ -27,6 +29,7 @@ import {
   ITEMS_PER_PAGE,
   CropTarget,
   AudioUploadTarget,
+  mapTrackRowToExtended,
 } from "./dashboard/dashboard-types";
 
 
@@ -54,21 +57,51 @@ const DashboardPage = () => {
   return <DashboardContent signOut={signOut} />;
 };
 
+const VALID_SECTIONS = new Set<SidebarItem>([
+  "madhat", "quran", "lectures", "dhikr", "inshad",
+  "playlists", "hero_images", "madiheen", "ruwat",
+  "analytics", "completion", "lyrics", "lyrics_review",
+]);
+
 const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
-  const [activeSection, setActiveSection] = useState<SidebarItem>("madhat");
+  // Section, page, search, and filters live in the URL — refresh-safe,
+  // shareable, and the browser back button works.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const updateParams = useCallback(
+    (patch: Record<string, string | null>) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value) next.set(key, value);
+            else next.delete(key);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const sectionParam = searchParams.get("section") as SidebarItem | null;
+  const activeSection: SidebarItem =
+    sectionParam && VALID_SECTIONS.has(sectionParam) ? sectionParam : "madhat";
+  const setActiveSection = (s: SidebarItem) =>
+    updateParams({ section: s === "madhat" ? null : s });
   const isContentSection = activeSection in SECTION_CONTENT_TYPE;
+  const isTrackSection = isContentSection || activeSection === "lyrics_review";
   const sectionLabels = SECTION_LABELS[activeSection];
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const searchQuery = searchParams.get("q") || "";
+  const currentPage = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+  const setCurrentPage = (n: number) => updateParams({ page: n > 1 ? String(n) : null });
 
   // Advanced filters
-  const [filterArtist, setFilterArtist] = useState<string>("");
-  const [filterNarrator, setFilterNarrator] = useState<string>("");
-  const [filterTariqa, setFilterTariqa] = useState<string>("");
-  const [filterDateRange, setFilterDateRange] = useState<string>("");
-  const [filterPlayCount, setFilterPlayCount] = useState<string>("");
-  const [filterLyricsStatus, setFilterLyricsStatus] = useState<string>("");
-  const [filterAudioQuality, setFilterAudioQuality] = useState<string>("");
+  const filterArtist = searchParams.get("artist") || "";
+  const filterNarrator = searchParams.get("narrator") || "";
+  const filterLyricsStatus = searchParams.get("lyrics") || "";
+  const filterAudioQuality = searchParams.get("quality") || "";
   const [sortBy, setSortBy] = useState<"created_at" | "play_count">("created_at");
   const [sortAscending, setSortAscending] = useState(false);
 
@@ -96,6 +129,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
       createMadhaMutation,
       updateMadhaMutation,
       upsertCurationMutation,
+      bulkUpsertCurationMutation,
       deleteMadhaatMutation,
       bulkUpdateMadhaatMutation,
       batchUpdateMutation,
@@ -260,7 +294,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     return () => document.removeEventListener("paste", handlePaste);
   }, [handlePaste]);
 
-  const activeFilterCount = [filterArtist, filterNarrator, filterTariqa, filterDateRange, filterPlayCount, filterLyricsStatus, filterAudioQuality].filter(Boolean).length;
+  const activeFilterCount = [filterArtist, filterNarrator, filterLyricsStatus, filterAudioQuality].filter(Boolean).length;
 
   const filteredMadhatServerSide = madhat;
 
@@ -284,8 +318,33 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     }
   };
 
+  // "Save & next" walks the review queue defined by the CURRENT dashboard
+  // filters (artist, narrator, search, section, quality). With no explicit
+  // lyrics-status filter it defaults to unreviewed tracks — so filtering by
+  // an artist and hitting save-&-next reviews that artist's queue in order.
+  const getNextTrackForReview = useCallback(
+    async (excludeId: string): Promise<ExtendedTrack | null> => {
+      const { data } = await getAdminMadhaat({
+        page: 1,
+        limit: 2,
+        searchQuery,
+        artistId: filterArtist,
+        narratorId: filterNarrator,
+        contentType: activeContentType,
+        lyricsStatus: filterLyricsStatus || "unreviewed",
+        audioQuality: filterAudioQuality,
+        sortBy,
+        sortAscending,
+      });
+      const next = data.find((t) => t.id !== excludeId);
+      return next ? mapTrackRowToExtended(next) : null;
+    },
+    [searchQuery, filterArtist, filterNarrator, activeContentType, filterLyricsStatus, filterAudioQuality, sortBy, sortAscending],
+  );
+
   const {
     handleSaveTrack,
+    handleSaveTrackAndNext,
     handleAddTrack,
     handleDeleteSelected,
     confirmDelete,
@@ -315,6 +374,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     setIsEditMode,
     pendingEdits,
     setPendingEdits,
+    getNextTrackForReview,
     activeSection,
     artists,
     narrators,
@@ -324,6 +384,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     createMadhaMutation,
     updateMadhaMutation,
     upsertCurationMutation,
+    bulkUpsertCurationMutation,
     deleteMadhaatMutation,
     bulkUpdateMadhaatMutation,
     batchUpdateMutation,
@@ -546,7 +607,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
     <div dir="rtl" className="flex h-screen bg-background overflow-hidden">
       <DashboardSidebar
         activeSection={activeSection}
-        onSectionChange={(s) => { setActiveSection(s); setCurrentPage(1); setSearchQuery(""); }}
+        onSectionChange={(s) => updateParams({ section: s === "madhat" ? null : s, page: null, q: null })}
         signOut={signOut}
         contentTypeCounts={contentTypeCounts}
         artistCount={artists.length}
@@ -564,34 +625,21 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           selectedMadiheenCount={selectedMadiheen.size}
           selectedRuwatCount={selectedRuwat.size}
           searchQuery={searchQuery}
-          onSearchChange={(q) => { setSearchQuery(q); setCurrentPage(1); }}
+          onSearchChange={(q) => updateParams({ q: q || null, page: null })}
           showFilters={showFilters}
           onToggleFilters={() => setShowFilters(!showFilters)}
           filterArtist={filterArtist}
-          onFilterArtistChange={(v) => { setFilterArtist(v); setCurrentPage(1); }}
+          onFilterArtistChange={(v) => updateParams({ artist: v || null, page: null })}
           filterNarrator={filterNarrator}
-          onFilterNarratorChange={(v) => { setFilterNarrator(v); setCurrentPage(1); }}
-          filterTariqa={filterTariqa}
-          onFilterTariqaChange={(v) => { setFilterTariqa(v); setCurrentPage(1); }}
-          filterDateRange={filterDateRange}
-          onFilterDateRangeChange={(v) => { setFilterDateRange(v); setCurrentPage(1); }}
-          filterPlayCount={filterPlayCount}
-          onFilterPlayCountChange={(v) => { setFilterPlayCount(v); setCurrentPage(1); }}
+          onFilterNarratorChange={(v) => updateParams({ narrator: v || null, page: null })}
           filterLyricsStatus={filterLyricsStatus}
-          onFilterLyricsStatusChange={(v) => { setFilterLyricsStatus(v); setCurrentPage(1); }}
+          onFilterLyricsStatusChange={(v) => updateParams({ lyrics: v || null, page: null })}
           filterAudioQuality={filterAudioQuality}
-          onFilterAudioQualityChange={(v) => { setFilterAudioQuality(v); setCurrentPage(1); }}
+          onFilterAudioQualityChange={(v) => updateParams({ quality: v || null, page: null })}
           activeFilterCount={activeFilterCount}
-          onClearFilters={() => {
-            setFilterArtist("");
-            setFilterNarrator("");
-            setFilterTariqa("");
-            setFilterDateRange("");
-            setFilterPlayCount("");
-            setFilterLyricsStatus("");
-            setFilterAudioQuality("");
-            setCurrentPage(1);
-          }}
+          onClearFilters={() =>
+            updateParams({ artist: null, narrator: null, lyrics: null, quality: null, page: null })
+          }
           sortBy={sortBy}
           sortAscending={sortAscending}
           onSortChange={(field) => {
@@ -601,7 +649,6 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
           }}
           artists={artists}
           narrators={narrators}
-          tariqas={tariqas}
           onAdd={() => {
             if (isContentSection) {
               setNewTrack({ ...newTrack, contentType: activeContentType || "madha" });
@@ -679,6 +726,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         fetchedTracks={fetchedTracks || []}
         activeContentType={activeContentType}
         isContentSection={isContentSection}
+        isTrackSection={isTrackSection}
         editingTrack={editingTrack}
         setEditingTrack={setEditingTrack}
         newTrack={newTrack}
@@ -687,6 +735,7 @@ const DashboardContent = ({ signOut }: { signOut: () => Promise<void> }) => {
         isAddDialogOpen={isAddDialogOpen}
         setIsAddDialogOpen={setIsAddDialogOpen}
         handleSaveTrack={handleSaveTrack}
+        handleSaveTrackAndNext={handleSaveTrackAndNext}
         handleAddTrack={handleAddTrack}
         createMadhaMutation={createMadhaMutation}
         updateMadhaMutation={updateMadhaMutation}
